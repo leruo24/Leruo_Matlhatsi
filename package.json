@@ -1,0 +1,9 @@
+{
+  "name": "leruo-matlhatsi-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leruo Matlhatsi's interactive workshop portfolio (static site for GitHub Pages)",
+  "scripts": {
+    "start": "npx --yes serve -l 8000 ."
+  }
+}
