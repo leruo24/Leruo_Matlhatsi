@@ -906,6 +906,12 @@ function focusView(h) {
   const hh = baseHH() * (aspect() < 1.2 ? 0.8 : 0.58);
   return clampView({ cx: h.x + (aspect() > 1.2 ? hh * aspect() * 0.28 : 0), cy: h.y, hh });
 }
+function seatedView() {
+  // as if you've pulled the chair in: both screens and the keyboard fill the view
+  const narrow = aspect() < 1.2;
+  const hw = narrow ? 240 : 330;
+  return clampView({ cx: narrow ? 1010 : 1118, cy: narrow ? 470 : 492, hh: Math.max(hw / aspect(), narrow ? 200 : 168) });
+}
 function monitorView() {
   const w = SCREEN[1][0] - SCREEN[0][0], hgt = SCREEN[3][1] - SCREEN[1][1];
   return { cx: SCREEN_C[0], cy: SCREEN_C[1], hh: Math.max(hgt / 2, w / 2 / aspect()) * 1.0 };
@@ -954,7 +960,7 @@ function screenToImg(sx, sy) {
 /* ------------------------------------------------------------------ *
  *  State + interaction
  * ------------------------------------------------------------------ */
-let mode = "intro"; // intro | explore | focus | monitor | os
+let mode = "intro"; // intro | explore | seated | monitor | os
 let focused = null, hoverId = null, pendingOpen = null;
 const mouse = new THREE.Vector2(), mouseSmooth = new THREE.Vector2();
 const tooltip = $("#tooltip");
@@ -979,13 +985,28 @@ function setHover(id) {
 function activate(id) {
   sound.start();
   if (mode === "monitor" || mode === "os") return;
+  if (mode !== "seated") return takeSeat();   // first you sit down at the desk...
   if (id === "monitor2") pendingOpen = { page: "game" };
-  sitDown();
+  sitDown();                                    // ...then you jump into the computer
+}
+const hintEl = $("#hint");
+const HINTS = {
+  explore: "Move your mouse to look around · click the computer to take a seat · ? for help",
+  seated: "Click the main screen to log in · the right screen to play · Esc to stand up",
+};
+function takeSeat() {
+  sound.start();
+  hideHelp();
+  setMode("seated");
+  target = seatedView();
+  sound.whoosh();
 }
 function setMode(m) {
   mode = m;
   document.body.classList.toggle("exploring", m !== "intro");
-  document.body.classList.toggle("away", m === "focus" || m === "monitor" || m === "os");
+  document.body.classList.toggle("away", m === "monitor" || m === "os");
+  document.body.classList.toggle("seated", m === "seated");
+  if (HINTS[m]) hintEl.textContent = HINTS[m];
   postU.uFocusAmt.value = 0;
 }
 function backToRoom() {
@@ -997,6 +1018,7 @@ function backToRoom() {
 }
 function sitDown() {
   sound.start();
+  hideHelp();
   focused = null;
   setMode("monitor");
   sound.setFocus("monitor");
@@ -1021,20 +1043,20 @@ function standUp() {
   osLayer.setAttribute("aria-hidden", "true");
   backBtn.hidden = true;
   osFrame.contentWindow?.postMessage({ type: "host", action: "blur" }, "*");
-  setMode("explore");
+  setMode("seated");
   sound.setFocus(null);
-  target = homeView();
+  target = seatedView();
   sound.whoosh();
 }
 backBtn.onclick = standUp;
 
 canvas.addEventListener("pointermove", (e) => {
   mouse.set((e.clientX / window.innerWidth) * 2 - 1, -((e.clientY / window.innerHeight) * 2 - 1));
-  if (mode === "intro" || mode === "explore" || mode === "focus") {
+  if (mode === "intro" || mode === "explore" || mode === "seated") {
     const id = hitTest(e.clientX, e.clientY);
     if (id !== hoverId) setHover(id);
-    if (id && mode !== "focus") {
-      tooltip.textContent = HOTSPOTS[id].label;
+    if (id) {
+      tooltip.textContent = mode === "seated" ? HOTSPOTS[id].label : "Take a seat";
       tooltip.style.transform = `translate(${e.clientX + 16}px, ${e.clientY + 14}px)`;
       tooltip.hidden = false;
     } else tooltip.hidden = true;
@@ -1059,13 +1081,14 @@ window.addEventListener("pointerup", () => setTimeout(() => (drag = null), 0));
 canvas.addEventListener("click", (e) => {
   if (drag && drag.moved) return;
   sound.click();
-  if (mode === "focus") return backToRoom();
   const id = hitTest(e.clientX, e.clientY);
   if (id) activate(id);
+  else if (mode === "seated") backToRoom();     // click away from the screens to stand up
   else if (mode === "intro") setMode("explore");
+  hideHelp();
 });
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { if (mode === "os") standUp(); else if (mode === "focus" || mode === "monitor") backToRoom(); }
+  if (e.key === "Escape") { if (!helpCard.hidden) return hideHelp(); if (mode === "os") standUp(); else if (mode === "seated" || mode === "monitor") backToRoom(); }
 });
 window.addEventListener("message", (e) => {
   const m = e.data;
@@ -1076,8 +1099,26 @@ window.addEventListener("message", (e) => {
   if (m.action === "sfx" && sound[m.name]) sound[m.name]();
 });
 $("#explore-btn").onclick = (e) => { e.stopPropagation(); sound.start(); setMode("explore"); };
-$("#enter-btn").onclick = (e) => { e.stopPropagation(); sitDown(); };
+$("#enter-btn").onclick = (e) => { e.stopPropagation(); takeSeat(); };
 $("#cv-btn").onclick = (e) => { e.stopPropagation(); pendingOpen = { page: "resume" }; sitDown(); };
+const helpBtn = $("#help-btn"), helpCard = $("#card");
+function showHelp() {
+  const Hp = P.help || {};
+  helpCard.innerHTML = `
+    <button class="card-close" aria-label="Close">✕</button>
+    <div class="card-kicker">How this works</div>
+    <h2>${esc(Hp.title || "Welcome to my workshop")}</h2>
+    <ol class="help-steps">${(Hp.steps || []).map((x) => `<li><b>${esc(x[0])}</b> ${esc(x[1])}</li>`).join("")}</ol>
+    ${Hp.tips ? `<ul>${Hp.tips.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    <div class="card-actions"><button class="card-btn solid" data-seat>Take a seat</button><button class="card-btn" data-close>Keep looking around</button></div>`;
+  helpCard.hidden = false;
+  requestAnimationFrame(() => helpCard.classList.add("show"));
+  helpCard.querySelector(".card-close").onclick = (e) => { e.stopPropagation(); hideHelp(); };
+  helpCard.querySelector("[data-close]").onclick = (e) => { e.stopPropagation(); hideHelp(); if (mode === "intro") setMode("explore"); };
+  helpCard.querySelector("[data-seat]").onclick = (e) => { e.stopPropagation(); takeSeat(); };
+}
+function hideHelp() { if (helpCard.hidden) return; helpCard.classList.remove("show"); setTimeout(() => !helpCard.classList.contains("show") && (helpCard.hidden = true), 350); }
+helpBtn.onclick = (e) => { e.stopPropagation(); sound.start(); sound.click(); helpCard.hidden ? showHelp() : hideHelp(); };
 const soundBtn = $("#sound-btn");
 const syncSound = () => { soundBtn.textContent = sound.enabled ? "Sound on" : "Sound off"; soundBtn.setAttribute("aria-pressed", String(sound.enabled)); };
 syncSound();
@@ -1149,7 +1190,7 @@ function onResize() {
   rt.setSize(Math.round(window.innerWidth * pr), Math.round(window.innerHeight * pr));
   postU.uRes.value.set(window.innerWidth * pr, window.innerHeight * pr);
   H_UNI.uResH.value.set(Math.round(window.innerWidth * pr), Math.round(window.innerHeight * pr));
-  target = mode === "monitor" || mode === "os" ? monitorView() : mode === "focus" && focused ? focusView(HOTSPOTS[focused]) : homeView();
+  target = mode === "monitor" || mode === "os" ? monitorView() : mode === "seated" ? seatedView() : homeView();
   if (!manager.isLoading) Object.assign(view, clampView(view));
 }
 window.addEventListener("resize", onResize);
@@ -1165,7 +1206,7 @@ function frame() {
   const t = clock.elapsedTime;
   uniforms.uTime.value = t;
 
-  const k = 1 - Math.pow(mode === "monitor" ? 0.035 : 0.06, dt);
+  const k = 1 - Math.pow(mode === "monitor" ? 0.035 : mode === "seated" ? 0.045 : 0.06, dt);
   view.cx += (target.cx - view.cx) * k;
   view.cy += (target.cy - view.cy) * k;
   view.hh += (target.hh - view.hh) * k;
@@ -1175,7 +1216,7 @@ function frame() {
   }
 
   // parallax: follows the mouse (or drifts slowly on touch screens); calmer when focused
-  const amt = mode === "monitor" || mode === "os" ? 0 : mode === "focus" ? 0.35 : 1;
+  const amt = mode === "monitor" || mode === "os" ? 0 : mode === "seated" ? 0.3 : 1;
   const want = coarse ? new THREE.Vector2(Math.sin(t * 0.21) * 0.5, Math.sin(t * 0.15) * 0.25) : mouse;
   mouseSmooth.lerp(want.clone().multiplyScalar(-amt), 1 - Math.pow(0.12, dt));
   uniforms.uMouse.value.copy(mouseSmooth);
@@ -1186,7 +1227,9 @@ function frame() {
   uniforms.uGust.value = gust; sound.gust = gust;
 
   postU.uHoverAmt.value += ((hoverId && mode !== "monitor" && mode !== "os" ? 1 : 0) - postU.uHoverAmt.value) * Math.min(1, dt * 8);
-  postU.uFocusAmt.value += ((mode === "focus" ? (aspect() < 1.2 ? 0.45 : 1) : 0) - postU.uFocusAmt.value) * Math.min(1, dt * 3);
+  // sitting at the desk: the screens are sharp, the view outside goes soft
+  if (mode === "seated") postU.uFocusDepth.value = 0.37;
+  postU.uFocusAmt.value += ((mode === "seated" ? (aspect() < 1.2 ? 0.35 : 0.6) : 0) - postU.uFocusAmt.value) * Math.min(1, dt * 3);
   screenU.uWake.value += ((mode === "monitor" || mode === "os" || screenHover ? 1 : 0) - screenU.uWake.value) * Math.min(1, dt * 4);
 
   const min = new Date().getMinutes();
@@ -1221,6 +1264,11 @@ function frame() {
   const [mx, my] = project(monitor2.localToWorld(new THREE.Vector3(0, 0.03, 0.1)));
   uniforms.uScreen2.value.set(mx, my, 0);
 
+  {
+    const show = mode === "intro" || mode === "explore" || mode === "seated";
+    helpBtn.style.display = show ? "" : "none";
+    if (show) { const [hx2, hy2] = imgToScreen(792, 596); helpBtn.style.transform = `translate(${hx2}px, ${hy2}px)`; }
+  }
   sound.view = { cx: view.cx, hw: view.hh * aspect() };
   sound.update(dt);
 

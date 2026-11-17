@@ -31,6 +31,8 @@
     mines: `<svg viewBox="0 0 32 32"><g stroke="#000" stroke-width="2"><path d="M16 4v24M4 16h24M7.5 7.5l17 17M24.5 7.5l-17 17"/></g><circle cx="16" cy="16" r="8" fill="#111"/><circle cx="13" cy="13" r="2.2" fill="#fff"/></svg>`,
     readme: `<svg viewBox="0 0 32 32"><path d="M7 2h18v28H7z" fill="#fff" stroke="#333"/><rect x="7" y="2" width="18" height="4" fill="#2f8f4e"/><path d="M10 10h12M10 13h12M10 16h12M10 19h8M10 22h10" stroke="#555"/></svg>`,
     game: `<svg viewBox="0 0 32 32"><rect x="1" y="1" width="30" height="30" rx="3" fill="#f0a64a"/><path d="M0 24c6-5 10 1 16-3s10-2 16 1v10H0z" fill="#7a5a32"/><rect x="7" y="13" width="15" height="6" fill="#c9b48f" stroke="#3a2a1a"/><rect x="11" y="9" width="8" height="5" fill="#c9b48f" stroke="#3a2a1a"/><rect x="10" y="7" width="10" height="2" fill="#3e4a3f"/><circle cx="10" cy="20" r="2.6" fill="#222"/><circle cx="19" cy="20" r="2.6" fill="#222"/></svg>`,
+    gallery: `<svg viewBox="0 0 32 32"><rect x="5" y="3" width="22" height="18" rx="1" fill="#fff" stroke="#555" transform="rotate(-8 16 12)"/><rect x="3" y="8" width="26" height="20" rx="1" fill="#fff" stroke="#333"/><rect x="5" y="10" width="22" height="13" fill="#7cc4f2"/><path d="M5 23l7-7 4 4 3-3 8 6z" fill="#3f9b3f"/><circle cx="22" cy="14" r="2" fill="#ffd54a"/></svg>`,
+    help: `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="#2f6fd6" stroke="#0e3a8c"/><circle cx="16" cy="16" r="10.5" fill="none" stroke="#7fb1ff" stroke-width="1"/><text x="16" y="22" font-size="17" font-family="Georgia" font-weight="bold" fill="#fff" text-anchor="middle">?</text></svg>`,
     power: `<svg viewBox="0 0 32 32"><rect x="3" y="5" width="26" height="22" fill="#d8cfba" stroke="#333"/><circle cx="16" cy="16" r="7" fill="none" stroke="#c62828" stroke-width="2.5"/><path d="M16 7v8" stroke="#c62828" stroke-width="2.5"/></svg>`,
   };
 
@@ -77,13 +79,15 @@
           <button class="tb close" aria-label="Close"></button>
         </div>
       </div>
-      ${menubar ? `<div class="menubar"><span>File</span><span>Edit</span><span>View</span>${toolbar ? "<span>Favorites</span><span>Tools</span>" : ""}<span>Help</span></div>` : ""}
+      ${menubar ? `<div class="menubar"><span>File</span><span>Edit</span><span>View</span>${toolbar ? "<span>Favorites</span><span>Tools</span>" : ""}<span class="m-help" title="How this website works">Help</span></div>` : ""}
       ${toolbar ? `<div class="toolbar"><button class="nav" data-nav="back"><i>◀</i><span>Back</span></button><button class="nav" data-nav="home"><i>⌂</i><span>Home</span></button><div class="addr"><label>Address</label><div class="addr-text"></div><button class="go">Go</button></div></div>` : ""}
       <div class="win-body"></div>
       ${status ? `<div class="statusbar"><span class="sunken">${esc(status)}</span></div>` : ""}`;
     if (maximized) el.classList.add("max");
     winLayer.appendChild(el);
     render($(".win-body", el), el);
+    const mh = $(".m-help", el);
+    if (mh) mh.addEventListener("click", () => openHelp());
 
     const task = document.createElement("button");
     task.innerHTML = `${ICONS[icon] || ""}<span>${esc(title)}</span>`;
@@ -149,7 +153,7 @@
   function openShowcase(page = "home") {
     const desk = $("#desktop").getBoundingClientRect();
     const w = openWindow("showcase", {
-      title: `${P.name} — Showcase`,
+      title: `${P.name} — Portfolio`,
       icon: "showcase",
       width: Math.min(980, desk.width - 120),
       height: desk.height - 40,
@@ -306,6 +310,105 @@
     },
   };
 
+  /* ---------------- Help and Support ---------------- */
+  function openHelp() {
+    const Hp = P.help || { steps: [] };
+    openWindow("help", {
+      title: "Help and Support Center",
+      icon: "help",
+      width: 640,
+      height: 560,
+      render: (body) => {
+        body.innerHTML = `
+          <div class="help">
+            <div class="help-head">${ICONS.help}<div><b>Help and Support Center</b><span>How ${esc(P.shortName)}'s website works</span></div></div>
+            <div class="help-body">
+              <h3>${esc(Hp.title || "Welcome")}</h3>
+              <ol>${Hp.steps.map((x) => `<li><b>${esc(x[0])}</b> ${esc(x[1])}</li>`).join("")}</ol>
+              ${Hp.tips ? `<h4>Tips</h4><ul>${Hp.tips.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+              <h4>On this computer</h4>
+              <div class="help-links">
+                <button data-a="showcase">${ICONS.gallery}<span><b>Showcase</b>Highlights in photos</span></button>
+                <button data-a="portfolio">${ICONS.showcase}<span><b>Portfolio</b>Projects, experience, contact</span></button>
+                <button data-a="resume">${ICONS.resume}<span><b>Resume</b>My CV</span></button>
+                <button data-a="game">${ICONS.game}<span><b>Overland Run</b>A 4x4 game</span></button>
+              </div>
+            </div>
+          </div>`;
+        body.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", () => APPS[b.dataset.a]()));
+      },
+    });
+  }
+
+  /* ---------------- Showcase: a gallery of highlights ---------------- */
+  function openGallery() {
+    const G = P.gallery || [];
+    const desk = $("#desktop").getBoundingClientRect();
+    const width = Math.min(1040, desk.width - 110);
+    openWindow("gallery", {
+      title: "Showcase — My Highlights",
+      icon: "gallery",
+      width,
+      height: desk.height - 36,
+      x: Math.max(96, (desk.width - width) / 2 + 30),
+      y: 12,
+      menubar: true,
+      status: `${G.length} item${G.length === 1 ? "" : "s"}`,
+      render: (body) => {
+        body.innerHTML = `
+          <div class="gal">
+            <aside class="gal-side">
+              <div class="gs-box"><div class="gs-h">Picture Tasks</div>
+                <button data-x="slide">▶ View as a slide show</button>
+                <button data-x="grid">▦ Show all pictures</button></div>
+              <div class="gs-box"><div class="gs-h">Other Places</div>
+                <button data-x="portfolio">${ICONS.showcase} Portfolio</button>
+                <button data-x="resume">${ICONS.resume} Resume</button>
+                <button data-x="help">${ICONS.help} How this works</button></div>
+              <div class="gs-box"><div class="gs-h">Details</div><p><b>My Highlights</b><br>${G.length} pictures</p></div>
+            </aside>
+            <section class="gal-main" tabindex="0"></section>
+          </div>`;
+        const main = $(".gal-main", body);
+        let cur = 0, timer = null;
+        const stop = () => { clearInterval(timer); timer = null; };
+        const grid = () => {
+          stop();
+          main.innerHTML = G.length
+            ? `<div class="gal-grid">${G.map((g, i) => `
+                <button class="gal-card" data-i="${i}">
+                  <img src="${esc(g.src)}" alt="" loading="lazy" />
+                  <span class="gal-cap"><b>${txt(g.title)}</b>${g.date ? `<small>${esc(g.date)}</small>` : ""}</span>
+                </button>`).join("")}</div>`
+            : `<div class="empty-state">No pictures yet — add some to the gallery list in os/content.js.</div>`;
+          main.querySelectorAll("[data-i]").forEach((b) => b.addEventListener("click", () => view(+b.dataset.i)));
+        };
+        const view = (i) => {
+          cur = (i + G.length) % G.length;
+          const g = G[cur];
+          main.innerHTML = `
+            <div class="gal-view">
+              <img src="${esc(g.src)}" alt="${esc(g.title)}" />
+              <div class="gal-over"><div class="gv-date">${esc(g.date || "")}</div><h2>${txt(g.title)}</h2><p>${txt(g.text || "")}</p></div>
+              <button class="gv-nav prev" aria-label="Previous">‹</button><button class="gv-nav next" aria-label="Next">›</button>
+              <div class="gv-bar"><button class="xbtn" data-b="grid">All pictures</button><span>${cur + 1} / ${G.length}</span><button class="xbtn" data-b="slide">${timer ? "Pause" : "Slide show"}</button></div>
+            </div>`;
+          $(".prev", main).addEventListener("click", () => { stop(); view(cur - 1); });
+          $(".next", main).addEventListener("click", () => { stop(); view(cur + 1); });
+          $('[data-b="grid"]', main).addEventListener("click", grid);
+          $('[data-b="slide"]', main).addEventListener("click", () => (timer ? (stop(), view(cur)) : slide()));
+        };
+        const slide = () => { stop(); view(cur); timer = setInterval(() => (main.isConnected ? view(cur + 1) : stop()), 4500); view(cur); };
+        main.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") view(cur + 1); if (e.key === "ArrowLeft") view(cur - 1); });
+        body.querySelectorAll("[data-x]").forEach((b) => b.addEventListener("click", () => {
+          const x = b.dataset.x;
+          if (x === "slide") slide(); else if (x === "grid") grid(); else APPS[x]();
+        }));
+        grid();
+      },
+    });
+  }
+
   /* ---------------- other apps ---------------- */
   function openResume() {
     openWindow("resume", {
@@ -383,7 +486,8 @@
           `Welcome to LeruOS XP!`,
           ``,
           `You're using ${P.name}'s computer. Have a look around:`,
-          `  • Showcase   — my portfolio, projects and experience`,
+          `  • Showcase   — my highlights, in photos`,
+          `  • Portfolio  — projects, experience and contact`,
           `  • Resume.pdf — my CV`,
           `  • Overland Run — a 4x4 game: jump rocks, collect water`,
           `  • Minesweeper — because every OS needs one`,
@@ -672,7 +776,9 @@
   }
 
   const APPS = {
-    showcase: () => openShowcase("home"),
+    showcase: openGallery,
+    help: openHelp,
+    portfolio: () => openShowcase("home"),
     about: () => openShowcase("about"),
     projects: () => openShowcase("projects"),
     experience: () => openShowcase("experience"),
@@ -686,7 +792,8 @@
 
   /* ---------------- desktop icons ---------------- */
   const DESKTOP = [
-    ["showcase", "showcase", `${P.shortName}'s Showcase`],
+    ["showcase", "gallery", "Showcase"],
+    ["portfolio", "showcase", "Portfolio"],
     ["about", "about", "About Me"],
     ["projects", "projects", "Projects"],
     ["experience", "experience", "Experience"],
@@ -695,6 +802,7 @@
     ["game", "game", "Overland Run"],
     ["mines", "mines", "Minesweeper"],
     ["readme", "readme", "Read Me.txt"],
+    ["help", "help", "How this works"],
   ];
   const iconList = $("#icons");
   const coarse = matchMedia("(pointer: coarse)").matches;
@@ -719,7 +827,8 @@
   $("#sm-name").textContent = P.name;
   $("#sm-avatar").src = P.photos ? P.photos.headshot : "";
   const LEFT = [
-    ["showcase", "showcase", "Showcase", "My portfolio"],
+    ["showcase", "gallery", "Showcase", "My highlights"],
+    ["portfolio", "showcase", "Portfolio", "Projects & experience"],
     ["resume", "resume", "Resume", "My CV (PDF)"],
     null,
     ["game", "game", "Overland Run", "4x4 game"],
@@ -733,6 +842,8 @@
     null,
     ["contact", "contact", "Contact Me"],
     ["contactPage", "contact", "Links"],
+    null,
+    ["help", "help", "Help and Support"],
   ];
   $("#start-items").innerHTML = LEFT.map((s) =>
     s ? `<li><button data-app="${s[0]}">${ICONS[s[1]]}<span><b>${esc(s[2])}</b><small>${esc(s[3])}</small></span></button></li>` : `<li class="sep"></li>`
@@ -788,6 +899,8 @@
 
   function openPage(page, arg) {
     if (page === "game") return openOverland();
+    if (page === "showcase" || page === "gallery") return openGallery();
+    if (page === "help") return openHelp();
     if (page === "resume") return openResume();
     openShowcase(page || "home");
     if (arg && showcaseNav) showcaseNav(page, arg);
@@ -818,7 +931,7 @@
       setTimeout(() => (welcome.hidden = true), 500);
       if (embedded) window.parent.postMessage({ type: "os", action: "sfx", name: "chime" }, "*");
       if (page) openPage(page, arg);
-      else if (!open.size) openShowcase("home");
+      else if (!open.size) openGallery();
       showBalloon();
     };
     if (instant) { welcome.hidden = true; finish(); return; }

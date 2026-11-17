@@ -5,7 +5,7 @@ An interactive look into my world: the projects I build, the problems I solve, a
 A photoreal portfolio. You arrive at my workshop at golden hour: a desk with my computer, a games console, an ESP32 workbench, my Jeppe and UCT caps on the rack, the dog, a 4x4 and a sports car outside, the farm and the river. **Almost everything can be clicked**, and the camera pulls focus onto it with a short card. Take a seat at the computer to use **LeruOS**, my portfolio, with projects, CV, contact and two games.
 
 ### How it works: a real photo plus live 3D layers
-- **The room is just the room.** There are no dots or pop-ups. The only things you can use are the computer screens: the main screen opens LeruOS, and the second screen opens Overland Run.
+- **How you move through it:** look around the room, then click the computer to **take a seat** at the desk. From there, click the main screen to log in to LeruOS or the right-hand screen to play Overland Run. Esc steps back. The **?** on the desk (and **Help** on the computer) explains all of this.
 - **Photo with depth:** a depth map (made with the Depth Anything V2 AI model) lets the room shift in true 3D as you move the mouse.
 - **Matched 3D camera:** real 3D objects sit in the photo and hide correctly behind the chair, the desk and the fence. They include the **second monitor** (butted against the main screen and angled in, running Overland Run), the **home-lab rack** under the desk, the **longboard** leaning behind the dog and the **whiteboard** (to-do list and wins).
 - **Life:**
@@ -13,7 +13,7 @@ A photoreal portfolio. You arrive at my workshop at golden hour: a desk with my 
   - The river flows and the clouds drift.
   - The dog breathes, follows your cursor with his eyes, blinks, and thumps his tail when you come close.
 - **Details:** the real Jeppe and UCT emblems are embroidered onto the caps, and there's a faint city in the valley.
-- **LeruOS:** a Windows XP-style computer with a boot screen, a log-on screen, a start menu, taskbar, balloon tips and windows. Showcase opens like a web browser with an address bar. Minesweeper and Overland Run are on the desktop.
+- **LeruOS:** a Windows XP-style computer with a boot screen, a log-on screen, a start menu, taskbar, balloon tips and windows. **Showcase** is a photo gallery of your highlights, with captions over each photo and a slide show. **Portfolio** opens like a web browser with an address bar. Help opens a Help and Support window. Minesweeper and Overland Run are on the desktop.
 - **Sound:** CC0 field recordings (cows, birds, crickets, wind, a diesel idle, mouse and keyboard) plus a synthesised river, the PC boot and sprinkler ticks.
 
 No build step. It runs on GitHub Pages as is, at about **3.4 MB** in total.
@@ -39,7 +39,12 @@ python -m http.server 8000   # or this, if you have Python
 Then open http://localhost:8000. Click once to turn on the sound (browsers block audio until you interact).
 
 ## Edit content
-Everything you read on the computer lives in **`os/content.js`**: bio, experience, projects, awards and links. Add your CV as `assets/Leruo-Matlhatsi-CV.pdf`.
+Everything you read on the computer lives in **`os/content.js`**: bio, experience, projects, awards, links, the help text, and the **Showcase gallery**.
+
+**Adding gallery photos:** put them in `assets/gallery/`, then add a line for each one to `gallery:` in `os/content.js`:
+```js
+{ src: "../assets/gallery/bpm-prizegiving.jpg", title: "2nd place, UCT BPM", date: "2026", text: "What happened and why it mattered." },
+``` Add your CV as `assets/Leruo-Matlhatsi-CV.pdf`.
 
 The clickable screens are defined at the top of `js/world.js` under `HOTSPOTS`. The whiteboard's to-do list is in `drawBoard()` in the same file.
 

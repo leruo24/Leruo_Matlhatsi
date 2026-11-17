@@ -279,3 +279,50 @@ body.crt #crt { display: block; position: fixed; inset: 0; z-index: 200; pointer
   .about-photo { max-width: 260px; }
   .gallery { grid-template-columns: 1fr; }
 }
+
+/* ---------- Showcase gallery (XP "My Pictures" style) ---------- */
+.gal { display: flex; height: 100%; background: #fff; }
+.gal-side { width: 210px; flex: none; padding: 12px 10px; background: linear-gradient(180deg, #7ba2e7, #6375d6); overflow: auto; }
+.gs-box { background: #d6dff7; border-radius: 4px 4px 0 0; margin-bottom: 12px; overflow: hidden; }
+.gs-h { background: linear-gradient(90deg, #fff, #c6d3f7); color: #215dc6; font-weight: bold; padding: 6px 10px; }
+.gs-box button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: none; border: 0; padding: 5px 10px; color: #0c32a8; cursor: pointer; font-size: 12px; }
+.gs-box button:hover { text-decoration: underline; color: #2b5bd7; }
+.gs-box button svg { width: 16px; height: 16px; }
+.gs-box p { margin: 0; padding: 8px 10px; font-size: 12px; color: #222; line-height: 1.5; }
+.gal-main { flex: 1; overflow: auto; position: relative; outline: none; }
+.gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; padding: 16px; }
+.gal-card { position: relative; aspect-ratio: 4 / 3; padding: 0; border: 3px solid #fff; outline: 1px solid #c9d3ea; border-radius: 2px; overflow: hidden; cursor: pointer; background: #222; box-shadow: 0 2px 6px rgba(0,0,0,.18); transition: transform .15s, outline-color .15s; }
+.gal-card:hover { transform: translateY(-2px); outline-color: var(--sel); }
+.gal-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gal-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 12px 10px; text-align: left; color: #fff; background: linear-gradient(180deg, transparent, rgba(0,0,0,.78)); }
+.gal-cap b { display: block; font: bold 15px/1.25 "Trebuchet MS", sans-serif; text-shadow: 0 1px 2px #000; }
+.gal-cap small { display: block; font-size: 12px; opacity: .85; margin-top: 2px; }
+.gal-view { position: absolute; inset: 0; background: #111; display: flex; align-items: center; justify-content: center; }
+.gal-view > img { max-width: 100%; max-height: calc(100% - 44px); object-fit: contain; margin-bottom: 44px; }
+.gal-over { position: absolute; left: 0; right: 0; bottom: 44px; padding: 60px 28px 18px; color: #fff; background: linear-gradient(180deg, transparent, rgba(0,0,0,.85)); }
+.gal-over h2 { margin: 2px 0 6px; font: bold 26px/1.15 "Trebuchet MS", sans-serif; }
+.gal-over p { margin: 0; max-width: 720px; font-size: 15px; line-height: 1.55; color: #e9eef7; }
+.gv-date { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #9bd1ff; }
+.gv-nav { position: absolute; top: 40%; width: 44px; height: 64px; border: 0; border-radius: 6px; background: rgba(0,0,0,.35); color: #fff; font-size: 40px; line-height: 1; cursor: pointer; }
+.gv-nav:hover { background: rgba(0,0,0,.6); }
+.gv-nav.prev { left: 10px; } .gv-nav.next { right: 10px; }
+.gv-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; display: flex; align-items: center; justify-content: center; gap: 16px; background: var(--face); border-top: 1px solid #d0cdbd; color: #333; }
+.gal .todo { background: rgba(255, 220, 90, .25); outline: 1px dashed #e5c34a; color: inherit; }
+
+/* ---------- Help and Support ---------- */
+.help { height: 100%; display: flex; flex-direction: column; background: #fff; user-select: text; -webkit-user-select: text; }
+.help-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: #fff; background: linear-gradient(90deg, #1d5fd1, #5b8ff0); }
+.help-head svg { width: 40px; height: 40px; }
+.help-head b { display: block; font: bold 18px "Trebuchet MS", sans-serif; }
+.help-head span { font-size: 12px; color: #dfe8ff; }
+.help-body { flex: 1; overflow: auto; padding: 14px 22px 22px; font: 14px/1.6 "Segoe UI", Tahoma, sans-serif; color: #1d2433; }
+.help-body h3 { margin: 4px 0 8px; color: #0a246a; font: bold 19px "Trebuchet MS", sans-serif; }
+.help-body h4 { margin: 16px 0 6px; color: #215dc6; }
+.help-body ol { padding-left: 20px; margin: 0; } .help-body li { margin: 6px 0; }
+.help-links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.help-links button { display: flex; align-items: center; gap: 10px; text-align: left; padding: 8px 10px; border: 1px solid #c9d3ea; border-radius: 4px; background: #f5f8ff; cursor: pointer; }
+.help-links button:hover { border-color: var(--sel); }
+.help-links svg { width: 28px; height: 28px; flex: none; }
+.help-links b { display: block; color: #0a246a; }
+.menubar .m-help { font-weight: bold; color: #0a246a; }
+@media (max-width: 720px) { .gal-side { display: none; } .help-links { grid-template-columns: 1fr; } }

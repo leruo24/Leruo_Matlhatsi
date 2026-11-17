@@ -23,6 +23,28 @@ window.PORTFOLIO = {
   // Drop your CV into /assets with exactly this name (or change the path).
   resumeUrl: "../assets/Leruo-Matlhatsi-CV.pdf",
 
+  /* How the website works: shown by the "?" on the desk and by Help on the computer */
+  help: {
+    title: "Welcome to my workshop",
+    steps: [
+      ["Look around.", "Move your mouse (or drag on a phone) and the room shifts in 3D. Everything here is part of my world: the 4x4, the garage, the dog, the farm, the river and the bench."],
+      ["Take a seat.", "Click the computer on the desk (or the Take a seat button) and you'll sit down at the desk."],
+      ["Jump into the PC.", "Click the main screen to log in to LeruOS, or the right-hand screen to play Overland Run."],
+      ["Explore the computer.", "Double-click icons on the desktop. Showcase is my gallery of highlights, Portfolio has my projects, experience and contact details, and Resume is my CV. The start button has everything too."],
+      ["Head back.", "Press Esc or use Back to the workshop to stand up, and Esc again to step away from the desk."],
+    ],
+    tips: ["Turn the sound on for the river, birds and cows.", "Open CV (top right) takes you straight to my CV."],
+  },
+
+  /* Showcase: a gallery of moments. Drop photos into assets/gallery/ and add an entry here.
+     src paths are relative to the os/ folder. Replace the examples with your own. */
+  gallery: [
+    { src: "../assets/leruo-outdoors.jpg", title: "TODO: Your first highlight", date: "2026", text: "TODO: A line or two about what happened and why it mattered." },
+    { src: "../assets/leruo-standing.jpg", title: "TODO: 2nd place, UCT BPM project", date: "2026", text: "TODO: Add a photo from the presentation or prize-giving (sponsored by K5 Business)." },
+    { src: "../assets/leruo-headshot.jpg", title: "TODO: UCT Plus Bronze award", date: "2024", text: "TODO: Add a photo and a short caption." },
+    { src: "../assets/workshop.jpg", title: "TODO: Out on the road", date: "", text: "TODO: Swap in an overlanding or off-road trip photo." },
+  ],
+
   contact: {
     email: "leruom7@gmail.com",
     linkedin: "https://www.linkedin.com/in/leruo-matlhatsi-93135030b/",
