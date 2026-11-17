@@ -5,15 +5,18 @@ An interactive look into my world: the projects I build, the problems I solve, a
 A photoreal portfolio. You arrive at my workshop at golden hour: a desk with my computer, a games console, an ESP32 workbench, my Jeppe and UCT caps on the rack, the dog, a 4x4 and a sports car outside, the farm and the river. **Almost everything can be clicked**, and the camera pulls focus onto it with a short card. Take a seat at the computer to use **LeruOS**, my portfolio, with projects, CV, contact and two games.
 
 ### How it works: a real photo plus live 3D layers
+- **The room is just the room.** There are no dots or pop-ups. The only things you can use are the computer screens: the main screen opens LeruOS, and the second screen opens Overland Run.
 - **Photo with depth:** a depth map (made with the Depth Anything V2 AI model) lets the room shift in true 3D as you move the mouse.
-- **Matched 3D camera:** a Three.js camera is matched to the photo (focal length, horizon, camera height). Real 3D objects sit in the scene: the **second monitor running Overland Run**, the **home-lab rack** under the desk (blinking router and switch), the **3D printer** printing a part, and the **whiteboard** with awards. Every 3D pixel is checked against the photo's depth, so the chair, desk edge, fence rails and leaves pass in front correctly.
-- **Life in the scene:** the photo's own cows were lifted out and now wander and graze. Impact sprinklers sweep the crop rows, flocks of birds cross the sky, and the dog breathes and snores.
-- **Moving water and wind:** the river flows downstream, faster on screen where it is nearer, and clouds drift slowly. One wind value drives the trees, the grass and the wind sound together. The hanging lamp sways a little.
-- **Ground:** real surface detail is projected in perspective onto the dirt yard and the concrete floor.
-- **Sound:** CC0 field recordings (cows, birds, crickets, wind, the dog's snore, a diesel idle, mouse and keyboard) mixed with synthesised layers (river, PC fan, the boot sequence, sprinkler ticks). Each sound is panned to where it is in the scene.
-- **Camera feel:** depth-of-field focus pulls, a gentle grade, vignette and film grain over everything.
+- **Matched 3D camera:** real 3D objects sit in the photo and hide correctly behind the chair, the desk and the fence. They include the **second monitor** (butted against the main screen and angled in, running Overland Run), the **home-lab rack** under the desk, the **3D printer** and the **whiteboard** (to-do list and wins).
+- **Life:**
+  - The photo's own cows wander and graze, sprinklers sweep the crops and birds cross the sky.
+  - The river flows and the clouds drift.
+  - The dog breathes, follows your cursor with his eyes, blinks, and thumps his tail when you come close.
+- **Details:** the real Jeppe and UCT emblems are embroidered onto the caps, the desk's front-left leg now reaches the floor, and there's a faint city in the valley.
+- **LeruOS:** a Windows XP-style computer with a boot screen, a log-on screen, a start menu, taskbar, balloon tips and windows. Showcase opens like a web browser with an address bar. Minesweeper and Overland Run are on the desktop.
+- **Sound:** CC0 field recordings (cows, birds, crickets, wind, a diesel idle, mouse and keyboard) plus a synthesised river, the PC boot and sprinkler ticks.
 
-No build step. It runs on GitHub Pages as is, at about **2.8 MB** in total.
+No build step. It runs on GitHub Pages as is, at about **3.4 MB** in total.
 
 ## Put it online (GitHub Pages)
 Repo: `leruo24/Leruo_Matlhatsi` → **https://leruo24.github.io/Leruo_Matlhatsi/**
@@ -36,9 +39,9 @@ python -m http.server 8000   # or this, if you have Python
 Then open http://localhost:8000. Click once to turn on the sound (browsers block audio until you interact).
 
 ## Edit content
-Everything you read lives in **`os/content.js`**: bio, experience, projects, awards, links, and the cards for each hotspot. Add your CV as `assets/Leruo-Matlhatsi-CV.pdf`.
+Everything you read on the computer lives in **`os/content.js`**: bio, experience, projects, awards and links. Add your CV as `assets/Leruo-Matlhatsi-CV.pdf`.
 
-Hotspot positions (which part of the photo each one covers) are at the top of `js/world.js` under `HOTSPOTS`.
+The clickable screens are defined at the top of `js/world.js` under `HOTSPOTS`. The whiteboard's to-do list is in `drawBoard()` in the same file.
 
 ## Changing the scene image
 The scene is `assets/workshop.jpg`, with the two cows painted out (they live in `assets/cow0.png` and `cow1.png` and are animated). It comes with:
@@ -49,7 +52,7 @@ The scene is `assets/workshop.jpg`, with the two cows painted out (they live in 
 A new image needs new maps, new monitor-corner coordinates (`SCREEN` in `js/world.js`), and new positions for the 3D objects.
 
 ## Credits
-- Scene image: supplied by Leruo
+- Scene image, Jeppe Boys and UCT emblems: supplied by Leruo
 - Depth map generated offline with [Depth Anything V2](https://github.com/DepthAnything/Depth-Anything-V2) (small model, Apache-2.0). The cows were painted out with [LaMa](https://github.com/advimman/lama) (Apache-2.0). Neither model is shipped.
 - Sound recordings: CC0 clips from freesound.org, taken from the [ESC-50 dataset](https://github.com/karolpiczak/ESC-50): cows by felix.blume and others, birdsong, crickets, wind, "Dog Snores", a diesel truck idling, mouse clicks and typing. Per-clip credits are in that repo's LICENSE file. The supercar rev, river, PC and sprinkler sounds are synthesised.
 - [Three.js](https://threejs.org) (MIT). Concept inspired by [Henry Heffernan's portfolio](https://henryheffernan.com).

@@ -1,8 +1,7 @@
 /*
  * ─────────────────────────────────────────────────────────────
  *  YOUR CONTENT LIVES HERE.
- *  Everything on the computer screen AND the pop-up cards in the
- *  3D farm comes from this file. Anything marked TODO is a
+ *  Everything on the computer screen comes from this file. Anything marked TODO is a
  *  placeholder — search for "TODO" and replace before sharing.
  * ─────────────────────────────────────────────────────────────
  */
@@ -12,7 +11,7 @@ window.PORTFOLIO = {
   initials: "LM",
   title: "Software development · IoT · Business analysis",
   tagline:
-    "I build software that helps things grow — from sensor-driven irrigation for farmers to AI-powered apps and better business processes.",
+    "I build software, connect it to hardware and improve the way businesses work: practical tech for real problems.",
   location: "Cape Town · Johannesburg · Remote",
 
   photos: {
@@ -32,7 +31,7 @@ window.PORTFOLIO = {
 
   about: [
     "I'm a final-year Bachelor of Social Science student at the University of Cape Town, majoring in Information Systems, Politics and Industrial Sociology. Born and raised in Johannesburg.",
-    "My father worked in agriculture in the North West, and that's where my love for agritech comes from. I care about technology that solves real problems on the ground — like helping a farmer use less water without guessing.",
+    "My father worked in agriculture in the North West, which is where my interest in agritech started. I care about technology that solves real problems on the ground.",
     "I like owning a system end to end: the hardware on the bench, the database and API in the middle, and the app a real person taps on. I enjoy the business side just as much — mapping how work flows, understanding stakeholders and making the case for a better way.",
     "I'm open to roles in Johannesburg, Cape Town, remote — or wherever the work needs me.",
   ],
@@ -40,7 +39,7 @@ window.PORTFOLIO = {
   interests: [
     { icon: "🚙", title: "Off-roading & overlanding", text: "4x4s, gravel roads, rooftop tents and getting properly out into nature." },
     { icon: "🏎️", title: "Cars", text: "From 4x4s to supercars — the engineering, the design and the sound." },
-    { icon: "🌱", title: "Agritech", text: "Technology that helps farms grow more with less water." },
+    { icon: "🌱", title: "Agritech", text: "Where technology meets the land, and the people who work it." },
     { icon: "🐕", title: "Dogs, animals & nature", text: "Happiest outdoors, ideally with a dog nearby." },
     { icon: "📈", title: "Business solutions", text: "Processes, systems and the corporate side of making tech useful." },
     { icon: "🔌", title: "Tinkering", text: "ESP32s, sensors, relays and a soldering iron on the bench." },
@@ -91,7 +90,7 @@ window.PORTFOLIO = {
       org: "University of Cape Town",
       dates: "Final year",
       points: [
-        "Systems development in ASP.NET Core, business process management and enterprise systems (BPMN, SAP S/4HANA), and a final-year team project for a real sponsor (AgroFlow).",
+        "Systems development in ASP.NET Core, business process management and enterprise systems (BPMN, SAP S/4HANA), and a final-year team project for a real sponsor.",
       ],
     },
   ],
@@ -172,7 +171,7 @@ window.PORTFOLIO = {
     {
       id: "portfolio",
       name: "This portfolio",
-      subtitle: "A farm workshop you can explore",
+      subtitle: "A workshop you can explore",
       year: "2026",
       tags: ["Three.js", "WebGL", "GLSL", "Web Audio", "Vanilla JS"],
       summary:
@@ -182,98 +181,4 @@ window.PORTFOLIO = {
       links: [{ label: "Source on GitHub", url: "https://github.com/leruo24/Leruo_Matlhatsi" }],
     },
   ],
-
-  /* Pop-up cards for things you click in the 3D farm */
-  scene: {
-    xbox: {
-      kicker: "Off the clock",
-      title: "Game time",
-      text: ["A second screen and a console for when the code compiles. It's running Overland Run, the 4x4 game on my computer."],
-      buttons: [{ label: "Play Overland Run", open: ["game"] }],
-    },
-    caps: {
-      kicker: "The cap rack",
-      title: "Joburg roots, Cape Town now",
-      text: ["A Jeppe Boys cap and a UCT cap on the rack by the door. Born and raised in Johannesburg, studying at the University of Cape Town."],
-      buttons: [{ label: "About me", open: ["about"] }],
-    },
-    workbench: {
-      kicker: "The workbench",
-      title: "Always something on the bench",
-      text: [
-        "An ESP32, a breadboard, loose jumper wires, a multimeter and a soldering iron. One more idea to test.",
-        "This is where code meets the physical world. AgroFlow's zone kits came together the same way: an ESP32 reading a soil probe and switching a pump through a relay.",
-      ],
-      buttons: [{ label: "Open the AgroFlow project", open: ["projects", "agroflow"] }],
-    },
-    office: {
-      kicker: "The business side",
-      title: "Good systems start with people",
-      text: [
-        "Before building the solution, understand the work, the people doing it and what needs to change.",
-        "Our team placed 2nd in the 2026 UCT Business Process Management group project (award sponsored by K5 Business). I also do business consulting at Recce Finance.",
-      ],
-      facts: ["BPMN in ARIS and SAP Signavio", "SAP S/4HANA, ERP concepts, intro ABAP", "Stakeholder interviews, requirements, AS-IS / TO-BE"],
-      buttons: [{ label: "See the process project", open: ["projects", "claims"] }, { label: "My experience", open: ["experience"] }],
-    },
-    landcruiser: {
-      kicker: "Off the tar",
-      title: "Off-roading & overlanding",
-      text: ["Give me a 4x4, a dirt road and somewhere to camp. I love off-roading and overlanding — the landscapes, the vehicles and getting properly out to explore."],
-      buttons: [{ label: "More about me", open: ["about"] }],
-    },
-    supercar: {
-      kicker: "The garage",
-      title: "Mud or tar — I love cars",
-      text: ["Capable 4x4s and supercars: different machines, different purposes, plenty of engineering to be curious about."],
-      buttons: [{ label: "Play Overland Run", open: ["game"] }],
-    },
-    dog: {
-      kicker: "Head of security",
-      title: "Every workshop needs a dog",
-      text: ["Nature, water and animals belong in my world as much as computers do. He mostly guards the floor."],
-      buttons: [{ label: "More about me", open: ["about"] }],
-    },
-    farm: {
-      kicker: "AgroFlow",
-      title: "Small farm. Connected thinking.",
-      text: [
-        "AgroFlow brings my interest in agriculture together with the software and hardware I like building.",
-        "A two-zone smart irrigation prototype: ESP32 sensor kits → MQTT → .NET API & Supabase → farmer and staff apps, with an FAO-56 engine deciding when to water.",
-      ],
-      buttons: [{ label: "Open AgroFlow", open: ["projects", "agroflow"] }, { label: "All projects", open: ["projects"] }],
-    },
-    rack: {
-      kicker: "Under the desk",
-      title: "The home lab",
-      text: [
-        "A small rack with a router, a network switch and a mini server: where I test things like MQTT brokers, APIs and databases before they go anywhere real.",
-        "The blinking lights are the network doing its job.",
-      ],
-      facts: ["Networking, IoT messaging (MQTT)", ".NET APIs, SQL databases, Supabase"],
-      buttons: [{ label: "See my projects", open: ["projects"] }],
-    },
-    printer: {
-      kicker: "Making things",
-      title: "Printing the next enclosure",
-      text: ["A 3D printer for sensor housings, brackets and quick prototypes. Hardware ideas move faster when you can print the part tonight."],
-      buttons: [{ label: "Open the AgroFlow project", open: ["projects", "agroflow"] }],
-    },
-    whiteboard: {
-      kicker: "On the board",
-      title: "Wins worth pinning up",
-      text: ["The whiteboard keeps the wins next to the next idea."],
-      facts: ["2nd place, 2026 UCT Business Process Management group project (sponsored by K5 Business)", "UCT Plus Bronze award, 2024", "Best Stage Manager, GRADS 2022"],
-      buttons: [{ label: "My experience", open: ["experience"] }],
-    },
-    water: {
-      kicker: "Water",
-      title: "Every litre counts",
-      text: [
-        "Water is the reason AgroFlow exists: irrigate when the soil needs it, not on a timer.",
-        "Our kits have no flow meter, so we estimate use from pump runtime × a measured flow rate — the demo pump did 500 mL in 20 s (≈1.5 L/min).",
-      ],
-      buttons: [{ label: "Open AgroFlow", open: ["projects", "agroflow"] }],
-    },
-  },
 };

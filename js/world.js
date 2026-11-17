@@ -14,7 +14,6 @@ import { Sound } from "./sound.js";
  *  4. Everything is graded together in one final pass (focus pull, vignette, grain).
  */
 const P = window.PORTFOLIO || {};
-const SC = P.scene || {};
 const W = 1670, H = 942; // image size (px)
 const SCREEN = [[872, 391], [1144, 389], [1144, 529], [872, 544]]; // TL TR BR BL of the main monitor
 const SCREEN_C = [1008, 466];
@@ -25,19 +24,8 @@ const F = 1000, CX = 835, YH = 318, HC = 1.3;
 const BREATH = 3.6; // the dog's breathing period (s)
 
 const HOTSPOTS = {
-  monitor: { label: "My computer", x: 1008, y: 466, rx: 150, ry: 95 },
-  xbox: { label: "The game corner", x: 1355, y: 505, rx: 175, ry: 100 },
-  rack: { label: "The home lab", x: 985, y: 712, rx: 85, ry: 72, sound: "rack" },
-  printer: { label: "The 3D printer", x: 395, y: 515, rx: 62, ry: 58, sound: "printer" },
-  whiteboard: { label: "The whiteboard", x: 118, y: 150, rx: 88, ry: 64 },
-  workbench: { label: "The workbench: ESP32 build", x: 1225, y: 812, rx: 260, ry: 85 },
-  caps: { label: "The cap rack", x: 102, y: 328, rx: 78, ry: 58 },
-  dog: { label: "Good boy", x: 236, y: 718, rx: 110, ry: 66, sound: "bark" },
-  landcruiser: { label: "Off-roading", x: 540, y: 398, rx: 120, ry: 70, sound: "diesel" },
-  supercar: { label: "The garage", x: 238, y: 360, rx: 92, ry: 58, sound: "v8" },
-  farm: { label: "The farm: AgroFlow", x: 800, y: 352, rx: 185, ry: 40, sound: "moo" },
-  water: { label: "The river", x: 1300, y: 432, rx: 120, ry: 50, sound: "splash" },
-  office: { label: "The business side", x: 1470, y: 315, rx: 140, ry: 40 },
+  monitor: { label: "Use the computer", x: 1008, y: 466, rx: 150, ry: 95 },
+  monitor2: { label: "Play Overland Run", x: 1262, y: 470, rx: 110, ry: 80 },
 };
 
 const $ = (s) => document.querySelector(s);
@@ -102,6 +90,7 @@ const uniforms = {
   uTime: { value: 0 }, uMouse: { value: new THREE.Vector2() }, uPar: { value: PAR }, uFocusD: { value: FOCUS_D },
   uSize: { value: new THREE.Vector2(W, H) }, uTexel: { value: 1 }, uGust: { value: 0.5 },
   uScreen2: { value: new THREE.Vector3(1290, 590, 0) }, uScreen2Col: { value: new THREE.Color(0.4, 0.6, 0.9) },
+  uLook: { value: new THREE.Vector2() }, uBlink: { value: 0 }, uWag: { value: 0 },
 };
 const KEEP_ALPHA = { blending: THREE.CustomBlending, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor };
 
@@ -116,6 +105,7 @@ const photo = new THREE.Mesh(
       uniform float uTime, uPar, uFocusD, uTexel, uGust;
       uniform vec2 uMouse, uSize;
       uniform vec3 uScreen2, uScreen2Col;
+      uniform vec2 uLook; uniform float uBlink, uWag;
       varying vec2 vUv;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float noise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.0-2.0*f);
@@ -162,6 +152,22 @@ const photo = new THREE.Mesh(
         vec2 de = (P - vec2(212.0, 702.0)) / vec2(100.0, 58.0);
         float dfall = smoothstep(1.0, 0.3, length(de)) * smoothstep(768.0, 652.0, P.y);
         uv.y -= dfall * br * 1.4 * ipx.y;
+
+        // his eyes follow you (the iris slides inside each eye), and he blinks
+        for (int i = 0; i < 2; i++) {
+          vec2 ec = i == 0 ? vec2(275.0, 734.5) : vec2(305.5, 731.0);
+          vec2 er = vec2(4.4, 2.7);
+          vec2 q2 = (P - ec) / er;
+          float ein = smoothstep(1.15, 0.55, length(q2));
+          uv -= ein * vec2(uLook.x * 1.6, -uLook.y * 0.8) * ipx;
+          // eyelid: fur from just above the eye slides down over it
+          float lid = step(P.y, ec.y - er.y + 2.0 * er.y * uBlink) * smoothstep(1.35, 0.8, length(q2)) * step(0.02, uBlink);
+          uv = mix(uv, toUv(P - vec2(0.0, 2.2 * er.y)), lid);
+        }
+        // tail thumps when you come near
+        float tw = smoothstep(26.0, 10.0, length(P - vec2(146.0, 724.0)));
+        uv.y += tw * uWag * sin(t * 13.0) * 1.6 * ipx.y;
+        uv.x += tw * uWag * cos(t * 13.0) * 0.8 * ipx.x;
 
         // the hanging lamp sways a touch on its cord
         float ang = 0.010 * sin(t * 0.8) + 0.004 * sin(t * 1.9 + 1.0);
@@ -455,31 +461,38 @@ function contact(parent, w, d, opacity, x = 0, z = 0, y = 0.002) {
   return m;
 }
 
-/* --- second monitor on the desk, running Overland Run --- */
+/* --- second monitor: butted up against the main screen and angled in, like a real dual setup --- */
 const gameCanvas = document.createElement("canvas"); gameCanvas.width = 640; gameCanvas.height = 360;
 const gameTex = new THREE.CanvasTexture(gameCanvas); gameTex.colorSpace = THREE.SRGBColorSpace; gameTex.anisotropy = 4;
 const monitor2 = new THREE.Group();
 {
   const black = std({ color: 0x0c0c0d, roughness: 0.5, metalness: 0.0 });
   const darker = std({ color: 0x080808, roughness: 0.65 });
-  const sw = 0.531, sh = 0.299, bz = 0.008, by = 0.012;
-  const panelY = 0.115 + sh / 2 + by;
+  const sw = 0.597, sh = 0.336, bz = 0.007, by = 0.011; // 27" panel, thin bezels like the main screen
+  const panelY = 0.105 + sh / 2 + by;               // screen bottoms line up with the main monitor
   mesh(rbox(sw + bz * 2, sh + bz + by, 0.022, 0.004), black, 0, panelY - (by - bz) / 2, 0, monitor2);
   mesh(rbox(0.36, 0.2, 0.045, 0.02, 3), darker, 0, panelY - 0.01, -0.03, monitor2); // rear housing
   const scr = mesh(new THREE.PlaneGeometry(sw, sh), std({ color: 0x000000, roughness: 0.3, emissive: 0xffffff, emissiveMap: gameTex, emissiveIntensity: 1.15 }), 0, panelY, 0.0115, monitor2);
   scr.castShadow = false;
-  mesh(rbox(0.05, 0.2, 0.022, 0.006), black, 0, 0.115, -0.055, monitor2); // neck
-  mesh(rbox(0.23, 0.012, 0.17, 0.005), black, 0, 0.006, -0.03, monitor2); // foot
+  mesh(rbox(0.05, 0.2, 0.022, 0.006), black, 0, 0.105, -0.055, monitor2); // neck
+  mesh(rbox(0.25, 0.012, 0.18, 0.005), black, 0, 0.006, -0.04, monitor2); // foot
   const led = mesh(new THREE.BoxGeometry(0.004, 0.002, 0.001), std({ color: 0x000000, emissive: 0xffffff, emissiveIntensity: 1.5 }), sw / 2 - 0.02, panelY - sh / 2 - by + 0.004, 0.0115, monitor2);
   led.castShadow = false;
   // cable down the back
   const cable = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.2, -0.07), new THREE.Vector3(0, 0.06, -0.1), new THREE.Vector3(0.05, 0.01, -0.22), new THREE.Vector3(0.12, 0.0, -0.45)]);
   mesh(new THREE.TubeGeometry(cable, 16, 0.0035, 6), darker, 0, 0, 0, monitor2);
   contact(monitor2, 0.34, 0.26, 0.55, 0.02, 0.0); contact(monitor2, 0.7, 0.42, 0.18, 0.06, 0.06);
-  const p = onPlane(1282, 592, DESK_Y);
-  monitor2.position.set(p.x, DESK_Y, p.z - 0.18);
-  monitor2.rotation.y = -0.5;
+  // the main monitor's right edge, measured from the photo (its screen is ~0.41 m tall)
+  const zR = 410 / (529 - 389), rightEdge = unproject(1150, 459, zR);
+  const yaw = -0.44; // 25° in towards the chair; the main screen itself is turned ~17°
+  const dir = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  const c = rightEdge.clone().addScaledVector(dir, sw / 2 + bz + 0.008);
+  monitor2.position.set(c.x, DESK_Y, c.z);
+  monitor2.rotation.y = yaw;
   add3("mon", monitor2);
+  monitor2.updateMatrixWorld(true);
+  const [hx, hy] = project(monitor2.localToWorld(new THREE.Vector3(0, panelY, 0)));
+  Object.assign(HOTSPOTS.monitor2, { x: hx, y: hy, rx: 115, ry: 85 });
 }
 
 /* --- home-lab rack under the desk: router, switch, mini server --- */
@@ -543,58 +556,56 @@ const pr = {};
   mesh(rbox(0.012, 0.13, 0.012, 0.003), black, W2 / 2 + 0.06, 0.065, -0.02, printer);
   pr.lcd = mesh(new THREE.BoxGeometry(0.06, 0.028, 0.002), std({ color: 0x000000, emissive: 0x4aa8ff, emissiveIntensity: 0.45 }), 0.11, 0.027, 0.151, printer);
   contact(printer, 0.46, 0.38, 0.55, 0.01, 0.02); contact(printer, 0.8, 0.6, 0.18, 0.05, 0.08);
-  const p = onPlane(398, 568, DESK_Y);
-  printer.position.set(p.x, DESK_Y, p.z - 0.04);
+  const p = onPlane(415, 557, DESK_Y);
+  printer.position.set(p.x, DESK_Y, p.z);
   printer.scale.setScalar(0.72);
   printer.rotation.y = 0.35;
   add3("prn", printer);
 }
 
 /* --- whiteboard on the wall above the caps --- */
-const boardCanvas = document.createElement("canvas"); boardCanvas.width = 1000; boardCanvas.height = 720;
+const boardCanvas = document.createElement("canvas"); boardCanvas.width = 760; boardCanvas.height = 980;
 const boardTex = new THREE.CanvasTexture(boardCanvas); boardTex.colorSpace = THREE.SRGBColorSpace; boardTex.anisotropy = 8;
 const whiteboard = new THREE.Group();
 {
   const alu = std({ color: 0xa4a7ab, roughness: 0.38, metalness: 1.0 });
-  const bw = 0.46, bh = 0.33;
-  mesh(new THREE.PlaneGeometry(bw, bh), std({ color: new THREE.Color(0.4, 0.385, 0.37), map: boardTex, roughness: 0.25 }), 0, 0, 0.006, whiteboard);
+  const bw = 0.4, bh = 0.56;
+  mesh(new THREE.PlaneGeometry(bw, bh), std({ color: new THREE.Color(0.56, 0.54, 0.52), map: boardTex, roughness: 0.25 }), 0, 0, 0.006, whiteboard);
   for (const [x, y, w, h] of [[0, bh / 2, bw + 0.02, 0.014], [0, -bh / 2, bw + 0.02, 0.014], [bw / 2, 0, 0.014, bh], [-bw / 2, 0, 0.014, bh]]) mesh(rbox(w, h, 0.014, 0.003), alu, x, y, 0.007, whiteboard);
   mesh(rbox(0.22, 0.012, 0.035, 0.004), alu, 0.08, -bh / 2 - 0.008, 0.02, whiteboard); // marker tray
   const mk = (x, c) => { const m = mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.11, 10), std({ color: c, roughness: 0.4 }), x, -bh / 2 + 0.002, 0.028, whiteboard); m.rotation.z = Math.PI / 2 + 0.05; };
-  mk(0.04, 0x1d3f8a); mk(0.12, 0x111111);
-  const p = unproject(118, 150, 2.95);
+  mk(0.03, 0x1d3f8a); mk(0.11, 0xb3261e);
+  const p = unproject(111, 140, 2.95);
   whiteboard.position.copy(p);
-  whiteboard.rotation.y = 0.12;
+  whiteboard.rotation.y = 0.1;
   add3("wb", whiteboard);
 }
 function drawBoard() {
   const g = boardCanvas.getContext("2d"), w = boardCanvas.width, h = boardCanvas.height;
   g.fillStyle = "#f6f6f3"; g.fillRect(0, 0, w, h);
-  // faint ghosting of old marker
-  g.globalAlpha = 0.05; g.strokeStyle = "#556"; g.lineWidth = 9; g.beginPath(); g.moveTo(120, 560); g.bezierCurveTo(300, 470, 520, 640, 760, 520); g.stroke(); g.globalAlpha = 1;
-  const hand = "'Segoe Print', 'Bradley Hand', 'Comic Neue', 'Chalkboard SE', cursive";
-  g.fillStyle = "#1d3f8a"; g.font = `700 54px ${hand}`; g.fillText("Wins + next ideas", 40, 80);
-  g.strokeStyle = "#1d3f8a"; g.lineWidth = 4; g.beginPath(); g.moveTo(40, 96); g.lineTo(520, 92); g.stroke();
-  // pinned certificate
-  g.save(); g.translate(560, 120); g.rotate(0.03);
-  g.fillStyle = "rgba(0,0,0,.12)"; g.fillRect(8, 10, 380, 260);
-  g.fillStyle = "#fffdf6"; g.fillRect(0, 0, 380, 260);
-  g.strokeStyle = "#b8963e"; g.lineWidth = 6; g.strokeRect(14, 14, 352, 232);
-  g.fillStyle = "#7a5b12"; g.textAlign = "center"; g.font = "700 30px Georgia, serif"; g.fillText("2nd PLACE", 190, 78);
-  g.fillStyle = "#333"; g.font = "22px Georgia, serif"; g.fillText("UCT Business Process", 190, 120); g.fillText("Management 2026", 190, 148);
-  g.font = "italic 18px Georgia, serif"; g.fillStyle = "#555"; g.fillText("Group project · sponsored by K5 Business", 190, 196);
-  g.textAlign = "left"; g.restore();
-  g.fillStyle = "#c0392b"; g.beginPath(); g.arc(750, 130, 13, 0, 7); g.fill();
-  g.fillStyle = "#c0392b"; g.beginPath(); g.arc(565, 128, 13, 0, 7); g.fill();
-  // marker notes
-  g.fillStyle = "#111"; g.font = `500 36px ${hand}`;
-  ["✓ UCT Plus Bronze '24", "✓ Best Stage Mgr '22", "→ AgroFlow v2", "→ ESP32 + MQTT"].forEach((s, i) => g.fillText(s, 46, 170 + i * 62));
-  // little process sketch
-  g.strokeStyle = "#1d3f8a"; g.lineWidth = 4; g.font = `500 26px ${hand}`; g.fillStyle = "#1d3f8a";
-  [["sense", 60], ["decide", 290], ["water", 520]].forEach(([s, x], i) => { g.strokeRect(x, 470, 170, 76); g.fillText(s, x + 34, 518); if (i < 2) { g.beginPath(); g.moveTo(x + 176, 508); g.lineTo(x + 222, 508); g.lineTo(x + 210, 498); g.moveTo(x + 222, 508); g.lineTo(x + 210, 518); g.stroke(); } });
-  // sticky notes
-  [["MQTT", "#ffe680", 780, 430], ["FAO-56", "#ffb3c7", 820, 560]].forEach(([s, c, x, y]) => { g.fillStyle = "rgba(0,0,0,.1)"; g.fillRect(x + 5, y + 6, 150, 120); g.fillStyle = c; g.fillRect(x, y, 150, 120); g.fillStyle = "#333"; g.font = `500 30px ${hand}`; g.fillText(s, x + 18, y + 70); });
-  const lg = g.createLinearGradient(0, 0, w, h * 0.4); lg.addColorStop(0, "rgba(40,25,10,.28)"); lg.addColorStop(0.6, "rgba(40,25,10,.06)"); lg.addColorStop(1, "rgba(255,220,170,.10)");
+  g.globalAlpha = 0.06; g.strokeStyle = "#556"; g.lineWidth = 10; g.beginPath(); g.moveTo(80, 900); g.bezierCurveTo(260, 820, 420, 980, 690, 860); g.stroke(); g.globalAlpha = 1;
+  const hand = "'Segoe Print', 'Bradley Hand', 'Comic Neue', 'Chalkboard SE', 'Comic Sans MS', cursive";
+  g.fillStyle = "#1d3f8a"; g.font = `700 104px ${hand}`; g.fillText("TO DO", 40, 118);
+  g.strokeStyle = "#1d3f8a"; g.lineWidth = 7; g.beginPath(); g.moveTo(38, 138); g.lineTo(400, 130); g.stroke();
+  const items = [["Finish my CV site", true], ["Upload the CV", false], ["ESP32 relay build", false], ["Service the Cruiser", false], ["Walk the dog", true]];
+  g.font = `600 58px ${hand}`;
+  items.forEach(([t, done], i) => {
+    const y = 236 + i * 96;
+    g.strokeStyle = "#222"; g.lineWidth = 5; g.strokeRect(40, y - 44, 46, 46);
+    if (done) { g.strokeStyle = "#1e7a35"; g.lineWidth = 8; g.beginPath(); g.moveTo(47, y - 22); g.lineTo(62, y - 4); g.lineTo(96, y - 54); g.stroke(); }
+    g.fillStyle = done ? "#5c5c5c" : "#111"; g.fillText(t, 104, y);
+    if (done) { g.strokeStyle = "#5c5c5c"; g.lineWidth = 4; g.beginPath(); g.moveTo(104, y - 18); g.lineTo(104 + g.measureText(t).width, y - 18); g.stroke(); }
+  });
+  g.fillStyle = "#b3261e"; g.font = `700 66px ${hand}`; g.fillText("WINS", 40, 776);
+  g.font = `600 48px ${hand}`;
+  ["★ 2nd — UCT BPM '26", "★ UCT Plus Bronze '24"].forEach((t, i) => g.fillText(t, 44, 850 + i * 66));
+  // sticky note + magnet
+  g.save(); g.translate(500, 690); g.rotate(-0.06);
+  g.fillStyle = "rgba(0,0,0,.12)"; g.fillRect(6, 8, 200, 180); g.fillStyle = "#ffe680"; g.fillRect(0, 0, 200, 180);
+  g.fillStyle = "#333"; g.font = `500 38px ${hand}`; g.fillText("Coffee", 26, 78); g.fillText("first ☕", 26, 130);
+  g.restore();
+  g.fillStyle = "#c0392b"; g.beginPath(); g.arc(600, 696, 14, 0, 7); g.fill();
+  const lg = g.createLinearGradient(0, 0, w, h * 0.5); lg.addColorStop(0, "rgba(40,25,10,.24)"); lg.addColorStop(0.6, "rgba(40,25,10,.05)"); lg.addColorStop(1, "rgba(255,220,170,.10)");
   g.fillStyle = lg; g.fillRect(0, 0, w, h);
   boardTex.needsUpdate = true;
 }
@@ -793,18 +804,6 @@ const sprinklers = [
   makeSprinkler({ x: 1000, y: 386, v: 4.8, elev: 0.6, a0: 0.5, a1: 2.9, sweep: 0.06, n: 1200, size: 0.1, alpha: 0.03, spread: 1.4 }),
 ];
 
-/* --- the dog's "zzz" --- */
-const zTex = (() => {
-  const c = document.createElement("canvas"); c.width = c.height = 128;
-  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.font = "italic 600 104px Georgia, serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("z", 64, 60);
-  const t = new THREE.CanvasTexture(c); return t;
-})();
-const zzz = [0, 1, 2].map(() => {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), holdout(new THREE.MeshBasicMaterial({ color: 0xffffff, alphaMap: zTex, opacity: 0 }), { keepAlpha: true, bias: 0.3 }));
-  m.castShadow = false; add3("z", m); return m;
-});
-let zOrigin = null;
-
 /* ------------------------------------------------------------------ *
  *  Final pass: focus pull, hover, grade, lens
  * ------------------------------------------------------------------ */
@@ -863,8 +862,8 @@ const aspect = () => window.innerWidth / window.innerHeight;
 function baseHH() { return Math.min(H / 2, W / (2 * aspect())) * 0.955; }
 function clampView(v) {
   const hh = v.hh, hw = hh * aspect();
-  const m = 0.015 * W;
-  return { cx: Math.min(W - hw - m, Math.max(hw + m, v.cx)), cy: Math.min(H - hh - m * 0.6, Math.max(hh + m * 0.6, v.cy)), hh };
+  const m = 0.015 * W, ml = 4; // let the left edge (whiteboard, caps) come fully into view
+  return { cx: Math.min(W - hw - m, Math.max(hw + ml, v.cx)), cy: Math.min(H - hh - m * 0.6, Math.max(hh + m * 0.6, v.cy)), hh };
 }
 function homeView() {
   const hh = baseHH();
@@ -926,21 +925,9 @@ function screenToImg(sx, sy) {
 let mode = "intro"; // intro | explore | focus | monitor | os
 let focused = null, hoverId = null, pendingOpen = null;
 const mouse = new THREE.Vector2(), mouseSmooth = new THREE.Vector2();
-const markersEl = $("#markers"), tooltip = $("#tooltip"), card = $("#card");
+const tooltip = $("#tooltip");
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-const markers = {};
-for (const [id, h] of Object.entries(HOTSPOTS)) {
-  const b = document.createElement("button");
-  b.className = "marker";
-  b.setAttribute("aria-label", h.label);
-  b.innerHTML = `<span class="dot"></span><span class="mlabel">${esc(h.label)}</span>`;
-  b.addEventListener("click", (e) => { e.stopPropagation(); activate(id); });
-  b.addEventListener("mouseenter", () => setHover(id));
-  b.addEventListener("mouseleave", () => setHover(null));
-  markersEl.appendChild(b);
-  markers[id] = b;
-}
 function hitTest(sx, sy) {
   const [ix, iy] = screenToImg(sx, sy);
   let best = null, bestD = 1;
@@ -953,7 +940,6 @@ function hitTest(sx, sy) {
 function setHover(id) {
   hoverId = id;
   document.body.classList.toggle("hovering", !!id);
-  Object.entries(markers).forEach(([k, m]) => m.classList.toggle("hot", k === id));
   if (id) { const h = HOTSPOTS[id]; postU.uHover.value.set(h.x, h.y, h.rx, h.ry); }
   const sh = id === "monitor";
   if (sh !== screenHover) { screenHover = sh; drawScreen(); }
@@ -961,64 +947,24 @@ function setHover(id) {
 function activate(id) {
   sound.start();
   if (mode === "monitor" || mode === "os") return;
-  if (id === "monitor") return sitDown();
-  const h = HOTSPOTS[id];
-  if (h.sound === "moo") sound.moo(760, 1.4);
-  else if (h.sound && sound[h.sound]) sound[h.sound]();
-  if (id === "dog") sound.snore(true);
-  setMode("focus");
-  focused = id;
-  sound.setFocus(id);
-  target = focusView(h);
-  postU.uFocusDepth.value = depthAt(h.x, h.y);
-  if (id === "rack") postU.uFocusDepth.value = 0.385;
-  if (id === "printer") postU.uFocusDepth.value = 0.31;
-  if (id === "whiteboard") postU.uFocusDepth.value = 0.34;
-  if (id === "xbox") postU.uFocusDepth.value = 0.385;
-  showCard(id);
+  if (id === "monitor2") pendingOpen = { page: "game" };
+  sitDown();
 }
-function showCard(id) {
-  const c = SC[id];
-  if (!c) return;
-  card.innerHTML = `
-    <button class="card-close" aria-label="Close">✕</button>
-    <div class="card-kicker">${esc(c.kicker || "")}</div>
-    <h2>${esc(c.title)}</h2>
-    ${(c.text || []).map((t) => `<p>${esc(t)}</p>`).join("")}
-    ${c.facts ? `<ul>${c.facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
-    <div class="card-actions">${(c.buttons || []).map((b, i) => b.url
-      ? `<a class="card-btn${i ? "" : " solid"}" href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.label)} ↗</a>`
-      : `<button class="card-btn${i ? "" : " solid"}" data-open="${esc(b.open.join("|"))}">${esc(b.label)}</button>`).join("")}</div>
-    <div class="card-hint">Esc or click the room to step back</div>`;
-  card.hidden = false;
-  requestAnimationFrame(() => card.classList.add("show"));
-  card.querySelector(".card-close").onclick = (e) => { e.stopPropagation(); backToRoom(); };
-  card.querySelectorAll("[data-open]").forEach((b) => (b.onclick = (e) => {
-    e.stopPropagation();
-    const [page, arg] = b.dataset.open.split("|");
-    pendingOpen = { page, arg };
-    sitDown();
-  }));
-}
-function hideCard() { card.classList.remove("show"); setTimeout(() => !card.classList.contains("show") && (card.hidden = true), 350); }
 function setMode(m) {
   mode = m;
   document.body.classList.toggle("exploring", m !== "intro");
   document.body.classList.toggle("away", m === "focus" || m === "monitor" || m === "os");
-  markersEl.classList.toggle("hidden", !(m === "explore"));
   postU.uFocusAmt.value = 0;
 }
 function backToRoom() {
   if (mode === "os") return standUp();
   focused = null;
   sound.setFocus(null);
-  hideCard();
   setMode("explore");
   target = homeView();
 }
 function sitDown() {
   sound.start();
-  hideCard();
   focused = null;
   setMode("monitor");
   sound.setFocus("monitor");
@@ -1032,7 +978,6 @@ function openOS() {
   osLayer.classList.add("on");
   osLayer.setAttribute("aria-hidden", "false");
   backBtn.hidden = false;
-  sound.chime();
   setTimeout(() => {
     osFrame.focus();
     osFrame.contentWindow?.postMessage({ type: "host", action: "focus" }, "*");
@@ -1180,7 +1125,8 @@ onResize();
 Object.assign(view, homeView());
 
 const clock = new THREE.Clock();
-let lastScreenMin = -1, gameAcc = 0, lastBreath = -1;
+let lastScreenMin = -1, gameAcc = 0, nextBlink = 2, blinkT = -9, wag = 0;
+const dogLook = new THREE.Vector2();
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, clock.getDelta());
@@ -1231,33 +1177,27 @@ function frame() {
     pr.head.position.x = 0.02 + Math.cos(a) * 0.03 + Math.sin(a * 3.1) * 0.004;
     pr.bed.position.z = Math.sin(a) * 0.03; pr.part.position.z = 0.02 + pr.bed.position.z;
   }
-  // the dog's zzz rise with each breath, and he snores softly
-  if (!zOrigin && depthCPU.data) { const d = depthAt(296, 735); zOrigin = unproject(300, 712, 1 / Math.max(d, 0.05)); }
-  if (zOrigin) {
-    zzz.forEach((m, i) => {
-      const ph = ((t / BREATH + i / 3) % 1);
-      m.position.set(zOrigin.x + ph * 0.07 + Math.sin(ph * 5 + i) * 0.012, zOrigin.y + ph * 0.13, zOrigin.z);
-      m.scale.setScalar(0.028 + ph * 0.035);
-      m.material.opacity = Math.sin(ph * Math.PI) * 0.7 * (mode === "os" ? 0 : 1);
-    });
+  // the dog watches the cursor, blinks now and then, and wags when you come near
+  {
+    const hx = 290, hy = 733;
+    const [mx, my] = screenToImg((mouse.x * 0.5 + 0.5) * window.innerWidth, (0.5 - mouse.y * 0.5) * window.innerHeight);
+    const dx = mx - hx, dy = my - hy, dist = Math.hypot(dx, dy);
+    const k = Math.min(1, dist / 260);
+    const want = mode === "os" || mode === "monitor" ? new THREE.Vector2(0.6, -0.3) : new THREE.Vector2((dx / (dist || 1)) * k, (dy / (dist || 1)) * k);
+    dogLook.lerp(want, 1 - Math.pow(0.002, dt));
+    uniforms.uLook.value.copy(dogLook);
+    if (t > nextBlink) { blinkT = t; nextBlink = t + 2.5 + Math.random() * 4.5; if (Math.random() < 0.2) nextBlink = t + 0.35; }
+    const bp = (t - blinkT) / 0.16;
+    uniforms.uBlink.value = bp >= 0 && bp < 1 ? Math.sin(bp * Math.PI) : 0;
+    const near = dist < 140 && (mode === "explore" || mode === "intro") ? 1 : 0;
+    wag += (near - wag) * Math.min(1, dt * 3);
+    uniforms.uWag.value = wag;
   }
-  const bc = Math.floor(t / (BREATH * 2));
-  if (bc !== lastBreath) { lastBreath = bc; sound.snore(focused === "dog"); }
 
   // the second monitor's glow on the desk follows the game's colours
   const [mx, my] = project(monitor2.localToWorld(new THREE.Vector3(0, 0.03, 0.1)));
   uniforms.uScreen2.value.set(mx, my, 0);
 
-  // markers follow their objects (with parallax)
-  if (mode === "explore") {
-    for (const [id, h] of Object.entries(HOTSPOTS)) {
-      const [sx, sy] = imgToScreen(h.x, h.y);
-      const m = markers[id];
-      const vis = sx > -20 && sx < window.innerWidth + 20 && sy > -20 && sy < window.innerHeight + 20;
-      m.style.display = vis ? "" : "none";
-      if (vis) m.style.transform = `translate(${sx}px, ${sy}px)`;
-    }
-  }
   sound.view = { cx: view.cx, hw: view.hh * aspect() };
   sound.update(dt);
 

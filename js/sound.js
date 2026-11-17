@@ -1,5 +1,5 @@
 // Sound for the workshop: real field recordings (CC0, via the ESC-50 dataset) mixed with a
-// few synthesised layers (river, PC fan + boot, sprinkler ticks). Everything is positioned
+// few synthesised layers (river, the PC boot, sprinkler ticks). Everything is positioned
 // in the stereo field by where it sits in the scene, and the wind follows the same gusts
 // that move the trees.
 const FILES = ["moo1", "moo2", "moo3", "rooster", "bark", "snore", "birds1", "birds2", "birds3", "crickets", "wind", "diesel", "click", "typing"];
@@ -39,15 +39,10 @@ export class Sound {
     // --- synthesised beds ---
     // river: low rush + bubbly mid band whose centre wanders, panned to the right where the water is
     this.river = this.bed([
-      { buf: this.brownBuf, type: "lowpass", f: 420, g: 0.16 },
+      { buf: this.brownBuf, type: "bandpass", f: 700, q: 0.6, g: 0.07 },
       { buf: this.noiseBuf, type: "bandpass", f: 900, q: 0.9, g: 0.05, wander: [500, 1600] },
       { buf: this.noiseBuf, type: "bandpass", f: 2600, q: 1.4, g: 0.018, wander: [1900, 3600] },
     ], 0.55);
-    // PC fan under the desk
-    this.fan = this.bed([{ buf: this.brownBuf, type: "lowpass", f: 180, g: 0.05 }, { buf: this.noiseBuf, type: "bandpass", f: 1100, q: 6, g: 0.006 }], 0.12, 0.0);
-    this.fanTone = ctx.createOscillator(); this.fanTone.frequency.value = 118;
-    const ftg = ctx.createGain(); ftg.gain.value = 0.004; this.fanTone.connect(ftg).connect(this.fan.out); this.fanTone.start();
-
     this.nextBird = ctx.currentTime + 1.5;
     this.nextRooster = ctx.currentTime + 40 + Math.random() * 60;
     this.nextSprk = ctx.currentTime + 1;
@@ -124,7 +119,6 @@ export class Sound {
     if (this.crickets) lvl(this.crickets.g, f === "monitor" ? 0.012 : 0.035, 1);
     lvl(this.river.out, f === "water" ? 1.6 : f === "monitor" ? 0.18 : 0.55, 0.8);
     if (this.river.pan) this.river.pan.pan.setTargetAtTime(this.panAt(1300), t, 0.3);
-    lvl(this.fan.out, f === "rack" ? 1.3 : f === "monitor" ? 0.6 : 0.12, 0.6);
     // the river's babble wanders
     this.river.filters.forEach(({ f: fl, L }) => { if (L.wander && Math.random() < dt * 3) fl.frequency.setTargetAtTime(L.wander[0] + Math.random() * (L.wander[1] - L.wander[0]), t, 0.25); });
     if (!this.ok) return;

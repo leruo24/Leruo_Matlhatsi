@@ -1,4 +1,4 @@
-/* LeruOS — a tiny window manager that renders the portfolio from content.js */
+/* LeruOS: a small Windows XP-style desktop that renders the portfolio from content.js */
 (function () {
   "use strict";
   const P = window.PORTFOLIO;
@@ -19,7 +19,6 @@
   const toHost = (action) => embedded && window.parent.postMessage({ type: "os", action }, "*");
 
   document.title = `LeruOS — ${P.name}`;
-  $(".wp-name").textContent = P.name.toUpperCase();
 
   /* ---------------- icons (inline SVG) ---------------- */
   const ICONS = {
@@ -51,7 +50,7 @@
     if (w) w.el.style.zIndex = ++z;
   }
 
-  function openWindow(id, { title, icon, width = 520, height = 400, x, y, render, menubar = false, status = null, maximized = false }) {
+  function openWindow(id, { title, icon, width = 520, height = 400, x, y, render, menubar = false, toolbar = false, status = null, maximized = false }) {
     if (open.has(id)) {
       const w = open.get(id);
       w.el.classList.remove("min");
@@ -73,20 +72,20 @@
     el.innerHTML = `
       <div class="titlebar">${ICONS[icon] || ""}<span class="t">${esc(title)}</span>
         <div class="tbtns">
-          <button class="btn95 minb" aria-label="Minimise">_</button>
-          <button class="btn95 maxb" aria-label="Maximise">□</button>
-          <button class="btn95 close" aria-label="Close">✕</button>
+          <button class="tb minb" aria-label="Minimise"></button>
+          <button class="tb maxb" aria-label="Maximise"></button>
+          <button class="tb close" aria-label="Close"></button>
         </div>
       </div>
-      ${menubar ? `<div class="menubar"><span><u>F</u>ile</span><span><u>E</u>dit</span><span><u>V</u>iew</span><span><u>H</u>elp</span></div>` : ""}
-      <div class="win-body sunken"></div>
+      ${menubar ? `<div class="menubar"><span>File</span><span>Edit</span><span>View</span>${toolbar ? "<span>Favorites</span><span>Tools</span>" : ""}<span>Help</span></div>` : ""}
+      ${toolbar ? `<div class="toolbar"><button class="nav" data-nav="back"><i>◀</i><span>Back</span></button><button class="nav" data-nav="home"><i>⌂</i><span>Home</span></button><div class="addr"><label>Address</label><div class="addr-text"></div><button class="go">Go</button></div></div>` : ""}
+      <div class="win-body"></div>
       ${status ? `<div class="statusbar"><span class="sunken">${esc(status)}</span></div>` : ""}`;
     if (maximized) el.classList.add("max");
     winLayer.appendChild(el);
     render($(".win-body", el), el);
 
     const task = document.createElement("button");
-    task.className = "btn95";
     task.innerHTML = `${ICONS[icon] || ""}<span>${esc(title)}</span>`;
     task.addEventListener("click", () => {
       const isTop = el.classList.contains("focused") && !el.classList.contains("min");
@@ -157,7 +156,8 @@
       x: Math.max(100, (desk.width - Math.min(980, desk.width - 120)) / 2 + 40),
       y: 14,
       menubar: true,
-      status: "Showcase Explorer",
+      toolbar: true,
+      status: "Done",
       render: (body) => {
         body.innerHTML = `
           <div class="showcase">
@@ -175,8 +175,12 @@
           </div>`;
         const nav = $(".sc-nav", body);
         const pageEl = $(".sc-page", body);
-        showcaseNav = (p, arg) => {
+        const hist = [];
+        const addr = $(".addr-text", body.closest(".win"));
+        showcaseNav = (p, arg, fromHistory) => {
           if (p === "resume") return openResume();
+          if (!fromHistory) hist.push([p, arg]);
+          addr.textContent = `http://leruo.matlhatsi/${p}${arg ? "/" + arg : ""}`;
           nav.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.p === p));
           pageEl.innerHTML = PAGES[p](arg);
           pageEl.scrollTop = 0;
@@ -189,6 +193,9 @@
           const b = e.target.closest("button[data-p]");
           if (b) showcaseNav(b.dataset.p);
         });
+        const win = body.closest(".win");
+        $('[data-nav="back"]', win).addEventListener("click", () => { if (hist.length > 1) { hist.pop(); const [p, a] = hist[hist.length - 1]; showcaseNav(p, a, true); } });
+        $('[data-nav="home"]', win).addEventListener("click", () => showcaseNav("home"));
       },
     });
     showcaseNav && showcaseNav(page);
@@ -373,7 +380,7 @@
       render: (body) => {
         body.innerHTML = `<textarea class="notepad" readonly spellcheck="false"></textarea>`;
         $("textarea", body).value = [
-          `Welcome to LeruOS 26!`,
+          `Welcome to LeruOS XP!`,
           ``,
           `You're using ${P.name}'s computer. Have a look around:`,
           `  • Showcase   — my portfolio, projects and experience`,
@@ -381,7 +388,7 @@
           `  • Overland Run — a 4x4 game: jump rocks, collect water`,
           `  • Minesweeper — because every OS needs one`,
           ``,
-          embedded ? `Press Esc or use 'Back to the workshop' to step out.` : `Open ../index.html for the workshop.`,
+          embedded ? `Press Esc or use 'Back to the workshop' to step out.` : `Go back to the main page for the workshop.`,
           ``,
           `Credits`,
           `  The workshop scene is brought to life with WebGL (Three.js, MIT):`,
@@ -709,20 +716,28 @@
   /* ---------------- start menu ---------------- */
   const startBtn = $("#start-btn");
   const startMenu = $("#start-menu");
-  startMenu.classList.add("raised");
-  const START = [
-    ["showcase", "showcase", "Showcase"],
-    ["projects", "projects", "Projects"],
-    ["experience", "experience", "Experience"],
-    ["resume", "resume", "Resume"],
-    ["contact", "contact", "Contact"],
-    ["game", "game", "Overland Run"],
-    ["mines", "mines", "Minesweeper"],
-    ["readme", "readme", "Read Me"],
+  $("#sm-name").textContent = P.name;
+  $("#sm-avatar").src = P.photos ? P.photos.headshot : "";
+  const LEFT = [
+    ["showcase", "showcase", "Showcase", "My portfolio"],
+    ["resume", "resume", "Resume", "My CV (PDF)"],
     null,
-    ["shutdown", "power", embedded ? "Shut Down…" : "Go to the 3D room"],
+    ["game", "game", "Overland Run", "4x4 game"],
+    ["mines", "mines", "Minesweeper", "Classic"],
+    ["readme", "readme", "Notepad", "Read Me.txt"],
   ];
-  $("#start-items").innerHTML = START.map((s) =>
+  const RIGHT = [
+    ["about", "about", "About Me"],
+    ["projects", "projects", "My Projects"],
+    ["experience", "experience", "Experience"],
+    null,
+    ["contact", "contact", "Contact Me"],
+    ["contactPage", "contact", "Links"],
+  ];
+  $("#start-items").innerHTML = LEFT.map((s) =>
+    s ? `<li><button data-app="${s[0]}">${ICONS[s[1]]}<span><b>${esc(s[2])}</b><small>${esc(s[3])}</small></span></button></li>` : `<li class="sep"></li>`
+  ).join("");
+  $("#start-right").innerHTML = RIGHT.map((s) =>
     s ? `<li><button data-app="${s[0]}">${ICONS[s[1]]}<span>${esc(s[2])}</span></button></li>` : `<li class="sep"></li>`
   ).join("");
   const toggleStart = (show) => {
@@ -730,17 +745,18 @@
     startBtn.classList.toggle("active", show);
     startBtn.setAttribute("aria-expanded", String(show));
   };
-  startBtn.classList.add("btn95");
   startBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     toggleStart(startMenu.hidden);
   });
-  $("#start-items").addEventListener("click", (e) => {
+  startMenu.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-app]");
     if (!b) return;
     toggleStart(false);
-    b.dataset.app === "shutdown" ? shutDown() : APPS[b.dataset.app]();
+    APPS[b.dataset.app]();
   });
+  $("#sm-off").addEventListener("click", () => { toggleStart(false); shutDown(); });
+  $("#sm-logoff").addEventListener("click", () => { toggleStart(false); showWelcome(); });
   document.addEventListener("pointerdown", (e) => {
     if (!startMenu.hidden && !e.target.closest("#start-menu, #start-btn")) toggleStart(false);
     if (!e.target.closest(".icon")) iconList.querySelectorAll(".icon").forEach((x) => x.classList.remove("sel"));
@@ -762,31 +778,75 @@
   document.addEventListener("pointerdown", () => toHost("click"));
 
   const splash = $("#splash");
+  const welcome = $("#welcome");
+  const balloon = $("#balloon");
+  $("#wl-name").textContent = P.name;
+  $("#wl-role").textContent = P.title;
+  $("#wl-avatar").src = P.photos ? P.photos.headshot : "";
+  const wlMid = $(".wl-mid").innerHTML;
+  let loggedIn = false, booted = false;
+
   function openPage(page, arg) {
     if (page === "game") return openOverland();
     if (page === "resume") return openResume();
     openShowcase(page || "home");
     if (arg && showcaseNav) showcaseNav(page, arg);
   }
+  function showWelcome() {
+    loggedIn = false;
+    welcome.classList.remove("out");
+    $(".wl-mid").innerHTML = wlMid;
+    $("#wl-name").textContent = P.name;
+    $("#wl-role").textContent = P.title;
+    $("#wl-avatar").src = P.photos ? P.photos.headshot : "";
+    $("#wl-user").addEventListener("click", () => logIn());
+    welcome.hidden = false;
+    setTimeout(() => $("#wl-user") && $("#wl-user").focus(), 50);
+  }
+  function showBalloon() {
+    balloon.hidden = false; balloon.classList.remove("out");
+    clearTimeout(showBalloon.t);
+    showBalloon.t = setTimeout(() => { balloon.classList.add("out"); setTimeout(() => (balloon.hidden = true), 400); }, 7000);
+  }
+  $("button", balloon).addEventListener("click", () => (balloon.hidden = true));
+  // log on: "Welcome" for a moment, then the desktop
+  function logIn(page, arg, instant) {
+    if (loggedIn) { if (page) openPage(page, arg); return; }
+    loggedIn = true;
+    const finish = () => {
+      welcome.classList.add("out");
+      setTimeout(() => (welcome.hidden = true), 500);
+      if (embedded) window.parent.postMessage({ type: "os", action: "sfx", name: "chime" }, "*");
+      if (page) openPage(page, arg);
+      else if (!open.size) openShowcase("home");
+      showBalloon();
+    };
+    if (instant) { welcome.hidden = true; finish(); return; }
+    $(".wl-mid").innerHTML = `<div class="wl-hello">welcome</div>`;
+    setTimeout(finish, 1100);
+  }
+  $("#wl-off").addEventListener("click", () => shutDown());
+
   window.addEventListener("message", (e) => {
     const m = e.data;
     if (!m || m.type !== "host") return;
     if (m.action === "open") {
-      if (!splash.classList.contains("done")) { splash.classList.add("done"); booted = true; }
-      openPage(m.page, m.arg);
+      // a specific page was asked for (e.g. the CV button): skip straight to the desktop
+      booted = true;
+      splash.classList.add("done");
+      logIn(m.page, m.arg, true);
     }
   });
 
   /* ---------------- boot ---------------- */
-  let booted = false;
   setTimeout(
     () => {
       splash.classList.add("done");
       if (booted) return;
       booted = true;
-      openShowcase("home");
-      if (params.get("page")) openPage(params.get("page"), params.get("arg"));
+      if (params.get("page")) return logIn(params.get("page"), params.get("arg"), true);
+      showWelcome();
     },
-    matchMedia("(prefers-reduced-motion: reduce)").matches ? 100 : 1800
+    matchMedia("(prefers-reduced-motion: reduce)").matches ? 100 : embedded ? 1500 : 2200
   );
 })();
