@@ -175,7 +175,7 @@ window.PORTFOLIO = {
       year: "2026",
       tags: ["Three.js", "WebGL", "GLSL", "Web Audio", "Vanilla JS"],
       summary:
-        "A photoreal workshop brought to life in WebGL: an AI depth map gives the photo real depth, and live 3D objects (the second monitor, the home-lab rack, the 3D printer, walking cows, birds and sprinklers) are rendered with a camera matched to the photo, so they sit behind and in front of things correctly. The river, trees, grass and clouds move, and the sounds are real field recordings mixed live. Inspired by Henry Heffernan's portfolio.",
+        "A photoreal workshop brought to life in WebGL: an AI depth map gives the photo real depth, and live 3D objects (the second monitor, the home-lab rack, the longboard, birds and sprinklers) are rendered with a camera matched to the photo, so they sit behind and in front of things correctly. The river, trees, grass and clouds move, and the sounds are real field recordings mixed live. Inspired by Henry Heffernan's portfolio.",
       role: "Designer and developer.",
       points: [],
       links: [{ label: "Source on GitHub", url: "https://github.com/leruo24/Leruo_Matlhatsi" }],

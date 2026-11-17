@@ -7,12 +7,12 @@ A photoreal portfolio. You arrive at my workshop at golden hour: a desk with my 
 ### How it works: a real photo plus live 3D layers
 - **The room is just the room.** There are no dots or pop-ups. The only things you can use are the computer screens: the main screen opens LeruOS, and the second screen opens Overland Run.
 - **Photo with depth:** a depth map (made with the Depth Anything V2 AI model) lets the room shift in true 3D as you move the mouse.
-- **Matched 3D camera:** real 3D objects sit in the photo and hide correctly behind the chair, the desk and the fence. They include the **second monitor** (butted against the main screen and angled in, running Overland Run), the **home-lab rack** under the desk, the **3D printer** and the **whiteboard** (to-do list and wins).
+- **Matched 3D camera:** real 3D objects sit in the photo and hide correctly behind the chair, the desk and the fence. They include the **second monitor** (butted against the main screen and angled in, running Overland Run), the **home-lab rack** under the desk, the **longboard** leaning behind the dog and the **whiteboard** (to-do list and wins).
 - **Life:**
   - The photo's own cows wander and graze, sprinklers sweep the crops and birds cross the sky.
   - The river flows and the clouds drift.
   - The dog breathes, follows your cursor with his eyes, blinks, and thumps his tail when you come close.
-- **Details:** the real Jeppe and UCT emblems are embroidered onto the caps, the desk's front-left leg now reaches the floor, and there's a faint city in the valley.
+- **Details:** the real Jeppe and UCT emblems are embroidered onto the caps, and there's a faint city in the valley.
 - **LeruOS:** a Windows XP-style computer with a boot screen, a log-on screen, a start menu, taskbar, balloon tips and windows. Showcase opens like a web browser with an address bar. Minesweeper and Overland Run are on the desktop.
 - **Sound:** CC0 field recordings (cows, birds, crickets, wind, a diesel idle, mouse and keyboard) plus a synthesised river, the PC boot and sprinkler ticks.
 

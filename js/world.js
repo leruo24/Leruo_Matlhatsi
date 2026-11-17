@@ -6,7 +6,7 @@ import { Sound } from "./sound.js";
  *
  *  1. The photo is drawn with an AI depth map, so it shifts in true depth as you look around.
  *  2. A 3D camera is matched to the photo (focal length, horizon, camera height), so real 3D
- *     objects can stand in it: the second monitor, the home-lab rack, the 3D printer, the
+ *     objects can stand in it: the second monitor, the home-lab rack, the longboard, the
  *     whiteboard, walking cows, birds and sprinkler water. Each 3D pixel is tested against
  *     the photo's depth, so the chair, fence posts and leaves pass in front of them correctly.
  *  3. Moving water, trees, grass and clouds are animated inside the photo, at speeds that
@@ -384,6 +384,7 @@ const H_GLSL = /* glsl */ `
     for (int i = 0; i < 4; i++) { float d = texture2D(tDepthH, p).r; p = uv - uMouseH * (d - uFocusDH) * uParH; }
     return texture2D(tDepthH, p).r;
   }
+  float imgY(){ return uViewH.y + (1.0 - gl_FragCoord.y / uResH.y) * uViewH.w; }
   // linear light -> the photo's look: filmic curve, display gamma, atmospheric haze with distance
   vec3 toPhoto(vec3 c, float z){
     c *= uExposure;
@@ -392,11 +393,11 @@ const H_GLSL = /* glsl */ `
     return mix(c, uHaze, 1.0 - exp(-z * 0.0045));
   }`;
 // patch a built-in material: hide it wherever the photo is nearer, and output in the photo's colour space
-function holdout(mat, { bias = 0.035, keepAlpha = false } = {}) {
+function holdout(mat, { bias = 0.035, keepAlpha = false, onlyBelow = 0 } = {}) {
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, H_UNI);
     sh.vertexShader = "varying float vHoldZ;\n" + sh.vertexShader.replace("#include <project_vertex>", "#include <project_vertex>\n vHoldZ = -mvPosition.z;");
-    let fs = H_GLSL + "\n" + sh.fragmentShader.replace("void main() {", `void main() {\n float fdH = 1.0 / max(vHoldZ, 0.01);\n if (photoDisp() > fdH * (1.0 + ${bias.toFixed(3)}) + 0.002) discard;`);
+    let fs = H_GLSL + "\n" + sh.fragmentShader.replace("void main() {", `void main() {\n float fdH = 1.0 / max(vHoldZ, 0.01);\n if (photoDisp() > fdH * (1.0 + ${bias.toFixed(3)}) + 0.002${onlyBelow ? ` && imgY() > ${onlyBelow.toFixed(1)}` : ""}) discard;`);
     const end = fs.lastIndexOf("}");
     fs = fs.slice(0, end) + `\n gl_FragColor.rgb = toPhoto(gl_FragColor.rgb, vHoldZ);${keepAlpha ? "" : " gl_FragColor.a = clamp(fdH, 0.0, 1.0);"}\n}`;
     sh.fragmentShader = fs;
@@ -530,37 +531,68 @@ const rack = new THREE.Group();
   add3("rack", rack);
 }
 
-/* --- a 3D printer on the left end of the desk, printing a part --- */
-const printer = new THREE.Group();
-const pr = {};
+/* --- a longboard leaning against the post behind the dog --- */
+const deckCanvas = document.createElement("canvas"); deckCanvas.width = 256; deckCanvas.height = 1024;
+const deckTex = new THREE.CanvasTexture(deckCanvas); deckTex.colorSpace = THREE.SRGBColorSpace; deckTex.anisotropy = 8;
 {
-  const alu = std({ color: 0x9a9da2, roughness: 0.45, metalness: 0.55 });
-  const black = std({ color: 0x2a2a2d, roughness: 0.55 });
-  const bedM = std({ color: 0x4a3f2c, roughness: 0.35, metalness: 0.4 });
-  const fil = std({ color: 0x2f8f5b, roughness: 0.5 });
-  const W2 = 0.36, Ht = 0.36;
-  mesh(rbox(W2, 0.05, 0.3, 0.008), black, 0, 0.025, 0, printer);                     // base
-  pr.bed = mesh(new THREE.BoxGeometry(0.23, 0.006, 0.23), bedM, 0, 0.064, 0, printer); // heated bed
-  for (const x of [-W2 / 2 + 0.02, W2 / 2 - 0.02]) mesh(rbox(0.03, Ht, 0.03, 0.004), alu, x, 0.05 + Ht / 2, -0.04, printer); // Z columns
-  mesh(rbox(W2, 0.03, 0.03, 0.004), alu, 0, 0.05 + Ht, -0.04, printer);               // top bar (the arch)
-  pr.arm = new THREE.Group(); printer.add(pr.arm);
-  mesh(rbox(W2 - 0.03, 0.018, 0.022, 0.003), alu, 0, 0, -0.04, pr.arm);              // X gantry
-  pr.head = mesh(rbox(0.05, 0.065, 0.045, 0.008), black, 0, -0.008, -0.015, pr.arm);  // print head
-  const hl = mesh(new THREE.BoxGeometry(0.008, 0.004, 0.001), std({ color: 0x000000, emissive: 0x7fd0ff, emissiveIntensity: 2 }), 0.012, 0.012, 0.023, pr.head);
-  hl.castShadow = false;
-  pr.part = mesh(new THREE.CylinderGeometry(0.03, 0.036, 1, 6), fil, 0.02, 0.068, 0.02, printer); // the part grows
-  // filament spool on a side holder
-  const spool = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.055, 28), fil, W2 / 2 + 0.06, 0.13, -0.02, printer);
-  spool.rotation.z = Math.PI / 2;
-  for (const x of [-0.031, 0.031]) mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.006, 28), black, W2 / 2 + 0.06 + x, 0.13, -0.02, printer).rotation.z = Math.PI / 2;
-  mesh(rbox(0.012, 0.13, 0.012, 0.003), black, W2 / 2 + 0.06, 0.065, -0.02, printer);
-  pr.lcd = mesh(new THREE.BoxGeometry(0.06, 0.028, 0.002), std({ color: 0x000000, emissive: 0x4aa8ff, emissiveIntensity: 0.45 }), 0.11, 0.027, 0.151, printer);
-  contact(printer, 0.46, 0.38, 0.55, 0.01, 0.02); contact(printer, 0.8, 0.6, 0.18, 0.05, 0.08);
-  const p = onPlane(415, 557, DESK_Y);
-  printer.position.set(p.x, DESK_Y, p.z);
-  printer.scale.setScalar(0.72);
-  printer.rotation.y = 0.35;
-  add3("prn", printer);
+  // wood veneer underside: grain, white pinstripe, a soft teal wash (original artwork)
+  const g = deckCanvas.getContext("2d"), w = 256, h = 1024;
+  g.fillStyle = "#8a5a3a"; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 260; i++) {
+    const x = Math.random() * w, a = 0.05 + Math.random() * 0.12;
+    g.strokeStyle = Math.random() < 0.5 ? `rgba(60,32,16,${a})` : `rgba(190,130,90,${a})`;
+    g.lineWidth = 0.6 + Math.random() * 2.2; g.beginPath(); g.moveTo(x, 0);
+    for (let y = 0; y <= h; y += 64) g.lineTo(x + Math.sin(y * 0.01 + i) * 3, y);
+    g.stroke();
+  }
+  g.strokeStyle = "rgba(245,240,230,.9)"; g.lineWidth = 6;
+  g.beginPath(); g.ellipse(w / 2, h / 2, w * 0.36, h * 0.44, 0, 0, Math.PI * 2); g.stroke();
+  const tg = g.createLinearGradient(0, h * 0.2, 0, h * 0.75);
+  tg.addColorStop(0, "rgba(16,110,104,.95)"); tg.addColorStop(0.55, "rgba(24,140,128,.85)"); tg.addColorStop(1, "rgba(24,140,128,0)");
+  g.fillStyle = tg; g.beginPath(); g.ellipse(w / 2, h * 0.46, w * 0.27, h * 0.28, 0, 0, Math.PI * 2); g.fill();
+}
+const longboard = new THREE.Group();
+{
+  // tighter depth test: it has to slip between the dog (in front) and the post (behind)
+  // only the dog (lower down) may cover it; the post and wall behind it never should
+  const std = (o) => holdout(new THREE.MeshStandardMaterial(o), { bias: 0.01, onlyBelow: 636 });
+  const L = 0.98, Wd = 0.235, T = 0.012;
+  // drop-through deck outline (y along the board)
+  const sh = new THREE.Shape();
+  const pts = [[0, -L / 2], [0.05, -L / 2 + 0.01], [0.07, -L / 2 + 0.05], [0.065, -L / 2 + 0.16], [Wd / 2, -L / 2 + 0.24], [Wd / 2, L / 2 - 0.24], [0.065, L / 2 - 0.16], [0.07, L / 2 - 0.05], [0.05, L / 2 - 0.01], [0, L / 2]];
+  sh.moveTo(0, -L / 2);
+  pts.forEach(([x, y]) => sh.lineTo(x, y));
+  [...pts].reverse().forEach(([x, y]) => sh.lineTo(-x, y));
+  const geo = new THREE.ExtrudeGeometry(sh, { depth: T, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.002, bevelSegments: 1, curveSegments: 8 });
+  // UVs for the underside graphic
+  const pos = geo.attributes.position, uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / Wd + 0.5, pos.getY(i) / L + 0.5);
+  geo.translate(0, 0, -T / 2);
+  const wood = std({ color: 0xffffff, map: deckTex, roughness: 0.42 });
+  const grip = std({ color: 0x141414, roughness: 0.95 });
+  const deck = new THREE.Mesh(geo, [wood, grip]);
+  // extrude groups: 0 = caps (front/back), 1 = sides; front cap faces +z (the underside, towards us)
+  deck.castShadow = true;
+  longboard.add(deck);
+  const sideGrip = new THREE.Mesh(new THREE.ShapeGeometry(sh), grip); sideGrip.position.z = -T / 2 - 0.0025; sideGrip.rotation.y = Math.PI; longboard.add(sideGrip);
+  const metal = std({ color: 0xc8cacc, roughness: 0.3, metalness: 1 });
+  const dark = std({ color: 0x2a2a2a, roughness: 0.6 });
+  const wheelM = std({ color: 0x2a9c90, roughness: 0.35, emissive: 0x06302c, emissiveIntensity: 0.25 });
+  for (const y of [-L / 2 + 0.2, L / 2 - 0.2]) {
+    mesh(new THREE.BoxGeometry(0.07, 0.09, 0.014), metal, 0, y, T / 2 + 0.007, longboard);            // baseplate
+    mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.035, 10).rotateX(Math.PI / 2), dark, 0, y, T / 2 + 0.03, longboard); // bushing
+    mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.25, 10).rotateZ(Math.PI / 2), metal, 0, y, T / 2 + 0.05, longboard); // hanger + axle
+    for (const x of [-0.145, 0.145]) {
+      const wl = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.05, 20).rotateZ(Math.PI / 2), wheelM, x, y, T / 2 + 0.05, longboard);
+      wl.castShadow = false;
+    }
+  }
+  // stand it on its tail, leaning back against the post, underside facing the room
+  // the dog is ~3.05-3.15 m away and the post ~3.3 m (from the depth map), so the board stands at ~3.2 m
+  const lean = 0.05, Zc = 3.22;
+  longboard.position.set(((163 - CX) * Zc) / F, 0.035 + (L / 2) * Math.cos(lean), -Zc);
+  longboard.rotation.set(-lean, 0.1, 0.04);
+  add3("lb", longboard);
 }
 
 /* --- whiteboard on the wall above the caps --- */
@@ -1167,15 +1199,6 @@ function frame() {
   updateBirds(dt, t);
   for (const b of blinkers) {
     b.m.material.emissiveIntensity = b.rate === 0 ? 2.0 : (Math.sin(t * b.rate + b.ph) + Math.sin(t * b.rate * 2.3 + b.ph * 2) > 0.2 ? 2.4 : 0.15);
-  }
-  // printer: bed slides front/back, head runs left/right, the part grows over a few minutes
-  {
-    const cyc = (t % 240) / 240;
-    pr.part.scale.y = Math.max(0.001, cyc * 0.08); pr.part.position.y = 0.067 + pr.part.scale.y / 2;
-    pr.arm.position.y = 0.067 + cyc * 0.08 + 0.05;
-    const a = t * 2.6;
-    pr.head.position.x = 0.02 + Math.cos(a) * 0.03 + Math.sin(a * 3.1) * 0.004;
-    pr.bed.position.z = Math.sin(a) * 0.03; pr.part.position.z = 0.02 + pr.bed.position.z;
   }
   // the dog watches the cursor, blinks now and then, and wags when you come near
   {
