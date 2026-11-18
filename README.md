@@ -4,17 +4,15 @@ An interactive look into my world: the projects I build, the problems I solve, a
 
 A photoreal portfolio. You arrive at my workshop at golden hour: a desk with my computer, a games console, an ESP32 workbench, my Jeppe and UCT caps on the rack, the dog, a 4x4 and a sports car outside, the farm and the river. **Almost everything can be clicked**, and the camera pulls focus onto it with a short card. Take a seat at the computer to use **LeruOS**, my portfolio, with projects, CV, contact and two games.
 
-### How it works: a real photo plus live 3D layers
-- **How you move through it:** look around the room, then click the computer to **take a seat** at the desk. From there, click the main screen to log in to LeruOS or the right-hand screen to play Overland Run. Esc steps back. The **?** on the desk (and **Help** on the computer) explains all of this.
-- **Photo with depth:** a depth map (made with the Depth Anything V2 AI model) lets the room shift in true 3D as you move the mouse.
-- **Matched 3D camera:** real 3D objects sit in the photo and hide correctly behind the chair, the desk and the fence. They include the **second monitor** (butted against the main screen and angled in, running Overland Run), the **home-lab rack** under the desk, the **longboard** leaning behind the dog and the **whiteboard** (to-do list and wins).
-- **Life:**
-  - The photo's own cows wander and graze, sprinklers sweep the crops and birds cross the sky.
-  - The river flows and the clouds drift.
-  - The dog breathes, follows your cursor with his eyes, blinks, and thumps his tail when you come close.
-- **Details:** the real Jeppe and UCT emblems are embroidered onto the caps, and there's a faint city in the valley.
-- **LeruOS:** a Windows XP-style computer with a boot screen, a log-on screen, a start menu, taskbar, balloon tips and windows. **Showcase** is a photo gallery of your highlights, with captions over each photo and a slide show. **Portfolio** opens like a web browser with an address bar. Help opens a Help and Support window. Minesweeper and Overland Run are on the desktop.
-- **Sound:** CC0 field recordings (cows, birds, crickets, wind, a diesel idle, mouse and keyboard) plus a synthesised river, the PC boot and sprinkler ticks.
+### How it works
+- **Intro:** you start in a busy, black-and-white office. Click **Put on headset**: hands lift the headset to your eyes, the padding closes the view, and my golden-hour workshop fades in through the lenses. The office sounds crossfade into birds, breeze and the pond. Takes about 4.6 seconds. There's **Skip intro** (or press Esc), a **mute** button, and a simple fade for anyone with reduced motion turned on.
+- **The workshop:** a photoreal scene with depth parallax (Depth Anything V2). It has my three dogs, the Land Cruiser, both sports cars in the garage, a pond, the farmhouse, the drone and the Johannesburg skyline. The real UCT and Jeppe Boys emblems are on the caps, and a readable to-do list is on the whiteboard.
+- **Gentle motion:**
+  - The dogs breathe, blink and flick their ears, each on its own clock.
+  - The pond ripples, the leaves and grass sway in the same wind, the clouds drift and the drone hovers.
+  - The lamp sways a touch, and birds cross now and then.
+- **Moving through it:** click the computer to **take a seat** at the desk, then click the screen to log in to LeruOS. Esc steps back. The **?** on the desk, and **Help** on the computer, explain everything.
+- **LeruOS:** a Windows XP-style computer. **Showcase** is a captioned photo gallery, **Portfolio** has projects, experience and contact, and there are Resume, Overland Run and Minesweeper.
 
 No build step. It runs on GitHub Pages as is, at about **3.4 MB** in total.
 
@@ -49,15 +47,17 @@ Everything you read on the computer lives in **`os/content.js`**: bio, experienc
 The clickable screens are defined at the top of `js/world.js` under `HOTSPOTS`. The whiteboard's to-do list is in `drawBoard()` in the same file.
 
 ## Changing the scene image
-The scene is `assets/workshop.jpg`, with the two cows painted out (they live in `assets/cow0.png` and `cow1.png` and are animated). It comes with:
+The scene is `assets/workshop.jpg`. It comes with:
 - a matching depth map (`workshop-depth.png`),
 - an animation mask (`workshop-masks.png`: red = water, green = leaves, blue = sky),
-- a ground mask (`workshop-masks2.png`: red = dirt yard, green = concrete, blue = grass).
+- a second mask (`workshop-masks2.png`: blue = grass and reeds that sway).
 
-A new image needs new maps, new monitor-corner coordinates (`SCREEN` in `js/world.js`), and new positions for the 3D objects.
+A new image needs new maps, new monitor-corner coordinates (`SCREEN` in `js/world.js`), and new positions for the dogs' eyes and ears (in the photo shader).
+
+The intro headline is `intro.headline` in `os/content.js`, and the intro images are `assets/intro-office.jpg` and `assets/intro-headset.jpg`.
 
 ## Credits
-- Scene image, Jeppe Boys and UCT emblems: supplied by Leruo
-- Depth map generated offline with [Depth Anything V2](https://github.com/DepthAnything/Depth-Anything-V2) (small model, Apache-2.0). The cows were painted out with [LaMa](https://github.com/advimman/lama) (Apache-2.0). Neither model is shipped.
+- Scene and intro images, the Jeppe Boys and UCT emblems, and the dog photos: supplied by Leruo
+- Depth map generated offline with [Depth Anything V2](https://github.com/DepthAnything/Depth-Anything-V2) (small model, Apache-2.0). Image clean-up (badges, the intro's baked-in text) was done with [LaMa](https://github.com/advimman/lama) (Apache-2.0). Neither model is shipped.
 - Sound recordings: CC0 clips from freesound.org, taken from the [ESC-50 dataset](https://github.com/karolpiczak/ESC-50): cows by felix.blume and others, birdsong, crickets, wind, "Dog Snores", a diesel truck idling, mouse clicks and typing. Per-clip credits are in that repo's LICENSE file. The supercar rev, river, PC and sprinkler sounds are synthesised.
 - [Three.js](https://threejs.org) (MIT). Concept inspired by [Henry Heffernan's portfolio](https://henryheffernan.com).

@@ -23,14 +23,18 @@ window.PORTFOLIO = {
   // Drop your CV into /assets with exactly this name (or change the path).
   resumeUrl: "../assets/Leruo-Matlhatsi-CV.pdf",
 
+  /* The intro (the black-and-white office before the headset goes on) */
+  intro: { headline: "Step into my ideal world" },
+
   /* How the website works: shown by the "?" on the desk and by Help on the computer */
   help: {
     title: "Welcome to my workshop",
     steps: [
-      ["Look around.", "Move your mouse (or drag on a phone) and the room shifts in 3D. Everything here is part of my world: the 4x4, the garage, the dog, the farm, the river and the bench."],
+      ["Put on the headset.", "You start in an ordinary office. Put on the headset (or skip the intro) to step into my world."],
+      ["Look around.", "Move your mouse (or drag on a phone) and the room shifts in 3D. Everything here is part of my world: the Land Cruiser, the cars in the garage, my three dogs, the pond, the farm, the drone and the bench."],
       ["Take a seat.", "Click the computer on the desk (or the Take a seat button) and you'll sit down at the desk."],
-      ["Jump into the PC.", "Click the main screen to log in to LeruOS, or the right-hand screen to play Overland Run."],
-      ["Explore the computer.", "Double-click icons on the desktop. Showcase is my gallery of highlights, Portfolio has my projects, experience and contact details, and Resume is my CV. The start button has everything too."],
+      ["Jump into the PC.", "Click the screen to log in to LeruOS."],
+      ["Explore the computer.", "Double-click icons on the desktop. Showcase is my gallery of highlights, Portfolio has my projects, experience and contact details, and Resume is my CV, and Overland Run is a little 4x4 game. The start button has everything too."],
       ["Head back.", "Press Esc or use Back to the workshop to stand up, and Esc again to step away from the desk."],
     ],
     tips: ["Turn the sound on for the river, birds and cows.", "Open CV (top right) takes you straight to my CV."],

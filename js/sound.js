@@ -1,5 +1,5 @@
 // Sound for the workshop: real field recordings (CC0, via the ESC-50 dataset) mixed with a
-// few synthesised layers (river, the PC boot, sprinkler ticks). Everything is positioned
+// few synthesised layers (the pond, the office in the intro, the PC boot). Everything is positioned
 // in the stereo field by where it sits in the scene, and the wind follows the same gusts
 // that move the trees.
 const FILES = ["moo1", "moo2", "moo3", "rooster", "bark", "snore", "birds1", "birds2", "birds3", "crickets", "wind", "diesel", "click", "typing"];
@@ -37,16 +37,21 @@ export class Sound {
     for (let i = 0; i < len; i++) { w[i] = Math.random() * 2 - 1; last = (last + 0.02 * w[i]) / 1.02; b[i] = last * 3.5; }
 
     // --- synthesised beds ---
-    // river: low rush + bubbly mid band whose centre wanders, panned to the right where the water is
+    // the pond: very soft lapping at the bank (a slow swell of filtered water noise), panned right
     this.river = this.bed([
-      { buf: this.brownBuf, type: "bandpass", f: 700, q: 0.6, g: 0.07 },
-      { buf: this.noiseBuf, type: "bandpass", f: 900, q: 0.9, g: 0.05, wander: [500, 1600] },
-      { buf: this.noiseBuf, type: "bandpass", f: 2600, q: 1.4, g: 0.018, wander: [1900, 3600] },
-    ], 0.55);
+      { buf: this.noiseBuf, type: "bandpass", f: 650, q: 1.2, g: 0.022, wander: [450, 950] },
+      { buf: this.noiseBuf, type: "bandpass", f: 1800, q: 2.0, g: 0.008, wander: [1400, 2400] },
+    ], 0.55, 0);
+    this.nature = 0; // 0 = office (intro), 1 = workshop
+    // the office in the intro: murmur of voices, air-con, the odd keyboard and phone
+    this.office = this.bed([
+      { buf: this.brownBuf, type: "bandpass", f: 420, q: 0.8, g: 0.05, wander: [300, 700] },
+      { buf: this.noiseBuf, type: "bandpass", f: 1100, q: 1.6, g: 0.012, wander: [800, 1500] },
+      { buf: this.noiseBuf, type: "highpass", f: 5000, q: 0.5, g: 0.004 },
+    ], 0, 0);
+    this.nextOffice = ctx.currentTime + 0.5;
     this.nextBird = ctx.currentTime + 1.5;
     this.nextRooster = ctx.currentTime + 40 + Math.random() * 60;
-    this.nextSprk = ctx.currentTime + 1;
-    this.sprkSide = 0;
 
     FILES.forEach((n) => fetch(`assets/audio/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => new Promise((res, rej) => ctx.decodeAudioData(a, res, rej))).then((bf) => {
       this.buf[n] = bf;
@@ -68,7 +73,7 @@ export class Sound {
       s.connect(f).connect(g).connect(out); s.start(0, Math.random() * 3);
       filters.push({ f, L });
     });
-    out.gain.linearRampToValueAtTime(gain, ctx.currentTime + 3);
+    if (gain) out.gain.linearRampToValueAtTime(gain, ctx.currentTime + 3);
     return { out, pan: p, filters, base: gain };
   }
 
@@ -115,13 +120,26 @@ export class Sound {
     const ctx = this.ctx, t = ctx.currentTime;
     const f = this.focus;
     const lvl = (node, v, tc = 0.4) => node && node.gain.setTargetAtTime(v, t, tc);
-    if (this.wind) lvl(this.wind.g, (0.10 + 0.32 * this.gust) * (f === "monitor" ? 0.4 : 1), 0.6);
-    if (this.crickets) lvl(this.crickets.g, f === "monitor" ? 0.012 : 0.035, 1);
-    lvl(this.river.out, f === "water" ? 1.6 : f === "monitor" ? 0.18 : 0.55, 0.8);
-    if (this.river.pan) this.river.pan.pan.setTargetAtTime(this.panAt(1300), t, 0.3);
-    // the river's babble wanders
-    this.river.filters.forEach(({ f: fl, L }) => { if (L.wander && Math.random() < dt * 3) fl.frequency.setTargetAtTime(L.wander[0] + Math.random() * (L.wander[1] - L.wander[0]), t, 0.25); });
+    const N = this.nature; // crossfade office -> nature when the headset goes on
+    if (this.wind) lvl(this.wind.g, N * (0.10 + 0.30 * this.gust) * (f === "monitor" ? 0.4 : 1), 0.6);
+    if (this.crickets) lvl(this.crickets.g, N * (f === "monitor" ? 0.012 : 0.03), 1);
+    // the lapping swells and settles slowly
+    const lap = 0.6 + 0.4 * Math.sin(t * 0.9) * Math.sin(t * 0.37 + 1);
+    lvl(this.river.out, N * lap * (f === "monitor" ? 0.25 : 1), 0.5);
+    if (this.river.pan) this.river.pan.pan.setTargetAtTime(this.panAt(1400), t, 0.3);
+    lvl(this.office.out, (1 - N) * 1.0, 0.5);
+    [this.river, this.office].forEach((bd) => bd.filters.forEach(({ f: fl, L }) => { if (L.wander && Math.random() < dt * 2) fl.frequency.setTargetAtTime(L.wander[0] + Math.random() * (L.wander[1] - L.wander[0]), t, 0.4); }));
     if (!this.ok) return;
+    if (N < 0.5) {
+      // office life: bursts of typing somewhere nearby, a distant phone now and then
+      if (t > this.nextOffice) {
+        const b = this.buf.typing;
+        if (b && Math.random() < 0.75) this.play("typing", { gain: 0.12 + Math.random() * 0.1, pan: Math.random() * 1.4 - 0.7, lp: 3500, offset: Math.random() * (b.duration - 1), dur: 0.6 + Math.random() * 0.8, bus: this.amb });
+        else this.ring();
+        this.nextOffice = t + 1.2 + Math.random() * 2.5;
+      }
+      return;
+    }
     if (t > this.nextBird) {
       const n = ["birds1", "birds2", "birds3"][Math.floor(Math.random() * 3)];
       this.play(n, { gain: (0.10 + Math.random() * 0.16) * (f === "monitor" ? 0.35 : 1), pan: Math.random() * 1.6 - 0.8, lp: 3000 + Math.random() * 6000, bus: this.amb, rate: 0.96 + Math.random() * 0.08 });
@@ -131,15 +149,35 @@ export class Sound {
       this.play("rooster", { gain: 0.07, pan: this.panAt(940), lp: 2200, bus: this.amb });
       this.nextRooster = t + 90 + Math.random() * 120;
     }
-    // impact sprinklers: "chk... chk... chk" while they sweep
-    if (t > this.nextSprk) {
-      const near = f === "farm" ? 3 : 1;
-      this.tick({ gain: 0.016 * near, pan: this.panAt(this.sprkSide ? 1010 : 760) });
-      this.sprkSide ^= 1;
-      this.nextSprk = t + 0.26 + Math.random() * 0.05;
-    }
   }
 
+  /** a muffled desk phone across the office */
+  ring() {
+    if (!this.ok) return;
+    const ctx = this.ctx, t = ctx.currentTime, pan = Math.random() * 1.2 - 0.6;
+    for (let k = 0; k < 2; k++) {
+      const o = ctx.createOscillator(), o2 = ctx.createOscillator(); o.frequency.value = 440; o2.frequency.value = 480;
+      const g = ctx.createGain(); const t0 = t + k * 0.45;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(0.012, t0 + 0.02); g.gain.setValueAtTime(0.012, t0 + 0.35); g.gain.linearRampToValueAtTime(0.0001, t0 + 0.38);
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1500;
+      const p = ctx.createStereoPanner(); p.pan.value = pan;
+      o.connect(g); o2.connect(g); g.connect(lp).connect(p).connect(this.amb);
+      o.start(t0); o2.start(t0); o.stop(t0 + 0.4); o2.stop(t0 + 0.4);
+    }
+  }
+  /** the headset going on: fabric rustle, a soft thud of padding, then the world opens up */
+  headset() {
+    if (!this.ok) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const s = ctx.createBufferSource(); s.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 0.8;
+    f.frequency.setValueAtTime(2500, t); f.frequency.exponentialRampToValueAtTime(600, t + 1.4);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.5);
+    s.connect(f).connect(g).connect(this.sfx); s.start(t, 0, 1.6);
+    const th = ctx.createOscillator(); th.frequency.setValueAtTime(110, t + 1.45); th.frequency.exponentialRampToValueAtTime(55, t + 1.65);
+    const tg = ctx.createGain(); tg.gain.setValueAtTime(0.0001, t + 1.45); tg.gain.exponentialRampToValueAtTime(0.08, t + 1.48); tg.gain.exponentialRampToValueAtTime(0.0001, t + 1.75);
+    th.connect(tg).connect(this.sfx); th.start(t + 1.45); th.stop(t + 1.8);
+  }
   tick({ gain, pan }) {
     const ctx = this.ctx, t = ctx.currentTime;
     const s = ctx.createBufferSource(); s.buffer = this.noiseBuf;

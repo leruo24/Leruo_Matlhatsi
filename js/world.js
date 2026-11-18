@@ -5,27 +5,24 @@ import { Sound } from "./sound.js";
  * Leruo's workshop: a photograph that behaves like a real place.
  *
  *  1. The photo is drawn with an AI depth map, so it shifts in true depth as you look around.
- *  2. A 3D camera is matched to the photo (focal length, horizon, camera height), so real 3D
- *     objects can stand in it: the second monitor, the home-lab rack, the longboard, the
- *     whiteboard, walking cows, birds and sprinkler water. Each 3D pixel is tested against
- *     the photo's depth, so the chair, fence posts and leaves pass in front of them correctly.
- *  3. Moving water, trees, grass and clouds are animated inside the photo, at speeds that
- *     match their distance from the camera.
+ *  2. A 3D camera is matched to the photo (focal length, horizon, camera height), so the birds
+ *     that cross the sky are real 3D objects, tested against the photo's depth so the leaves
+ *     pass in front of them.
+ *  3. The pond, trees, grass, clouds, the drone and the three dogs (breathing, blinking, ears)
+ *     are animated inside the photo, with restrained, believable motion.
  *  4. Everything is graded together in one final pass (focus pull, vignette, grain).
  */
 const P = window.PORTFOLIO || {};
 const W = 1670, H = 942; // image size (px)
-const SCREEN = [[872, 391], [1144, 389], [1144, 529], [872, 544]]; // TL TR BR BL of the main monitor
-const SCREEN_C = [1008, 466];
+const SCREEN = [[847, 392], [1143, 396], [1143, 554], [847, 541]]; // TL TR BR BL of the main monitor (its green screen)
+const SCREEN_C = [995, 470];
 const PAR = 0.011; // parallax strength (uv units at full mouse travel)
 const FOCUS_D = 0.3; // depth that stays still while you look around
 // camera matched to the photo: focal length (px), principal point / horizon (px), height (m)
-const F = 1000, CX = 835, YH = 318, HC = 1.3;
-const BREATH = 3.6; // the dog's breathing period (s)
+const F = 1000, CX = 835, YH = 367, HC = 1.3;
 
 const HOTSPOTS = {
-  monitor: { label: "Use the computer", x: 1008, y: 466, rx: 150, ry: 95 },
-  monitor2: { label: "Play Overland Run", x: 1262, y: 470, rx: 110, ry: 80 },
+  monitor: { label: "Use the computer", x: 995, y: 470, rx: 160, ry: 100 },
 };
 
 const $ = (s) => document.querySelector(s);
@@ -89,8 +86,7 @@ const uniforms = {
   tGravel: { value: tGravel }, tConcrete: { value: tConcrete },
   uTime: { value: 0 }, uMouse: { value: new THREE.Vector2() }, uPar: { value: PAR }, uFocusD: { value: FOCUS_D },
   uSize: { value: new THREE.Vector2(W, H) }, uTexel: { value: 1 }, uGust: { value: 0.5 },
-  uScreen2: { value: new THREE.Vector3(1290, 590, 0) }, uScreen2Col: { value: new THREE.Color(0.4, 0.6, 0.9) },
-  uLook: { value: new THREE.Vector2() }, uBlink: { value: 0 }, uWag: { value: 0 },
+  uBlink: { value: new THREE.Vector3() }, uEar: { value: new THREE.Vector4() }, uDrone: { value: new THREE.Vector2() },
 };
 const KEEP_ALPHA = { blending: THREE.CustomBlending, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor };
 
@@ -104,8 +100,7 @@ const photo = new THREE.Mesh(
       uniform sampler2D tImg, tDepth, tMask, tMask2, tGravel, tConcrete;
       uniform float uTime, uPar, uFocusD, uTexel, uGust;
       uniform vec2 uMouse, uSize;
-      uniform vec3 uScreen2, uScreen2Col;
-      uniform vec2 uLook; uniform float uBlink, uWag;
+      uniform vec3 uBlink; uniform vec4 uEar; uniform vec2 uDrone;
       varying vec2 vUv;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float noise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.0-2.0*f);
@@ -147,32 +142,56 @@ const photo = new THREE.Mesh(
         float gg = noise(vec2(P.x * 0.012 - t * 0.7, P.y * 0.03));
         uv.x += m2.b * (sin(t * 1.7 + P.x * 0.05 + P.y * 0.03) * 0.5 + (gg - 0.5) * 1.6) * gust * (0.4 + dd * 14.0) * ipx.x;
 
-        // the dog breathes (back rises, belly stays on the floor)
-        float br = 0.5 - 0.5 * cos(6.28318 * t / ${BREATH.toFixed(2)});
-        vec2 de = (P - vec2(212.0, 702.0)) / vec2(100.0, 58.0);
-        float dfall = smoothstep(1.0, 0.3, length(de)) * smoothstep(768.0, 652.0, P.y);
-        uv.y -= dfall * br * 1.4 * ipx.y;
-
-        // his eyes follow you (the iris slides inside each eye), and he blinks
-        for (int i = 0; i < 2; i++) {
-          vec2 ec = i == 0 ? vec2(275.0, 734.5) : vec2(305.5, 731.0);
-          vec2 er = vec2(4.4, 2.7);
-          vec2 q2 = (P - ec) / er;
-          float ein = smoothstep(1.15, 0.55, length(q2));
-          uv -= ein * vec2(uLook.x * 1.6, -uLook.y * 0.8) * ipx;
-          // eyelid: fur from just above the eye slides down over it
-          float lid = step(P.y, ec.y - er.y + 2.0 * er.y * uBlink) * smoothstep(1.35, 0.8, length(q2)) * step(0.02, uBlink);
-          uv = mix(uv, toUv(P - vec2(0.0, 2.2 * er.y)), lid);
+        // the three dogs: each breathes at its own pace (chest/back rises a touch)
+        {
+          float b1 = 0.5 - 0.5 * cos(6.28318 * t / 3.1), b2 = 0.5 - 0.5 * cos(6.28318 * t / 4.2 + 1.3), b3 = 0.5 - 0.5 * cos(6.28318 * t / 2.6 + 2.1);
+          uv.y -= smoothstep(1.0, 0.25, length((P - vec2(238.0, 650.0)) / vec2(40.0, 46.0))) * b1 * 0.9 * ipx.y;   // standing dog
+          uv.y -= smoothstep(1.0, 0.25, length((P - vec2(262.0, 770.0)) / vec2(70.0, 32.0))) * smoothstep(812.0, 750.0, P.y) * b2 * 1.4 * ipx.y; // lying dog
+          uv.y -= smoothstep(1.0, 0.25, length((P - vec2(405.0, 730.0)) / vec2(30.0, 34.0))) * b3 * 0.8 * ipx.y;   // little one
         }
-        // tail thumps when you come near
-        float tw = smoothstep(26.0, 10.0, length(P - vec2(146.0, 724.0)));
-        uv.y += tw * uWag * sin(t * 13.0) * 1.6 * ipx.y;
-        uv.x += tw * uWag * cos(t * 13.0) * 0.8 * ipx.x;
+        // ears: the pricked ears twitch now and then (a small turn about the base of each ear)
+        {
+          vec2 eb[4]; vec2 et[4];
+          eb[0] = vec2(244.0, 576.0); et[0] = vec2(238.0, 557.0);
+          eb[1] = vec2(290.0, 576.0); et[1] = vec2(305.0, 552.0);
+          eb[2] = vec2(396.0, 666.0); et[2] = vec2(380.0, 640.0);
+          eb[3] = vec2(430.0, 658.0); et[3] = vec2(438.0, 632.0);
+          for (int i = 0; i < 4; i++) {
+            float a = i == 0 ? uEar.x : i == 1 ? uEar.y : i == 2 ? uEar.z : uEar.w;
+            vec2 ab = et[i] - eb[i]; float L = length(ab);
+            vec2 q = P - eb[i]; float h = clamp(dot(q, ab) / (L * L), 0.0, 1.25);
+            float w = smoothstep(9.0, 4.0, length(q - ab * min(h, 1.0))) * smoothstep(-0.05, 0.25, dot(q, ab) / (L * L));
+            float an = a * w * h;
+            vec2 rq = vec2(q.x * cos(an) - q.y * sin(an), q.x * sin(an) + q.y * cos(an));
+            uv = mix(uv, toUv(eb[i] + rq), step(0.001, w * abs(a)));
+          }
+        }
+        // eyes: each dog blinks on its own (the fur above slides down over the eye)
+        {
+          vec2 ec[6]; vec3 er[6];
+          ec[0] = vec2(266.0, 595.0); er[0] = vec3(4.2, 2.6, 0.0);
+          ec[1] = vec2(287.5, 592.5); er[1] = vec3(4.2, 2.6, 0.0);
+          ec[2] = vec2(325.0, 707.0); er[2] = vec3(4.6, 2.6, 1.0);
+          ec[3] = vec2(346.0, 702.0); er[3] = vec3(4.0, 2.4, 1.0);
+          ec[4] = vec2(405.5, 675.0); er[4] = vec3(4.2, 2.8, 2.0);
+          ec[5] = vec2(429.5, 671.0); er[5] = vec3(4.2, 2.8, 2.0);
+          for (int i = 0; i < 6; i++) {
+            float bl = er[i].z < 0.5 ? uBlink.x : er[i].z < 1.5 ? uBlink.y : uBlink.z;
+            vec2 q2 = (P - ec[i]) / er[i].xy;
+            float lid = step(P.y, ec[i].y - er[i].y + 2.0 * er[i].y * bl) * smoothstep(1.4, 0.85, length(q2)) * step(0.02, bl);
+            uv = mix(uv, toUv(P - vec2(0.0, 2.3 * er[i].y)), lid);
+          }
+        }
+        // the drone hovers: a gentle bob and drift, nothing more
+        {
+          float dm = smoothstep(52.0, 36.0, abs(P.x - 1032.0)) * smoothstep(22.0, 12.0, abs(P.y - 171.0));
+          uv -= dm * uDrone * ipx;
+        }
 
         // the hanging lamp sways a touch on its cord
         float ang = 0.010 * sin(t * 0.8) + 0.004 * sin(t * 1.9 + 1.0);
-        float lm = smoothstep(1432.0, 1442.0, P.x) * smoothstep(1572.0, 1562.0, P.x) * smoothstep(122.0, 110.0, P.y);
-        vec2 pv = vec2(1502.0, -70.0), q = P - pv;
+        float lm = smoothstep(1462.0, 1472.0, P.x) * smoothstep(1600.0, 1590.0, P.x) * smoothstep(122.0, 112.0, P.y);
+        vec2 pv = vec2(1530.0, -80.0), q = P - pv;
         vec2 rq = vec2(q.x * cos(ang) + q.y * sin(ang), -q.x * sin(ang) + q.y * cos(ang));
         uv = mix(uv, toUv(pv + rq), lm);
 
@@ -185,18 +204,16 @@ const photo = new THREE.Mesh(
           float edge = texture2D(tMask, uv - vec2(0.0011 * 12.0, 0.0)).b * texture2D(tMask, uv + vec2(0.0011 * 12.0, 0.0)).b;
           col = mix(col, sky, m.b * edge);
         }
-        // the river flows downstream (towards the camera, to the right); nearer water moves faster on screen
+        // the pond: calm water with slow, small ripples; the light on it shimmers gently
         if (m.r > 0.02) {
-          vec2 fdir = normalize(vec2(1.0, -0.38));
-          float spd = 0.004 + dd * 0.28;
-          vec2 rip = (vec2(noise(P * vec2(0.09, 0.18) - fdir * t * 9.0), noise(P * vec2(0.18, 0.09) - fdir * t * 9.0 + 3.0)) - 0.5) * 1.6 * ipx;
-          vec3 flow = advect(uv + rip, fdir * spd, 1.4, 0.0);
-          float edge = texture2D(tMask, uv - fdir * spd * 0.7).r * texture2D(tMask, uv + fdir * spd * 0.7).r;
-          col = mix(col, mix(flow, texture2D(tImg, uv + rip).rgb, 0.25), m.r * edge);
-          // glints ride the current
-          vec2 gq = P * vec2(0.55, 1.1) - vec2(fdir.x, -fdir.y) * t * (30.0 + dd * 600.0);
-          float sp = smoothstep(0.86, 0.99, noise(gq)) * smoothstep(0.55, 1.0, noise(P * 0.05 + t * 0.3));
-          col += m.r * sp * vec3(1.0, 0.92, 0.78) * 0.7 * smoothstep(0.35, 0.7, lum(col));
+          float zf = 0.3 + dd * 6.0; // nearer water shows bigger ripples
+          vec2 rip = vec2(noise(P * vec2(0.05, 0.16) + vec2(t * 0.35, t * 0.12)), noise(P * vec2(0.07, 0.2) - vec2(t * 0.28, -t * 0.1) + 7.0)) - 0.5;
+          vec2 rip2 = vec2(noise(P * vec2(0.14, 0.4) + t * 0.6), noise(P * vec2(0.16, 0.45) - t * 0.55 + 3.0)) - 0.5;
+          vec2 off = (rip * 2.2 + rip2 * 0.8) * zf * ipx * vec2(1.0, 0.55);
+          vec3 w = texture2D(tImg, uv + off * m.r).rgb;
+          col = mix(col, w, m.r);
+          float gl = smoothstep(0.82, 0.97, noise(P * vec2(0.22, 0.7) + vec2(t * 0.25, 0.0))) * smoothstep(0.55, 0.9, lum(col));
+          col += m.r * gl * vec3(1.0, 0.85, 0.65) * 0.35;
         }
 
         // mild sharpening to keep the photo crisp when it's scaled up
@@ -216,18 +233,14 @@ const photo = new THREE.Mesh(
         }
 
         // light: lamps, sun, monitor spill, LEDs (steady, like the real things)
-        col += vec3(1.0, 0.72, 0.42) * 0.08 * glow(P, vec2(305.0, 198.0), 70.0);
-        col += vec3(1.0, 0.72, 0.42) * 0.13 * glow(P, vec2(760.0, 448.0), 34.0);
-        col += vec3(1.0, 0.70, 0.40) * 0.08 * glow(P, vec2(1503.0, 98.0), 40.0);
-        col += vec3(1.0, 0.75, 0.45) * 0.05 * glow(P, vec2(745.0, 520.0), 120.0);
-        col += vec3(0.55, 0.9, 0.7) * 0.04 * glow(P, vec2(1008.0, 575.0), 110.0);
-        col += uScreen2Col * 0.06 * glow(P, uScreen2.xy, 75.0);                     // second monitor on the desk
+        col += vec3(1.0, 0.72, 0.42) * 0.07 * glow(P, vec2(300.0, 196.0), 70.0);       // the sun
+        col += vec3(1.0, 0.72, 0.42) * 0.12 * glow(P, vec2(790.0, 446.0), 30.0);       // desk lamp
+        col += vec3(1.0, 0.75, 0.45) * 0.045 * glow(P, vec2(770.0, 540.0), 110.0);
+        col += vec3(1.0, 0.70, 0.40) * 0.08 * glow(P, vec2(1530.0, 102.0), 40.0);      // hanging lamp
+        col += vec3(0.55, 0.85, 1.0) * 0.035 * glow(P, vec2(995.0, 590.0), 120.0);     // screen spill on the desk
         float led = step(0.5, fract(t * 0.9));
-        col += vec3(0.3, 0.6, 1.0) * 0.55 * glow(P, vec2(1238.0, 803.0), 3.2) * led; // ESP32
-        col += vec3(0.6, 0.9, 1.0) * 0.08 * glow(P, vec2(1430.0, 773.0), 10.0);      // multimeter display
-        float act = step(0.55, noise(vec2(t * 7.0, 2.0)));
-        col += vec3(0.2, 0.55, 1.0) * 0.07 * glow(P, vec2(975.0, 705.0), 55.0);     // home-lab LEDs on the panel
-        col += vec3(0.3, 1.0, 0.5) * 0.04 * glow(P, vec2(1000.0, 735.0), 40.0) * (0.6 + 0.4 * act);
+        col += vec3(0.3, 0.6, 1.0) * 0.5 * glow(P, vec2(1462.0, 862.0), 3.0) * led;    // ESP32 LED
+        col += vec3(0.6, 0.9, 1.0) * 0.06 * glow(P, vec2(1566.0, 800.0), 10.0);       // multimeter display
         gl_FragColor = vec4(col, dd);
       }`,
   })
@@ -297,7 +310,7 @@ function drawScreen() {
   const w = screenCanvas.width, h = screenCanvas.height;
   // wallpaper: one of Leruo's own photos, softened like a lock screen
   if (wallpaper.complete && wallpaper.naturalWidth) {
-    const sx = 560, sy = 18, sw = 480, sh = 480 / (w / h);
+    const sx = 470, sy = 92, sw = 420, sh = 420 / (w / h);
     g.filter = screenHover ? "blur(10px) brightness(0.62)" : "brightness(0.82) saturate(1.05)";
     g.drawImage(wallpaper, sx, sy, sw, sh, -12, -12, w + 24, h + 24);
     g.filter = "none";
@@ -462,269 +475,6 @@ function contact(parent, w, d, opacity, x = 0, z = 0, y = 0.002) {
   return m;
 }
 
-/* --- second monitor: butted up against the main screen and angled in, like a real dual setup --- */
-const gameCanvas = document.createElement("canvas"); gameCanvas.width = 640; gameCanvas.height = 360;
-const gameTex = new THREE.CanvasTexture(gameCanvas); gameTex.colorSpace = THREE.SRGBColorSpace; gameTex.anisotropy = 4;
-const monitor2 = new THREE.Group();
-{
-  const black = std({ color: 0x0c0c0d, roughness: 0.5, metalness: 0.0 });
-  const darker = std({ color: 0x080808, roughness: 0.65 });
-  const sw = 0.597, sh = 0.336, bz = 0.007, by = 0.011; // 27" panel, thin bezels like the main screen
-  const panelY = 0.105 + sh / 2 + by;               // screen bottoms line up with the main monitor
-  mesh(rbox(sw + bz * 2, sh + bz + by, 0.022, 0.004), black, 0, panelY - (by - bz) / 2, 0, monitor2);
-  mesh(rbox(0.36, 0.2, 0.045, 0.02, 3), darker, 0, panelY - 0.01, -0.03, monitor2); // rear housing
-  const scr = mesh(new THREE.PlaneGeometry(sw, sh), std({ color: 0x000000, roughness: 0.3, emissive: 0xffffff, emissiveMap: gameTex, emissiveIntensity: 1.15 }), 0, panelY, 0.0115, monitor2);
-  scr.castShadow = false;
-  mesh(rbox(0.05, 0.2, 0.022, 0.006), black, 0, 0.105, -0.055, monitor2); // neck
-  mesh(rbox(0.25, 0.012, 0.18, 0.005), black, 0, 0.006, -0.04, monitor2); // foot
-  const led = mesh(new THREE.BoxGeometry(0.004, 0.002, 0.001), std({ color: 0x000000, emissive: 0xffffff, emissiveIntensity: 1.5 }), sw / 2 - 0.02, panelY - sh / 2 - by + 0.004, 0.0115, monitor2);
-  led.castShadow = false;
-  // cable down the back
-  const cable = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.2, -0.07), new THREE.Vector3(0, 0.06, -0.1), new THREE.Vector3(0.05, 0.01, -0.22), new THREE.Vector3(0.12, 0.0, -0.45)]);
-  mesh(new THREE.TubeGeometry(cable, 16, 0.0035, 6), darker, 0, 0, 0, monitor2);
-  contact(monitor2, 0.34, 0.26, 0.55, 0.02, 0.0); contact(monitor2, 0.7, 0.42, 0.18, 0.06, 0.06);
-  // the main monitor's right edge, measured from the photo (its screen is ~0.41 m tall)
-  const zR = 410 / (529 - 389), rightEdge = unproject(1150, 459, zR);
-  const yaw = -0.44; // 25° in towards the chair; the main screen itself is turned ~17°
-  const dir = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-  const c = rightEdge.clone().addScaledVector(dir, sw / 2 + bz + 0.008);
-  monitor2.position.set(c.x, DESK_Y, c.z);
-  monitor2.rotation.y = yaw;
-  add3("mon", monitor2);
-  monitor2.updateMatrixWorld(true);
-  const [hx, hy] = project(monitor2.localToWorld(new THREE.Vector3(0, panelY, 0)));
-  Object.assign(HOTSPOTS.monitor2, { x: hx, y: hy, rx: 115, ry: 85 });
-}
-
-/* --- home-lab rack under the desk: router, switch, mini server --- */
-const blinkers = [];
-const rack = new THREE.Group();
-{
-  const steel = std({ color: 0x1b1c1e, roughness: 0.55, metalness: 0.6 });
-  const plastic = std({ color: 0x141416, roughness: 0.6 });
-  const greyBox = std({ color: 0x2b2c2f, roughness: 0.5, metalness: 0.2 });
-  const w = 0.46, d = 0.3;
-  for (const y of [0.03, 0.24, 0.44]) mesh(new THREE.BoxGeometry(w, 0.012, d), steel, 0, y, 0, rack);
-  for (const x of [-w / 2 + 0.01, w / 2 - 0.01]) for (const z of [-d / 2 + 0.01, d / 2 - 0.01]) mesh(new THREE.BoxGeometry(0.014, 0.46, 0.014), steel, x, 0.23, z, rack);
-  // mini server / NAS (bottom shelf)
-  mesh(rbox(0.17, 0.19, 0.22, 0.008), greyBox, -0.1, 0.036 + 0.095, 0.01, rack);
-  mesh(new THREE.BoxGeometry(0.13, 0.15, 0.002), plastic, -0.1, 0.13, 0.121, rack);
-  // UPS (bottom shelf)
-  mesh(rbox(0.13, 0.17, 0.25, 0.01), plastic, 0.13, 0.036 + 0.085, 0.0, rack);
-  // switch + router (top shelf)
-  mesh(rbox(0.3, 0.035, 0.16, 0.004), greyBox, -0.03, 0.246 + 0.018, 0.04, rack);
-  mesh(rbox(0.24, 0.045, 0.17, 0.01), plastic, 0.0, 0.446 + 0.023, 0.03, rack);
-  for (const [x, a] of [[-0.09, 0.25], [-0.03, 0.08], [0.03, -0.08], [0.09, -0.25]]) {
-    const ant = mesh(new THREE.CylinderGeometry(0.006, 0.007, 0.075, 8), plastic, x, 0.5, -0.04, rack);
-    ant.rotation.z = a; ant.rotation.x = -0.25;
-  }
-  const ledMat = (c) => holdout(new THREE.MeshStandardMaterial({ color: 0x000000, emissive: c, emissiveIntensity: 2.2 }));
-  const addLed = (x, y, z, c, rate) => { const m = mesh(new THREE.BoxGeometry(0.006, 0.004, 0.002), ledMat(c), x, y, z, rack); m.castShadow = false; blinkers.push({ m, rate, ph: Math.random() * 10 }); };
-  for (let i = 0; i < 8; i++) addLed(-0.15 + i * 0.022, 0.256, 0.121, 0x2cff6a, 6 + Math.random() * 8);
-  for (let i = 0; i < 4; i++) addLed(-0.06 + i * 0.03, 0.46, 0.116, i === 0 ? 0xffffff : 0x3aa0ff, i === 0 ? 0 : 2 + Math.random() * 5);
-  addLed(-0.16, 0.2, 0.121, 0x3aa0ff, 0); addLed(-0.16, 0.18, 0.121, 0x2cff6a, 9); addLed(-0.16, 0.16, 0.121, 0x2cff6a, 4);
-  addLed(0.13, 0.18, 0.126, 0x2cff6a, 0);
-  contact(rack, 0.62, 0.42, 0.5, 0, 0.02);
-  const p = onGround(990, 785);
-  rack.position.set(p.x - 0.02, 0, -2.66);
-  rack.rotation.y = -0.12;
-  add3("rack", rack);
-}
-
-/* --- a longboard leaning against the post behind the dog --- */
-const deckCanvas = document.createElement("canvas"); deckCanvas.width = 256; deckCanvas.height = 1024;
-const deckTex = new THREE.CanvasTexture(deckCanvas); deckTex.colorSpace = THREE.SRGBColorSpace; deckTex.anisotropy = 8;
-{
-  // wood veneer underside: grain, white pinstripe, a soft teal wash (original artwork)
-  const g = deckCanvas.getContext("2d"), w = 256, h = 1024;
-  g.fillStyle = "#8a5a3a"; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 260; i++) {
-    const x = Math.random() * w, a = 0.05 + Math.random() * 0.12;
-    g.strokeStyle = Math.random() < 0.5 ? `rgba(60,32,16,${a})` : `rgba(190,130,90,${a})`;
-    g.lineWidth = 0.6 + Math.random() * 2.2; g.beginPath(); g.moveTo(x, 0);
-    for (let y = 0; y <= h; y += 64) g.lineTo(x + Math.sin(y * 0.01 + i) * 3, y);
-    g.stroke();
-  }
-  g.strokeStyle = "rgba(245,240,230,.9)"; g.lineWidth = 6;
-  g.beginPath(); g.ellipse(w / 2, h / 2, w * 0.36, h * 0.44, 0, 0, Math.PI * 2); g.stroke();
-  const tg = g.createLinearGradient(0, h * 0.2, 0, h * 0.75);
-  tg.addColorStop(0, "rgba(16,110,104,.95)"); tg.addColorStop(0.55, "rgba(24,140,128,.85)"); tg.addColorStop(1, "rgba(24,140,128,0)");
-  g.fillStyle = tg; g.beginPath(); g.ellipse(w / 2, h * 0.46, w * 0.27, h * 0.28, 0, 0, Math.PI * 2); g.fill();
-}
-const longboard = new THREE.Group();
-{
-  // tighter depth test: it has to slip between the dog (in front) and the post (behind)
-  // only the dog (lower down) may cover it; the post and wall behind it never should
-  const std = (o) => holdout(new THREE.MeshStandardMaterial(o), { bias: 0.01, onlyBelow: 636 });
-  const L = 0.98, Wd = 0.235, T = 0.012;
-  // drop-through deck outline (y along the board)
-  const sh = new THREE.Shape();
-  const pts = [[0, -L / 2], [0.05, -L / 2 + 0.01], [0.07, -L / 2 + 0.05], [0.065, -L / 2 + 0.16], [Wd / 2, -L / 2 + 0.24], [Wd / 2, L / 2 - 0.24], [0.065, L / 2 - 0.16], [0.07, L / 2 - 0.05], [0.05, L / 2 - 0.01], [0, L / 2]];
-  sh.moveTo(0, -L / 2);
-  pts.forEach(([x, y]) => sh.lineTo(x, y));
-  [...pts].reverse().forEach(([x, y]) => sh.lineTo(-x, y));
-  const geo = new THREE.ExtrudeGeometry(sh, { depth: T, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.002, bevelSegments: 1, curveSegments: 8 });
-  // UVs for the underside graphic
-  const pos = geo.attributes.position, uv = geo.attributes.uv;
-  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / Wd + 0.5, pos.getY(i) / L + 0.5);
-  geo.translate(0, 0, -T / 2);
-  const wood = std({ color: 0xffffff, map: deckTex, roughness: 0.42 });
-  const grip = std({ color: 0x141414, roughness: 0.95 });
-  const deck = new THREE.Mesh(geo, [wood, grip]);
-  // extrude groups: 0 = caps (front/back), 1 = sides; front cap faces +z (the underside, towards us)
-  deck.castShadow = true;
-  longboard.add(deck);
-  const sideGrip = new THREE.Mesh(new THREE.ShapeGeometry(sh), grip); sideGrip.position.z = -T / 2 - 0.0025; sideGrip.rotation.y = Math.PI; longboard.add(sideGrip);
-  const metal = std({ color: 0xc8cacc, roughness: 0.3, metalness: 1 });
-  const dark = std({ color: 0x2a2a2a, roughness: 0.6 });
-  const wheelM = std({ color: 0x2a9c90, roughness: 0.35, emissive: 0x06302c, emissiveIntensity: 0.25 });
-  for (const y of [-L / 2 + 0.2, L / 2 - 0.2]) {
-    mesh(new THREE.BoxGeometry(0.07, 0.09, 0.014), metal, 0, y, T / 2 + 0.007, longboard);            // baseplate
-    mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.035, 10).rotateX(Math.PI / 2), dark, 0, y, T / 2 + 0.03, longboard); // bushing
-    mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.25, 10).rotateZ(Math.PI / 2), metal, 0, y, T / 2 + 0.05, longboard); // hanger + axle
-    for (const x of [-0.145, 0.145]) {
-      const wl = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.05, 20).rotateZ(Math.PI / 2), wheelM, x, y, T / 2 + 0.05, longboard);
-      wl.castShadow = false;
-    }
-  }
-  // stand it on its tail, leaning back against the post, underside facing the room
-  // the dog is ~3.05-3.15 m away and the post ~3.3 m (from the depth map), so the board stands at ~3.2 m
-  const lean = 0.05, Zc = 3.22;
-  longboard.position.set(((163 - CX) * Zc) / F, 0.035 + (L / 2) * Math.cos(lean), -Zc);
-  longboard.rotation.set(-lean, 0.1, 0.04);
-  add3("lb", longboard);
-}
-
-/* --- whiteboard on the wall above the caps --- */
-const boardCanvas = document.createElement("canvas"); boardCanvas.width = 760; boardCanvas.height = 980;
-const boardTex = new THREE.CanvasTexture(boardCanvas); boardTex.colorSpace = THREE.SRGBColorSpace; boardTex.anisotropy = 8;
-const whiteboard = new THREE.Group();
-{
-  const alu = std({ color: 0xa4a7ab, roughness: 0.38, metalness: 1.0 });
-  const bw = 0.4, bh = 0.56;
-  mesh(new THREE.PlaneGeometry(bw, bh), std({ color: new THREE.Color(0.56, 0.54, 0.52), map: boardTex, roughness: 0.25 }), 0, 0, 0.006, whiteboard);
-  for (const [x, y, w, h] of [[0, bh / 2, bw + 0.02, 0.014], [0, -bh / 2, bw + 0.02, 0.014], [bw / 2, 0, 0.014, bh], [-bw / 2, 0, 0.014, bh]]) mesh(rbox(w, h, 0.014, 0.003), alu, x, y, 0.007, whiteboard);
-  mesh(rbox(0.22, 0.012, 0.035, 0.004), alu, 0.08, -bh / 2 - 0.008, 0.02, whiteboard); // marker tray
-  const mk = (x, c) => { const m = mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.11, 10), std({ color: c, roughness: 0.4 }), x, -bh / 2 + 0.002, 0.028, whiteboard); m.rotation.z = Math.PI / 2 + 0.05; };
-  mk(0.03, 0x1d3f8a); mk(0.11, 0xb3261e);
-  const p = unproject(111, 140, 2.95);
-  whiteboard.position.copy(p);
-  whiteboard.rotation.y = 0.1;
-  add3("wb", whiteboard);
-}
-function drawBoard() {
-  const g = boardCanvas.getContext("2d"), w = boardCanvas.width, h = boardCanvas.height;
-  g.fillStyle = "#f6f6f3"; g.fillRect(0, 0, w, h);
-  g.globalAlpha = 0.06; g.strokeStyle = "#556"; g.lineWidth = 10; g.beginPath(); g.moveTo(80, 900); g.bezierCurveTo(260, 820, 420, 980, 690, 860); g.stroke(); g.globalAlpha = 1;
-  const hand = "'Segoe Print', 'Bradley Hand', 'Comic Neue', 'Chalkboard SE', 'Comic Sans MS', cursive";
-  g.fillStyle = "#1d3f8a"; g.font = `700 104px ${hand}`; g.fillText("TO DO", 40, 118);
-  g.strokeStyle = "#1d3f8a"; g.lineWidth = 7; g.beginPath(); g.moveTo(38, 138); g.lineTo(400, 130); g.stroke();
-  const items = [["Finish my CV site", true], ["Upload the CV", false], ["ESP32 relay build", false], ["Service the Cruiser", false], ["Walk the dog", true]];
-  g.font = `600 58px ${hand}`;
-  items.forEach(([t, done], i) => {
-    const y = 236 + i * 96;
-    g.strokeStyle = "#222"; g.lineWidth = 5; g.strokeRect(40, y - 44, 46, 46);
-    if (done) { g.strokeStyle = "#1e7a35"; g.lineWidth = 8; g.beginPath(); g.moveTo(47, y - 22); g.lineTo(62, y - 4); g.lineTo(96, y - 54); g.stroke(); }
-    g.fillStyle = done ? "#5c5c5c" : "#111"; g.fillText(t, 104, y);
-    if (done) { g.strokeStyle = "#5c5c5c"; g.lineWidth = 4; g.beginPath(); g.moveTo(104, y - 18); g.lineTo(104 + g.measureText(t).width, y - 18); g.stroke(); }
-  });
-  g.fillStyle = "#b3261e"; g.font = `700 66px ${hand}`; g.fillText("WINS", 40, 776);
-  g.font = `600 48px ${hand}`;
-  ["★ 2nd — UCT BPM '26", "★ UCT Plus Bronze '24"].forEach((t, i) => g.fillText(t, 44, 850 + i * 66));
-  // sticky note + magnet
-  g.save(); g.translate(500, 690); g.rotate(-0.06);
-  g.fillStyle = "rgba(0,0,0,.12)"; g.fillRect(6, 8, 200, 180); g.fillStyle = "#ffe680"; g.fillRect(0, 0, 200, 180);
-  g.fillStyle = "#333"; g.font = `500 38px ${hand}`; g.fillText("Coffee", 26, 78); g.fillText("first ☕", 26, 130);
-  g.restore();
-  g.fillStyle = "#c0392b"; g.beginPath(); g.arc(600, 696, 14, 0, 7); g.fill();
-  const lg = g.createLinearGradient(0, 0, w, h * 0.5); lg.addColorStop(0, "rgba(40,25,10,.24)"); lg.addColorStop(0.6, "rgba(40,25,10,.05)"); lg.addColorStop(1, "rgba(255,220,170,.10)");
-  g.fillStyle = lg; g.fillRect(0, 0, w, h);
-  boardTex.needsUpdate = true;
-}
-
-/* --- cows: the photo's own cows, lifted out of the picture so they can graze and wander --- */
-// (the plate has them painted out; these sprites are their original pixels)
-const COWS = [
-  { src: "assets/cow0.png", box: [680, 327, 729, 359] },
-  { src: "assets/cow1.png", box: [777, 325, 822, 353] },
-];
-const cowShader = {
-  vertexShader: /* glsl */ `
-    uniform float uBob; varying vec2 vUv; varying float vHoldZ;
-    void main(){ vUv = uv; vec3 p = position; p.y += uBob;
-      vec4 mv = modelViewMatrix * vec4(p, 1.0); vHoldZ = -mv.z; gl_Position = projectionMatrix * mv; }`,
-  fragmentShader: H_GLSL + "\n" + /* glsl */ `
-    uniform sampler2D tCow; uniform float uStep, uGraze, uFlip, uTime;
-    varying vec2 vUv;
-    void main(){
-      float fd = 1.0 / max(vHoldZ, 0.01);
-      if (photoDisp() > fd * 1.06 + 0.001) discard;
-      vec2 uv = vUv;
-      // walking: front and back legs swing in opposite phase (bottom third of the sprite)
-      float legs = clamp((0.36 - uv.y) / 0.36, 0.0, 1.0);
-      float front = smoothstep(0.5, 0.62, uv.x), back = 1.0 - smoothstep(0.38, 0.5, uv.x);
-      uv.x += legs * uStep * (front - back) * 0.06;
-      // grazing: the head nods a little
-      float head = smoothstep(0.78, 0.9, uv.x) * smoothstep(0.55, 0.35, uv.y);
-      uv.y += head * uGraze * (sin(uTime * 1.3) * 0.5 + 0.5) * 0.04;
-      vec4 c = texture2D(tCow, uv);
-      if (c.a < 0.02) discard;
-      gl_FragColor = c;
-    }`,
-};
-const cows = COWS.map((cfg, i) => {
-  const [x0, y0, x1, y1] = cfg.box;
-  const Z0 = (F * HC) / (y1 - 1 - YH); // the cow's original distance (its hooves on the ground)
-  const w = ((x1 - x0) * Z0) / F, h = ((y1 - y0) * Z0) / F;
-  const tex = loader.load(cfg.src); tex.colorSpace = THREE.NoColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
-  const u = { ...H_UNI, tCow: { value: tex }, uStep: { value: 0 }, uGraze: { value: 1 }, uFlip: { value: 1 }, uTime: uniforms.uTime, uBob: { value: 0 } };
-  const geo = new THREE.PlaneGeometry(w, h); geo.translate(0, h / 2, 0);
-  const m = new THREE.Mesh(geo, new THREE.ShaderMaterial({ uniforms: u, ...cowShader, transparent: true, depthWrite: true, ...KEEP_ALPHA, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor }));
-  const g = new THREE.Group(); g.add(m);
-  // soft contact shadow (the painted-out originals took theirs with them)
-  const sh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), holdout(new THREE.MeshBasicMaterial({ color: 0x000000, map: blobTex, opacity: 0.28 }), { keepAlpha: true, bias: 0.25 }));
-  sh.rotation.x = -Math.PI / 2; sh.scale.set(w * 1.15, w * 0.9, 1); sh.position.set(w * 0.08, 0.02, 0.5); g.add(sh);
-  const home = onGround((x0 + x1) / 2, y1 - 1);
-  const c = { g, m, u, w, pos: new THREE.Vector2(home.x, home.z), target: new THREE.Vector2(home.x, home.z), dir: 1, state: "graze", timer: 6 + i * 9, phase: 0 };
-  g.position.set(home.x, 0, home.z);
-  add3("cow", g);
-  return c;
-});
-// paddock: between the fences (metres), and the image x-range it spans
-const PAD = { z0: -30.5, z1: -40, xl: 650, xr: 885 };
-function updateCows(dt, t) {
-  for (const c of cows) {
-    c.timer -= dt;
-    if (c.state === "graze" && c.timer < 0) {
-      const z = rand(PAD.z1, PAD.z0);
-      const xImg = rand(PAD.xl, PAD.xr);
-      c.target.set(((xImg - CX) * -z) / F, z);
-      if (c.target.distanceTo(c.pos) < 2) c.target.x += c.target.x > c.pos.x ? 3 : -3;
-      // don't walk into the other cow
-      const other = cows.find((o) => o !== c);
-      if (other && c.target.distanceTo(other.pos) < 2.2) c.target.x += 2.5 * Math.sign(c.target.x - other.pos.x || 1);
-      c.state = "walk";
-      if (Math.random() < 0.45) setTimeout(() => sound.moo(project(new THREE.Vector3(c.pos.x, 1, c.pos.y))[0], 2.4), rand(400, 3000));
-    }
-    let speed = 0;
-    if (c.state === "walk") {
-      const to = c.target.clone().sub(c.pos);
-      const d = to.length();
-      speed = Math.min(0.55, d * 0.6);
-      to.normalize();
-      c.pos.addScaledVector(to, speed * dt);
-      if (Math.abs(to.x) > 0.25) c.dir = to.x > 0 ? 1 : -1;
-      if (d < 0.15) { c.state = "graze"; c.timer = rand(8, 18); }
-    }
-    c.phase += speed * dt * 5.2;
-    c.u.uStep.value = Math.sin(c.phase) * Math.min(1, speed * 3);
-    c.u.uBob.value = Math.abs(Math.sin(c.phase)) * 0.015 * Math.min(1, speed * 3);
-    c.u.uGraze.value += ((c.state === "graze" ? 1 : 0) - c.u.uGraze.value) * Math.min(1, dt * 2);
-    c.m.scale.x += (c.dir - c.m.scale.x) * Math.min(1, dt * 4); // turns around (sprites face right)
-    c.g.position.set(c.pos.x, 0, c.pos.y);
-  }
-}
-
 /* --- birds: the odd flock crossing the sky, plus a single bird now and then --- */
 const birdMat = std({ color: 0x1b1714, roughness: 1, side: THREE.DoubleSide });
 function makeBird() {
@@ -776,65 +526,6 @@ function updateBirds(dt, t) {
     if ((f.dir > 0 && sx > W + 300) || (f.dir < 0 && sx < -300)) { f.birds.forEach((b) => scene3.remove(b.g)); flocks.splice(k, 1); }
   }
 }
-
-/* --- sprinklers: impact sprinklers in the crop rows, a rotor in the riverside garden --- */
-function makeSprinkler({ x, y, v, elev, a0, a1, sweep, n, size, height = 0.6, alpha = 0.3, spread = 0.35 }) {
-  const base = onGround(x, y);
-  const nozzle = new THREE.Vector3(base.x, height, base.z);
-  const geo = new THREE.BufferGeometry();
-  const seeds = new Float32Array(n), pos = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) seeds[i] = Math.random();
-  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
-  const u = { ...H_UNI, uTime: uniforms.uTime, uNozzle: { value: nozzle }, uV: { value: v }, uElev: { value: elev }, uA0: { value: a0 }, uA1: { value: a1 }, uSweep: { value: sweep }, uPx: { value: 1 }, uSz: { value: size }, uAlpha: { value: alpha }, uSpread: { value: spread } };
-  const mat = new THREE.ShaderMaterial({
-    uniforms: u, transparent: true, depthWrite: false, depthTest: true,
-    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
-    vertexShader: /* glsl */ `
-      attribute float aSeed; uniform float uTime, uV, uElev, uA0, uA1, uSweep, uPx, uSz, uSpread; uniform vec3 uNozzle;
-      varying float vA; varying float vHoldZ;
-      float sweepAngle(float te){
-        float s = te * uSweep, ph = mod(s, 2.0);
-        float k = ph < 1.0 ? ph : 1.0 - (ph - 1.0) * 1.0;
-        if (ph < 1.0) { float st = 30.0; k = (floor(k * st) + smoothstep(0.0, 0.2, fract(k * st))) / st; } // ratchets forward, swings back smoothly
-        return mix(uA0, uA1, k);
-      }
-      void main(){
-        float T = 2.0 * uV * sin(uElev) / 9.8 + 0.25;
-        float e = fract(uTime / T + aSeed * 7.13);
-        float tau = e * T, te = uTime - tau;
-        float ang = sweepAngle(te) + (fract(aSeed * 91.7) - 0.5) * 0.06 * (0.3 + e);
-        float v = uV * (0.82 + 0.18 * fract(aSeed * 13.1)), el = uElev + (fract(aSeed * 37.3) - 0.5) * 0.1;
-        vec3 dir = vec3(cos(ang), 0.0, -sin(ang));
-        vec3 p = uNozzle + dir * v * cos(el) * tau + vec3(0.0, v * sin(el) * tau - 4.9 * tau * tau, 0.0);
-        p += (vec3(fract(aSeed * 3.1), fract(aSeed * 5.7), fract(aSeed * 8.3)) - 0.5) * uSpread * (0.15 + e * e);
-        vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        vHoldZ = -mv.z;
-        gl_Position = projectionMatrix * mv;
-        gl_PointSize = max(1.5, uSz * 1000.0 / vHoldZ * uPx * (0.7 + 0.6 * fract(aSeed * 29.0)));
-        vA = (1.0 - e * 0.7) * step(0.0, p.y) * (0.45 + 0.55 * fract(aSeed * 17.0));
-      }`,
-    fragmentShader: H_GLSL + "\n" + /* glsl */ `
-      varying float vA; uniform float uAlpha;
-      void main(){
-        float fd = 1.0 / max(vHoldZ, 0.01);
-        if (photoDisp() > fd * 1.08 + 0.002) discard;
-        float r = length(gl_PointCoord - 0.5); if (r > 0.5) discard;
-        // backlit droplets glow warm in the low sun
-        gl_FragColor = vec4(vec3(1.0, 0.93, 0.8) * vA * uAlpha * smoothstep(0.5, 0.0, r), 1.0);
-      }`,
-  });
-  const pts = new THREE.Points(geo, mat);
-  pts.frustumCulled = false;
-  add3("spr", pts);
-  return mat;
-}
-const sprinklers = [
-  makeSprinkler({ x: 735, y: 382, v: 5.6, elev: 0.58, a0: 0.2, a1: 2.6, sweep: 0.07, n: 6000, size: 0.009, alpha: 0.09 }),
-  makeSprinkler({ x: 735, y: 382, v: 5.0, elev: 0.6, a0: 0.2, a1: 2.6, sweep: 0.07, n: 1200, size: 0.1, alpha: 0.03, spread: 1.4 }),
-  makeSprinkler({ x: 1000, y: 386, v: 5.4, elev: 0.58, a0: 0.5, a1: 2.9, sweep: 0.06, n: 6000, size: 0.009, alpha: 0.09 }),
-  makeSprinkler({ x: 1000, y: 386, v: 4.8, elev: 0.6, a0: 0.5, a1: 2.9, sweep: 0.06, n: 1200, size: 0.1, alpha: 0.03, spread: 1.4 }),
-];
 
 /* ------------------------------------------------------------------ *
  *  Final pass: focus pull, hover, grade, lens
@@ -900,7 +591,7 @@ function clampView(v) {
 function homeView() {
   const hh = baseHH();
   const narrow = aspect() < 1.2;
-  return clampView({ cx: (narrow ? 1000 : W / 2) + panX, cy: H / 2 + (narrow ? 0 : 10), hh });
+  return clampView({ cx: (narrow ? 1000 : W / 2 - 30) + panX, cy: H / 2 + (narrow ? 0 : 10), hh });
 }
 function focusView(h) {
   const hh = baseHH() * (aspect() < 1.2 ? 0.8 : 0.58);
@@ -909,8 +600,8 @@ function focusView(h) {
 function seatedView() {
   // as if you've pulled the chair in: both screens and the keyboard fill the view
   const narrow = aspect() < 1.2;
-  const hw = narrow ? 240 : 330;
-  return clampView({ cx: narrow ? 1010 : 1118, cy: narrow ? 470 : 492, hh: Math.max(hw / aspect(), narrow ? 200 : 168) });
+  const hw = narrow ? 230 : 340;
+  return clampView({ cx: narrow ? 1000 : 1010, cy: narrow ? 480 : 500, hh: Math.max(hw / aspect(), narrow ? 200 : 170) });
 }
 function monitorView() {
   const w = SCREEN[1][0] - SCREEN[0][0], hgt = SCREEN[3][1] - SCREEN[1][1];
@@ -925,7 +616,6 @@ function applyCamera() {
   uniforms.uTexel.value = pxPerImg;
   dust.material.uniforms.uScale.value = pxPerImg * renderer.getPixelRatio();
   postU.uPxPerImg.value = pxPerImg;
-  sprinklers.forEach((m) => (m.uniforms.uPx.value = pxPerImg * renderer.getPixelRatio()));
   // the 3D camera sees exactly the same window of the photo, and moves with the parallax
   const x0 = view.cx - hw, y0 = view.cy - view.hh, w = 2 * hw, h = 2 * view.hh;
   H_UNI.uViewH.value.set(x0, y0, w, h);
@@ -986,13 +676,12 @@ function activate(id) {
   sound.start();
   if (mode === "monitor" || mode === "os") return;
   if (mode !== "seated") return takeSeat();   // first you sit down at the desk...
-  if (id === "monitor2") pendingOpen = { page: "game" };
   sitDown();                                    // ...then you jump into the computer
 }
 const hintEl = $("#hint");
 const HINTS = {
   explore: "Move your mouse to look around · click the computer to take a seat · ? for help",
-  seated: "Click the main screen to log in · the right screen to play · Esc to stand up",
+  seated: "Click the screen to log in · Esc to stand up",
 };
 function takeSeat() {
   sound.start();
@@ -1006,7 +695,7 @@ function setMode(m) {
   document.body.classList.toggle("exploring", m !== "intro");
   document.body.classList.toggle("away", m === "monitor" || m === "os");
   document.body.classList.toggle("seated", m === "seated");
-  if (HINTS[m]) hintEl.textContent = HINTS[m];
+  if (HINTS[m]) hintEl.textContent = aspect() < 1.2 ? (m === "seated" ? "Tap the screen to log in" : "Drag to look around · tap the computer · ? for help") : HINTS[m];
   postU.uFocusAmt.value = 0;
 }
 function backToRoom() {
@@ -1073,7 +762,7 @@ window.addEventListener("pointermove", (e) => {
     const hw = view.hh * aspect();
     panX = drag.pan - (dx / window.innerWidth) * 2 * hw;
     const hv = homeView();
-    panX = hv.cx - (aspect() < 1.2 ? 1000 : W / 2);
+    panX = hv.cx - (aspect() < 1.2 ? 1000 : W / 2 - 30);
     target = hv;
   }
 });
@@ -1088,7 +777,7 @@ canvas.addEventListener("click", (e) => {
   hideHelp();
 });
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { if (!helpCard.hidden) return hideHelp(); if (mode === "os") standUp(); else if (mode === "seated" || mode === "monitor") backToRoom(); }
+  if (e.key === "Escape") { if (!vrDone) return; if (!helpCard.hidden) return hideHelp(); if (mode === "os") standUp(); else if (mode === "seated" || mode === "monitor") backToRoom(); }
 });
 window.addEventListener("message", (e) => {
   const m = e.data;
@@ -1098,8 +787,72 @@ window.addEventListener("message", (e) => {
   if (m.action === "key") sound.key();
   if (m.action === "sfx" && sound[m.name]) sound[m.name]();
 });
-$("#explore-btn").onclick = (e) => { e.stopPropagation(); sound.start(); setMode("explore"); };
-$("#enter-btn").onclick = (e) => { e.stopPropagation(); takeSeat(); };
+/* ------------------------------------------------------------------ *
+ *  Intro: a dull office -> put on the headset -> my world fades in
+ * ------------------------------------------------------------------ */
+const vr = $("#vr"), vrOffice = $(".vr-office"), vrHands = $(".vr-hands"), vrBlack = $(".vr-black"), vrLens = $(".vr-lens"), vrWelcome = $(".vr-welcome");
+const vrMute = $("#vr-mute");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let vrT0 = -1, vrDone = false;
+if (P.intro && P.intro.headline) $("#vr-title").textContent = P.intro.headline;
+document.body.classList.add("vr");
+const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+const span = (t, a, b) => ease((t - a) / (b - a));
+function finishIntro() {
+  if (vrDone) return;
+  vrDone = true;
+  vr.classList.add("gone");
+  canvas.style.filter = "";
+  document.body.classList.remove("vr");
+  sound.nature = 1;
+  setMode("explore");
+}
+function fadeOutIntro() {
+  // skip / reduced motion: a simple, calm crossfade
+  vr.classList.add("playing");
+  vr.style.transition = "opacity .7s"; vr.style.opacity = "0";
+  sound.start(); sound.nature = 1;
+  setTimeout(finishIntro, 720);
+}
+function putOnHeadset() {
+  sound.start();
+  if (reduceMotion) return fadeOutIntro();
+  sound.headset();
+  vr.classList.add("playing");
+  vrT0 = performance.now();
+}
+// runs every frame from the main loop while the intro is playing (about 4.6 s)
+function updateIntro() {
+  if (vrT0 < 0 || vrDone) return;
+  const t = (performance.now() - vrT0) / 1000;
+  // 1. reach for the headset: the view leans in
+  vrOffice.style.transform = `scale(${1.02 + 0.28 * span(t, 0, 1.0)})`;
+  // 2. hands lift it towards your face, it fills the view
+  vrHands.style.opacity = span(t, 0.55, 0.85);
+  vrHands.style.transform = `scale(${1.08 + 1.6 * span(t, 0.7, 2.25) ** 1.6})`;
+  // 3. the padding closes around your eyes: dark
+  const dark = span(t, 1.6, 2.25) * (1 - span(t, 2.35, 2.8));
+  vrBlack.style.opacity = dark;
+  if (t > 2.3) { vrOffice.style.visibility = vrHands.style.visibility = "hidden"; }
+  // 4. my world comes into focus inside the lenses, then the headset's edge falls away
+  if (t > 2.3) {
+    vrLens.style.opacity = 1 - span(t, 3.9, 4.55);
+    vrLens.style.setProperty("--r", `${18 + 120 * span(t, 2.35, 4.45) ** 1.3}%`);
+    canvas.style.filter = `blur(${(10 * (1 - span(t, 2.35, 3.9))).toFixed(2)}px) saturate(${(0.6 + 0.4 * span(t, 2.35, 3.6)).toFixed(2)})`;
+    vr.style.background = "transparent";
+  }
+  vrWelcome.style.opacity = span(t, 2.9, 3.4) * (1 - span(t, 4.1, 4.55));
+  // sound: the office fades out as the birds, breeze and pond fade in
+  sound.nature = span(t, 1.8, 4.4);
+  if (t > 4.6) finishIntro();
+}
+$("#vr-go").onclick = (e) => { e.stopPropagation(); putOnHeadset(); };
+$("#vr-skip").onclick = (e) => { e.stopPropagation(); fadeOutIntro(); };
+const syncVrMute = () => { vrMute.textContent = sound.enabled ? "Sound on" : "Sound off"; vrMute.setAttribute("aria-pressed", String(sound.enabled)); };
+syncVrMute();
+vrMute.onclick = (e) => { e.stopPropagation(); sound.start(); sound.toggle(); syncVrMute(); syncSound && syncSound(); };
+window.addEventListener("keydown", (e) => { if (!vrDone && e.key === "Escape") fadeOutIntro(); });
+if (params.has("skip")) { vr.classList.add("gone"); vrDone = true; document.body.classList.remove("vr"); sound.nature = 1; queueMicrotask(() => setMode("explore")); }
 $("#cv-btn").onclick = (e) => { e.stopPropagation(); pendingOpen = { page: "resume" }; sitDown(); };
 const helpBtn = $("#help-btn"), helpCard = $("#card");
 function showHelp() {
@@ -1122,47 +875,7 @@ helpBtn.onclick = (e) => { e.stopPropagation(); sound.start(); sound.click(); he
 const soundBtn = $("#sound-btn");
 const syncSound = () => { soundBtn.textContent = sound.enabled ? "Sound on" : "Sound off"; soundBtn.setAttribute("aria-pressed", String(sound.enabled)); };
 syncSound();
-soundBtn.onclick = (e) => { e.stopPropagation(); sound.start(); sound.toggle(); syncSound(); };
-
-/* ------------------------------------------------------------------ *
- *  The game on the second monitor (attract mode of Overland Run)
- * ------------------------------------------------------------------ */
-const game = { x: 0, dust: [] };
-function terrain(x) { return 250 + Math.sin(x * 0.006) * 28 + Math.sin(x * 0.017 + 1) * 12 + Math.sin(x * 0.041) * 5; }
-function drawGame(t, dt) {
-  const g = gameCanvas.getContext("2d"), w = gameCanvas.width, h = gameCanvas.height;
-  game.x += dt * 150;
-  const sky = g.createLinearGradient(0, 0, 0, h); sky.addColorStop(0, "#f2a65a"); sky.addColorStop(0.55, "#ffd29a"); sky.addColorStop(1, "#ffe6bf");
-  g.fillStyle = sky; g.fillRect(0, 0, w, h);
-  g.fillStyle = "#fff3d6"; g.beginPath(); g.arc(470, 120, 34, 0, 7); g.fill();
-  const layer = (par, base, amp, f, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(0, h); for (let x = 0; x <= w; x += 8) g.lineTo(x, base + Math.sin((x + game.x * par) * f) * amp + Math.sin((x + game.x * par) * f * 2.7) * amp * 0.4); g.lineTo(w, h); g.fill(); };
-  layer(0.15, 175, 22, 0.008, "#c98b62"); layer(0.35, 205, 18, 0.012, "#a9704d");
-  // acacias
-  g.fillStyle = "#4b3a2a";
-  for (let i = 0; i < 5; i++) { const x = ((i * 190 - game.x * 0.5) % 950 + 950) % 950 - 120; g.fillRect(x, 190, 4, 30); g.beginPath(); g.ellipse(x + 2, 188, 30, 8, 0, 0, 7); g.fill(); }
-  // ground
-  g.fillStyle = "#7a5135"; g.beginPath(); g.moveTo(0, h); for (let x = 0; x <= w; x += 6) g.lineTo(x, terrain(x + game.x)); g.lineTo(w, h); g.fill();
-  // the 4x4
-  const cx = 200, y1 = terrain(cx - 26 + game.x), y2 = terrain(cx + 26 + game.x);
-  const ang = Math.atan2(y2 - y1, 52), cy = (y1 + y2) / 2 - 20 + Math.sin(t * 14) * 0.8;
-  g.save(); g.translate(cx, cy); g.rotate(ang);
-  g.fillStyle = "#efe7d6"; g.fillRect(-36, -14, 72, 16); g.fillRect(-28, -28, 40, 15);
-  g.fillStyle = "#3d5466"; g.fillRect(-24, -25, 14, 9); g.fillRect(-7, -25, 15, 9);
-  g.fillStyle = "#222"; g.fillRect(-30, -33, 34, 4);
-  g.fillStyle = "#1a1a1a"; [-22, 22].forEach((x) => { g.beginPath(); g.arc(x, 4, 10, 0, 7); g.fill(); });
-  g.fillStyle = "#777"; [-22, 22].forEach((x) => { g.beginPath(); g.arc(x, 4, 4, 0, 7); g.fill(); });
-  g.restore();
-  if (Math.random() < dt * 30) game.dust.push({ x: cx - 40, y: terrain(cx - 40 + game.x) - 4, r: 3, a: 0.5 });
-  game.dust.forEach((d) => { d.x -= dt * 60; d.y -= dt * 8; d.r += dt * 10; d.a -= dt * 0.6; });
-  game.dust = game.dust.filter((d) => d.a > 0);
-  game.dust.forEach((d) => { g.fillStyle = `rgba(214,170,120,${d.a})`; g.beginPath(); g.arc(d.x, d.y, d.r, 0, 7); g.fill(); });
-  // HUD
-  g.fillStyle = "rgba(0,0,0,.35)"; g.fillRect(0, 0, w, 34);
-  g.fillStyle = "#fff"; g.font = "bold 18px 'Courier New', monospace"; g.fillText("OVERLAND RUN", 14, 23);
-  g.textAlign = "right"; g.fillText(String(Math.floor(game.x / 10)).padStart(6, "0") + " m", w - 14, 23); g.textAlign = "left";
-  if (Math.floor(t * 1.5) % 2) { g.textAlign = "center"; g.font = "bold 22px 'Courier New', monospace"; g.fillStyle = "#3a2410"; g.fillText("PRESS START", w / 2, 92); g.textAlign = "left"; }
-  gameTex.needsUpdate = true;
-}
+soundBtn.onclick = (e) => { e.stopPropagation(); sound.start(); sound.toggle(); syncSound(); syncVrMute(); };
 
 /* ------------------------------------------------------------------ *
  *  Loading
@@ -1175,7 +888,6 @@ manager.onLoad = () => {
   setTimeout(() => $("#loader").classList.add("done"), 350);
   Object.assign(view, clampView({ ...homeView(), hh: baseHH() * 0.86 }));
   target = homeView();
-  drawBoard();
   drawScreen();
 };
 manager.onError = (url) => { if (!/tex\//.test(url)) { ldText.textContent = "Couldn't load the workshop — opening the simple version"; setTimeout(() => location.replace("os/index.html"), 1500); } };
@@ -1198,8 +910,9 @@ onResize();
 Object.assign(view, homeView());
 
 const clock = new THREE.Clock();
-let lastScreenMin = -1, gameAcc = 0, nextBlink = 2, blinkT = -9, wag = 0;
-const dogLook = new THREE.Vector2();
+let lastScreenMin = -1;
+const blinks = [0, 1, 2].map((i) => ({ next: 1.5 + i * 1.7 + Math.random() * 2, at: -9 }));
+const ears = [0, 1, 2, 3].map(() => ({ next: 4 + Math.random() * 8, at: -9, amp: 0 }));
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, clock.getDelta());
@@ -1234,41 +947,30 @@ function frame() {
 
   const min = new Date().getMinutes();
   if (min !== lastScreenMin) { lastScreenMin = min; drawScreen(); }
-  gameAcc += dt;
-  if (gameAcc > 1 / 30) { drawGame(t, gameAcc); gameAcc = 0; }
 
   // living things
-  updateCows(dt, t);
   updateBirds(dt, t);
-  for (const b of blinkers) {
-    b.m.material.emissiveIntensity = b.rate === 0 ? 2.0 : (Math.sin(t * b.rate + b.ph) + Math.sin(t * b.rate * 2.3 + b.ph * 2) > 0.2 ? 2.4 : 0.15);
-  }
-  // the dog watches the cursor, blinks now and then, and wags when you come near
-  {
-    const hx = 290, hy = 733;
-    const [mx, my] = screenToImg((mouse.x * 0.5 + 0.5) * window.innerWidth, (0.5 - mouse.y * 0.5) * window.innerHeight);
-    const dx = mx - hx, dy = my - hy, dist = Math.hypot(dx, dy);
-    const k = Math.min(1, dist / 260);
-    const want = mode === "os" || mode === "monitor" ? new THREE.Vector2(0.6, -0.3) : new THREE.Vector2((dx / (dist || 1)) * k, (dy / (dist || 1)) * k);
-    dogLook.lerp(want, 1 - Math.pow(0.002, dt));
-    uniforms.uLook.value.copy(dogLook);
-    if (t > nextBlink) { blinkT = t; nextBlink = t + 2.5 + Math.random() * 4.5; if (Math.random() < 0.2) nextBlink = t + 0.35; }
-    const bp = (t - blinkT) / 0.16;
-    uniforms.uBlink.value = bp >= 0 && bp < 1 ? Math.sin(bp * Math.PI) : 0;
-    const near = dist < 140 && (mode === "explore" || mode === "intro") ? 1 : 0;
-    wag += (near - wag) * Math.min(1, dt * 3);
-    uniforms.uWag.value = wag;
-  }
-
-  // the second monitor's glow on the desk follows the game's colours
-  const [mx, my] = project(monitor2.localToWorld(new THREE.Vector3(0, 0.03, 0.1)));
-  uniforms.uScreen2.value.set(mx, my, 0);
+  // each dog blinks on its own clock (sometimes a quick double blink)
+  blinks.forEach((b, i) => {
+    if (t > b.next) { b.at = t; b.next = t + 2.8 + Math.random() * 5; if (Math.random() < 0.18) b.next = t + 0.38; }
+    const bp = (t - b.at) / 0.17;
+    uniforms.uBlink.value.setComponent(i, bp >= 0 && bp < 1 ? Math.sin(bp * Math.PI) : 0);
+  });
+  // the odd ear flick: a quick turn and a slower settle
+  ears.forEach((e, i) => {
+    if (t > e.next) { e.at = t; e.amp = (i % 2 ? 1 : -1) * (0.12 + Math.random() * 0.1); e.next = t + 6 + Math.random() * 12; }
+    const ep = t - e.at;
+    const v = ep < 0 ? 0 : ep < 0.08 ? ep / 0.08 : Math.exp(-(ep - 0.08) * 6) * Math.cos((ep - 0.08) * 18);
+    uniforms.uEar.value.setComponent(i, e.amp * v);
+  });
+  uniforms.uDrone.value.set(Math.sin(t * 0.37) * 1.6 + Math.sin(t * 1.1) * 0.4, Math.sin(t * 1.25) * 1.1);
 
   {
     const show = mode === "intro" || mode === "explore" || mode === "seated";
     helpBtn.style.display = show ? "" : "none";
-    if (show) { const [hx2, hy2] = imgToScreen(792, 596); helpBtn.style.transform = `translate(${hx2}px, ${hy2}px)`; }
+    if (show) { const [hx2, hy2] = imgToScreen(560, 565); helpBtn.style.transform = `translate(${hx2}px, ${hy2}px)`; }
   }
+  updateIntro();
   sound.view = { cx: view.cx, hw: view.hh * aspect() };
   sound.update(dt);
 
