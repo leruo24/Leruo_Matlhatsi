@@ -326,3 +326,72 @@ body.crt #crt { display: block; position: fixed; inset: 0; z-index: 200; pointer
 .help-links b { display: block; color: #0a246a; }
 .menubar .m-help { font-weight: bold; color: #0a246a; }
 @media (max-width: 720px) { .gal-side { display: none; } .help-links { grid-template-columns: 1fr; } }
+
+/* ---------- explorer windows, message boxes ---------- */
+.ex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; padding: 14px; }
+.ex-item { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; text-align: left; padding: 6px; border: 1px solid transparent; border-radius: 3px; background: none; cursor: pointer; font-size: 12px; }
+.ex-item svg { width: 34px; height: 34px; grid-row: span 2; }
+.ex-item small { color: #666; font-size: 11px; }
+.ex-item:hover { border-color: #c2d4f3; background: #eef4fe; }
+.ex-item.sel { background: var(--sel); color: #fff; } .ex-item.sel small { color: #dfe8ff; }
+.msgbox { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: start; padding: 16px; background: var(--face); height: 100%; }
+.msgbox svg { width: 36px; height: 36px; }
+.msgbox p { margin: 2px 0 0; white-space: pre-line; line-height: 1.5; }
+.msgbox .xbtn { grid-column: 1 / -1; justify-self: center; min-width: 80px; }
+
+/* ---------- Paint ---------- */
+.paint { display: grid; grid-template-columns: 56px 1fr; grid-template-rows: 1fr auto; height: 100%; background: var(--face); }
+.pt-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 4px; align-content: start; border-right: 1px solid #c9c6b6; }
+.pt-tools button { height: 24px; border: 1px solid #b8b5a6; background: #f7f6ef; border-radius: 2px; cursor: pointer; font-size: 13px; padding: 0; }
+.pt-tools button.on { background: #cfdcf5; border-color: #316ac5; }
+.pt-sizes { grid-column: 1 / -1; display: grid; gap: 2px; margin-top: 6px; border: 1px solid #b8b5a6; background: #fff; padding: 3px; }
+.pt-sizes button { height: 20px; display: grid; place-items: center; }
+.pt-sizes i { display: block; background: #000; border-radius: 50%; }
+.pt-canvaswrap { overflow: auto; background: #808080; padding: 6px; }
+.pt-canvas { background: #fff; display: block; cursor: crosshair; touch-action: none; width: 760px; height: 440px; box-shadow: 1px 1px 0 #333; }
+.pt-bottom { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-top: 1px solid #c9c6b6; }
+.pt-cur { position: relative; width: 30px; height: 30px; border: 1px solid #888; background: #fff; }
+.pt-cur i { position: absolute; width: 14px; height: 14px; border: 1px solid #555; }
+.pt-cur .c1 { left: 3px; top: 3px; z-index: 1; } .pt-cur .c2 { right: 3px; bottom: 3px; }
+.pt-pal { display: grid; grid-template-columns: repeat(14, 15px); gap: 1px; }
+.pt-pal button { width: 15px; height: 14px; border: 1px solid #666; padding: 0; cursor: pointer; }
+.pt-act { margin-left: auto; display: flex; gap: 6px; }
+
+/* ---------- Solitaire ---------- */
+.sol { height: 100%; display: flex; flex-direction: column; background: #0b7a31; }
+.sol-bar { display: flex; align-items: center; gap: 16px; padding: 4px 8px; background: var(--face); border-bottom: 1px solid #c9c6b6; font-size: 12px; }
+.sol-table { position: relative; flex: 1; overflow: auto; background: radial-gradient(ellipse at 50% 30%, #12913d, #0a6b2b 80%); user-select: none; }
+.sol-table .slot { position: absolute; width: var(--cw); height: var(--ch); border: 1px solid rgba(255,255,255,.35); border-radius: 6px; }
+.sol-table .slot.found .fs { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,255,255,.35); font-size: calc(var(--cw) * .45); }
+.sol-table .recyc { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,255,255,.6); font-size: calc(var(--cw) * .5); cursor: pointer; }
+.sol-table .pos { position: absolute; width: var(--cw); height: var(--ch); }
+.card { position: absolute; inset: 0; border-radius: 6px; background: #fff; border: 1px solid #555; box-shadow: 1px 1px 2px rgba(0,0,0,.35); cursor: pointer; font: bold calc(var(--cw) * .2) Georgia, serif; color: #111; overflow: hidden; }
+.card.red { color: #c62828; }
+.card b { position: absolute; left: 4px; top: 3px; line-height: 1; display: flex; flex-direction: column; align-items: center; }
+.card b i { font-style: normal; font-size: .85em; }
+.card b.br { left: auto; top: auto; right: 4px; bottom: 3px; transform: rotate(180deg); }
+.card span { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--cw) * .5); }
+.card.back { background: repeating-linear-gradient(45deg, #1f5fb8 0 4px, #2a74d6 4px 8px); border: 3px solid #fff; outline: 1px solid #333; }
+.card[data-sel] { outline: 3px solid #ffd54a; outline-offset: -1px; box-shadow: 0 0 10px #ffd54a; }
+.sol-win { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); background: var(--face); border: 2px solid #0831d9; padding: 18px 26px; text-align: center; font: bold 20px "Trebuchet MS", sans-serif; z-index: 200; }
+
+/* ---------- LeruAmp ---------- */
+.amp { height: 100%; display: flex; flex-direction: column; background: linear-gradient(180deg, #3a4356, #232a37); color: #cfe; padding: 8px; gap: 8px; }
+.amp-screen { position: relative; background: #04140c; border: 2px inset #5a6478; padding: 6px 8px; font: 12px "Courier New", monospace; color: #55d66b; }
+.amp-title { font-weight: bold; white-space: nowrap; overflow: hidden; }
+.amp-time { position: absolute; right: 8px; top: 6px; }
+.amp-vis { display: block; width: 100%; height: 60px; margin-top: 6px; }
+.amp-ctrl { display: flex; gap: 4px; align-items: center; }
+.amp-ctrl button { width: 36px; height: 26px; border: 1px solid #111; border-radius: 3px; background: linear-gradient(180deg, #7b8496, #4b5466); color: #fff; cursor: pointer; }
+.amp-ctrl input { flex: 1; }
+.amp-list { margin: 0; padding: 4px 4px 4px 26px; background: #000; flex: 1; overflow: auto; font: 12px "Courier New", monospace; color: #55d66b; border: 2px inset #5a6478; }
+.amp-list li { cursor: pointer; padding: 1px 0; }
+.amp-list li small { color: #2f7d3e; }
+.amp-list li.on { color: #fff; background: #0a3d8f; }
+
+/* ---------- Command Prompt ---------- */
+.term { height: 100%; overflow: auto; background: #0c0c0c; color: #c0c0c0; font: 14px/1.35 Consolas, "Lucida Console", "Courier New", monospace; padding: 6px 8px; cursor: text; user-select: text; }
+.term-out div { white-space: pre-wrap; min-height: 1.35em; }
+.term-acc { color: #9be37d; }
+.term-line { display: flex; }
+.term-in { flex: 1; background: none; border: 0; outline: none; color: inherit; font: inherit; padding: 0; caret-color: #c0c0c0; }

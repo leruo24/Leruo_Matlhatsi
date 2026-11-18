@@ -131,3 +131,9 @@ body.vr header#top, body.vr #hint, body.vr #help-btn { opacity: 0 !important; po
   .vr-ui { top: 10%; }
   .vr-ctrl { left: 0; right: 0; justify-content: center; }
 }
+
+/* keep the name clear of the whiteboard: it sits to the right, beside the buttons */
+header#top { justify-content: flex-end; gap: 18px; align-items: center; }
+header#top .brand { text-align: right; order: 0; }
+header#top .top-actions { order: 1; }
+@media (max-width: 700px) { header#top .brand { display: none; } }

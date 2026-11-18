@@ -789,21 +789,25 @@
     game: openOverland,
     readme: openReadme,
   };
+  const SFX = window.LeruApps ? window.LeruApps({ openWindow, ICONS, APPS, P, esc, $ }) : { startup() {}, logoff() {}, notify() {}, error() {}, open() {} };
 
   /* ---------------- desktop icons ---------------- */
   const DESKTOP = [
+    ["mycomputer", "mycomputer", "My Computer"],
+    ["mydocs", "mydocs", "My Documents"],
+    ["recycle", "recycle", "Recycle Bin"],
     ["showcase", "gallery", "Showcase"],
     ["portfolio", "showcase", "Portfolio"],
-    ["about", "about", "About Me"],
-    ["projects", "projects", "Projects"],
-    ["experience", "experience", "Experience"],
     ["resume", "resume", "Resume.pdf"],
     ["contact", "contact", "Contact"],
     ["game", "game", "Overland Run"],
+    ["solitaire", "cards", "Solitaire"],
+    ["paint", "paint", "Paint"],
+    ["music", "music", "LeruAmp"],
+    ["terminal", "terminal", "Command Prompt"],
     ["mines", "mines", "Minesweeper"],
-    ["readme", "readme", "Read Me.txt"],
     ["help", "help", "How this works"],
-  ];
+  ].filter(([a]) => APPS[a]);
   const iconList = $("#icons");
   const coarse = matchMedia("(pointer: coarse)").matches;
   DESKTOP.forEach(([app, icon, label]) => {
@@ -832,10 +836,17 @@
     ["resume", "resume", "Resume", "My CV (PDF)"],
     null,
     ["game", "game", "Overland Run", "4x4 game"],
+    ["solitaire", "cards", "Solitaire", "Klondike"],
+    ["paint", "paint", "Paint", "Draw something"],
+    ["music", "music", "LeruAmp", "Original tunes"],
+    ["terminal", "terminal", "Command Prompt", "Type 'help'"],
     ["mines", "mines", "Minesweeper", "Classic"],
     ["readme", "readme", "Notepad", "Read Me.txt"],
-  ];
+  ].filter((x) => !x || APPS[x[0]]);
   const RIGHT = [
+    ["mydocs", "mydocs", "My Documents"],
+    ["mycomputer", "mycomputer", "My Computer"],
+    null,
     ["about", "about", "About Me"],
     ["projects", "projects", "My Projects"],
     ["experience", "experience", "Experience"],
@@ -867,7 +878,7 @@
     APPS[b.dataset.app]();
   });
   $("#sm-off").addEventListener("click", () => { toggleStart(false); shutDown(); });
-  $("#sm-logoff").addEventListener("click", () => { toggleStart(false); showWelcome(); });
+  $("#sm-logoff").addEventListener("click", () => { toggleStart(false); SFX.logoff(); showWelcome(); });
   document.addEventListener("pointerdown", (e) => {
     if (!startMenu.hidden && !e.target.closest("#start-menu, #start-btn")) toggleStart(false);
     if (!e.target.closest(".icon")) iconList.querySelectorAll(".icon").forEach((x) => x.classList.remove("sel"));
@@ -917,6 +928,7 @@
     setTimeout(() => $("#wl-user") && $("#wl-user").focus(), 50);
   }
   function showBalloon() {
+    setTimeout(() => SFX.notify(), 900);
     balloon.hidden = false; balloon.classList.remove("out");
     clearTimeout(showBalloon.t);
     showBalloon.t = setTimeout(() => { balloon.classList.add("out"); setTimeout(() => (balloon.hidden = true), 400); }, 7000);
@@ -929,7 +941,7 @@
     const finish = () => {
       welcome.classList.add("out");
       setTimeout(() => (welcome.hidden = true), 500);
-      if (embedded) window.parent.postMessage({ type: "os", action: "sfx", name: "chime" }, "*");
+      SFX.startup();
       if (page) openPage(page, arg);
       else if (!open.size) openGallery();
       showBalloon();

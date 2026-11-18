@@ -16,13 +16,16 @@ const P = window.PORTFOLIO || {};
 const W = 1670, H = 942; // image size (px)
 const SCREEN = [[847, 392], [1143, 396], [1143, 554], [847, 541]]; // TL TR BR BL of the main monitor (its green screen)
 const SCREEN_C = [995, 470];
-const PAR = 0.011; // parallax strength (uv units at full mouse travel)
+const PAR = 0.017; // parallax strength (uv units at full mouse travel)
 const FOCUS_D = 0.3; // depth that stays still while you look around
 // camera matched to the photo: focal length (px), principal point / horizon (px), height (m)
 const F = 1000, CX = 835, YH = 367, HC = 1.3;
 
 const HOTSPOTS = {
   monitor: { label: "Use the computer", x: 995, y: 470, rx: 160, ry: 100 },
+  dogA: { label: "Say hi", x: 250, y: 600, rx: 55, ry: 95, dog: 0 },
+  dogB: { label: "Say hi", x: 262, y: 765, rx: 95, ry: 45, dog: 1 },
+  dogC: { label: "Say hi", x: 410, y: 715, rx: 42, ry: 70, dog: 2 },
 };
 
 const $ = (s) => document.querySelector(s);
@@ -36,11 +39,14 @@ const rand = (a, b) => a + Math.random() * (b - a);
  * ------------------------------------------------------------------ */
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: "high-performance", preserveDrawingBuffer: location.search.includes("debug") });
 const coarse = matchMedia("(pointer: coarse)").matches;
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, coarse ? 1.5 : 2));
+// render scale adapts to the device: starts sensible, drops if frames get slow, climbs back if there's headroom
+const MAX_PR = Math.min(window.devicePixelRatio, coarse ? 1.25 : 1.5);
+let prScale = MAX_PR;
+renderer.setPixelRatio(prScale);
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace; // the photo is display-ready; everything is composed in display space
 renderer.autoClear = false;
 // colour = photo + 3D in display space, alpha = disparity (1 / distance) for the focus pull
-const rt = new THREE.WebGLRenderTarget(4, 4, { samples: new URLSearchParams(location.search).has("nomsaa") ? 0 : coarse ? 2 : 4, depthBuffer: true });
+const rt = new THREE.WebGLRenderTarget(4, 4, { samples: 0, depthBuffer: true }); // no MSAA: the photo doesn't need it
 
 const manager = new THREE.LoadingManager();
 const loader = new THREE.TextureLoader(manager);
@@ -86,7 +92,7 @@ const uniforms = {
   tGravel: { value: tGravel }, tConcrete: { value: tConcrete },
   uTime: { value: 0 }, uMouse: { value: new THREE.Vector2() }, uPar: { value: PAR }, uFocusD: { value: FOCUS_D },
   uSize: { value: new THREE.Vector2(W, H) }, uTexel: { value: 1 }, uGust: { value: 0.5 },
-  uBlink: { value: new THREE.Vector3() }, uEar: { value: new THREE.Vector4() }, uDrone: { value: new THREE.Vector2() },
+  uBlink: { value: new THREE.Vector3() }, uEar: { value: new THREE.Vector4() }, uWag: { value: 0 }, uTilt: { value: 0 },
 };
 const KEEP_ALPHA = { blending: THREE.CustomBlending, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor };
 
@@ -100,7 +106,7 @@ const photo = new THREE.Mesh(
       uniform sampler2D tImg, tDepth, tMask, tMask2, tGravel, tConcrete;
       uniform float uTime, uPar, uFocusD, uTexel, uGust;
       uniform vec2 uMouse, uSize;
-      uniform vec3 uBlink; uniform vec4 uEar; uniform vec2 uDrone;
+      uniform vec3 uBlink; uniform vec4 uEar; uniform float uWag, uTilt;
       varying vec2 vUv;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float noise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.0-2.0*f);
@@ -108,7 +114,7 @@ const photo = new THREE.Mesh(
       float lum(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
       vec2 parallax(vec2 uv){
         vec2 p = uv;
-        for (int i = 0; i < 5; i++) { float d = texture2D(tDepth, p).r; p = uv - uMouse * (d - uFocusD) * uPar; }
+        for (int i = 0; i < 3; i++) { float d = texture2D(tDepth, p).r; p = uv - uMouse * (d - uFocusD) * uPar; }
         return p;
       }
       vec2 px(vec2 uv){ return vec2(uv.x * uSize.x, (1.0 - uv.y) * uSize.y); }
@@ -137,11 +143,12 @@ const photo = new THREE.Mesh(
         float gust = (0.35 + 0.65 * smoothstep(0.25, 0.85, gustF)) * (0.6 + 0.8 * uGust);
         vec2 sway = vec2(sin(t * 0.9 + P.y * 0.012) * 0.8 + sin(t * 2.1 + P.x * 0.025) * 0.3, sin(t * 1.4 + P.x * 0.018) * 0.3);
         vec2 flut = vec2(noise(P * 0.09 + t * 2.6), noise(P * 0.09 - t * 2.3 + 5.0)) - 0.5;
-        uv += m.g * gust * (sway * 1.5 + flut * 1.0) * ipx;
+        uv += m.g * gust * (sway * 2.6 + flut * 1.7) * ipx;
         // grass and plants bend with the same wind; nearer grass moves more on screen
         float gg = noise(vec2(P.x * 0.012 - t * 0.7, P.y * 0.03));
         uv.x += m2.b * (sin(t * 1.7 + P.x * 0.05 + P.y * 0.03) * 0.5 + (gg - 0.5) * 1.6) * gust * (0.4 + dd * 14.0) * ipx.x;
 
+        if (P.x < 480.0 && P.y > 500.0) {
         // the three dogs: each breathes at its own pace (chest/back rises a touch)
         {
           float b1 = 0.5 - 0.5 * cos(6.28318 * t / 3.1), b2 = 0.5 - 0.5 * cos(6.28318 * t / 4.2 + 1.3), b3 = 0.5 - 0.5 * cos(6.28318 * t / 2.6 + 2.1);
@@ -182,11 +189,24 @@ const photo = new THREE.Mesh(
             uv = mix(uv, toUv(P - vec2(0.0, 2.3 * er[i].y)), lid);
           }
         }
-        // the drone hovers: a gentle bob and drift, nothing more
+        // the standing dog's curled tail wags (a turn about its base); faster when he's excited
         {
-          float dm = smoothstep(52.0, 36.0, abs(P.x - 1032.0)) * smoothstep(22.0, 12.0, abs(P.y - 171.0));
-          uv -= dm * uDrone * ipx;
+          vec2 tb = vec2(236.0, 596.0), q = P - tb;
+          float w = smoothstep(46.0, 30.0, length(P - vec2(222.0, 548.0))) * step(P.x, 252.0) * step(P.y, 600.0);
+          float an = uWag * w;
+          vec2 rq = vec2(q.x * cos(an) - q.y * sin(an), q.x * sin(an) + q.y * cos(an));
+          uv = mix(uv, toUv(tb + rq), step(0.001, w));
         }
+        // the little one tilts its head now and then
+        {
+          vec2 nb = vec2(415.0, 712.0), q = P - nb;
+          float w = smoothstep(44.0, 30.0, length(P - vec2(414.0, 670.0))) * step(P.y, 716.0);
+          float an = uTilt * w;
+          vec2 rq = vec2(q.x * cos(an) - q.y * sin(an), q.x * sin(an) + q.y * cos(an));
+          uv = mix(uv, toUv(nb + rq), step(0.001, w));
+        }
+        }
+
 
         // the hanging lamp sways a touch on its cord
         float ang = 0.010 * sin(t * 0.8) + 0.004 * sin(t * 1.9 + 1.0);
@@ -200,8 +220,8 @@ const photo = new THREE.Mesh(
 
         // clouds drift slowly to the right (the picture of the sky itself moves)
         if (m.b > 0.02) {
-          vec3 sky = advect(uv, vec2(0.0011, 0.0), 24.0, 0.0);
-          float edge = texture2D(tMask, uv - vec2(0.0011 * 12.0, 0.0)).b * texture2D(tMask, uv + vec2(0.0011 * 12.0, 0.0)).b;
+          vec3 sky = advect(uv, vec2(0.0024, 0.0), 16.0, 0.0);
+          float edge = texture2D(tMask, uv - vec2(0.0024 * 8.0, 0.0)).b * texture2D(tMask, uv + vec2(0.0024 * 8.0, 0.0)).b;
           col = mix(col, sky, m.b * edge);
         }
         // the pond: calm water with slow, small ripples; the light on it shimmers gently
@@ -209,7 +229,7 @@ const photo = new THREE.Mesh(
           float zf = 0.3 + dd * 6.0; // nearer water shows bigger ripples
           vec2 rip = vec2(noise(P * vec2(0.05, 0.16) + vec2(t * 0.35, t * 0.12)), noise(P * vec2(0.07, 0.2) - vec2(t * 0.28, -t * 0.1) + 7.0)) - 0.5;
           vec2 rip2 = vec2(noise(P * vec2(0.14, 0.4) + t * 0.6), noise(P * vec2(0.16, 0.45) - t * 0.55 + 3.0)) - 0.5;
-          vec2 off = (rip * 2.2 + rip2 * 0.8) * zf * ipx * vec2(1.0, 0.55);
+          vec2 off = (rip * 3.4 + rip2 * 1.3) * zf * ipx * vec2(1.0, 0.55);
           vec3 w = texture2D(tImg, uv + off * m.r).rgb;
           col = mix(col, w, m.r);
           float gl = smoothstep(0.82, 0.97, noise(P * vec2(0.22, 0.7) + vec2(t * 0.25, 0.0))) * smoothstep(0.55, 0.9, lum(col));
@@ -347,7 +367,7 @@ function drawScreen() {
 function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
 
 /* dust in the sunlight (photo layer) */
-const N_DUST = 260;
+const N_DUST = 380;
 const dustPos = new Float32Array(N_DUST * 3), dustSeed = new Float32Array(N_DUST);
 for (let i = 0; i < N_DUST; i++) {
   dustPos[i * 3] = 140 + Math.random() * 800; dustPos[i * 3 + 1] = H - (330 + Math.random() * 600); dustPos[i * 3 + 2] = 0.35 + Math.random() * 0.5;
@@ -475,6 +495,46 @@ function contact(parent, w, d, opacity, x = 0, z = 0, y = 0.002) {
   return m;
 }
 
+/* --- the drone: lifted out of the photo, now it actually flies --- */
+const droneTex = raw(loader.load("assets/drone.png"));
+const DRONE_W = 100, DRONE_H = 26;
+const drone = new THREE.Mesh(new THREE.PlaneGeometry(DRONE_W, DRONE_H), new THREE.ShaderMaterial({
+  uniforms: { tDrone: { value: droneTex }, uTime: uniforms.uTime, uTilt: { value: 0 } },
+  transparent: true, depthTest: false, depthWrite: false, ...KEEP_ALPHA, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+  vertexShader: `uniform float uTilt; varying vec2 vUv; void main(){ vUv = uv; vec3 p = position; float c = cos(uTilt), s = sin(uTilt); p.xy = vec2(p.x * c - p.y * s, p.x * s + p.y * c); gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0); }`,
+  fragmentShader: `uniform sampler2D tDrone; uniform float uTime; varying vec2 vUv;
+    void main(){ vec4 c = texture2D(tDrone, vUv);
+      // spinning rotors: the blade areas flicker slightly
+      float rot = step(0.72, vUv.y) * (0.75 + 0.25 * sin(uTime * 90.0 + vUv.x * 40.0));
+      c.a *= mix(1.0, rot, step(0.72, vUv.y));
+      gl_FragColor = c; }`,
+}));
+drone.position.z = 1.5;
+photoScene.add(drone);
+const droneState = { x: 1035, y: 173, vx: 0, vy: 0, tx: 1035, ty: 173, next: 0, tilt: 0 };
+function updateDrone(dt, t) {
+  const d = droneState;
+  if (t > d.next) {
+    // pick the next spot in the sky over the farm and the pond, sometimes hang still for a bit
+    d.tx = rand(760, 1420); d.ty = rand(120, 215); d.next = t + rand(4, 9);
+  }
+  const ax = (d.tx - d.x) * 0.6 - d.vx * 1.1, ay = (d.ty - d.y) * 0.6 - d.vy * 1.3;
+  d.vx += ax * dt; d.vy += ay * dt;
+  d.x += d.vx * dt; d.y += d.vy * dt;
+  d.tilt += (-d.vx * 0.004 - d.tilt) * Math.min(1, dt * 3);
+  const hover = Math.sin(t * 1.9) * 1.2;
+  // smaller when it's further away (higher in the sky)
+  const sc = 0.75 + (d.y - 120) / 95 * 0.35;
+  const off = uniforms.uMouse.value, depthOff = (0.01 - FOCUS_D) * PAR;
+  drone.position.x = d.x + off.x * depthOff * W;
+  drone.position.y = H - (d.y + hover) - off.y * depthOff * H;
+  drone.scale.setScalar(sc);
+  drone.material.uniforms.uTilt.value = d.tilt;
+  const [mx, my] = screenToImg((mouse.x * 0.5 + 0.5) * window.innerWidth, (0.5 - mouse.y * 0.5) * window.innerHeight);
+  sound.drone.x = d.x; sound.drone.speed = Math.hypot(d.vx, d.vy);
+  sound.drone.near = Math.max(0, 1 - Math.hypot(mx - d.x, my - d.y) / 380);
+}
+
 /* --- birds: the odd flock crossing the sky, plus a single bird now and then --- */
 const birdMat = std({ color: 0x1b1714, roughness: 1, side: THREE.DoubleSide });
 function makeBird() {
@@ -489,7 +549,7 @@ function makeBird() {
   return { g, L, R, ph: Math.random() * 10 };
 }
 const flocks = [];
-let nextFlock = 6;
+let nextFlock = 2.5;
 function spawnFlock() {
   const dir = Math.random() < 0.5 ? 1 : -1;
   const Z = rand(55, 110), yImg = rand(70, 230);
@@ -509,7 +569,7 @@ function spawnFlock() {
 }
 function updateBirds(dt, t) {
   nextFlock -= dt;
-  if (nextFlock < 0) { spawnFlock(); nextFlock = rand(16, 38); }
+  if (nextFlock < 0) { spawnFlock(); nextFlock = rand(6, 15); }
   for (let k = flocks.length - 1; k >= 0; k--) {
     const f = flocks[k];
     f.pos.addScaledVector(f.vel, dt);
@@ -668,15 +728,24 @@ function hitTest(sx, sy) {
 function setHover(id) {
   hoverId = id;
   document.body.classList.toggle("hovering", !!id);
-  if (id) { const h = HOTSPOTS[id]; postU.uHover.value.set(h.x, h.y, h.rx, h.ry); }
+  if (id && HOTSPOTS[id].dog === undefined) { const h = HOTSPOTS[id]; postU.uHover.value.set(h.x, h.y, h.rx, h.ry); } else postU.uHover.value.set(-999, -999, 1, 1);
   const sh = id === "monitor";
   if (sh !== screenHover) { screenHover = sh; drawScreen(); }
 }
 function activate(id) {
   sound.start();
   if (mode === "monitor" || mode === "os") return;
+  if (HOTSPOTS[id].dog !== undefined) return patDog(HOTSPOTS[id].dog);
   if (mode !== "seated") return takeSeat();   // first you sit down at the desk...
   sitDown();                                    // ...then you jump into the computer
+}
+// click a dog: it barks (each in its own voice), pricks its ears, the standing one wags
+function patDog(i) {
+  sound.dog(i, HOTSPOTS[["dogA", "dogB", "dogC"][i]].x);
+  const e = i === 0 ? [0, 1] : i === 2 ? [2, 3] : [];
+  e.forEach((k) => { ears[k].at = clock.elapsedTime; ears[k].amp = (k % 2 ? 1 : -1) * 0.2; });
+  if (i === 0) excite = 1;
+  if (i === 2) { tiltAt = clock.elapsedTime; tiltDir = -tiltDir; }
 }
 const hintEl = $("#hint");
 const HINTS = {
@@ -721,6 +790,7 @@ function openOS() {
   osLayer.classList.add("on");
   osLayer.setAttribute("aria-hidden", "false");
   backBtn.hidden = false;
+  osFrame.contentWindow?.postMessage({ type: "host", action: "mute", on: sound.enabled }, "*");
   setTimeout(() => {
     osFrame.focus();
     osFrame.contentWindow?.postMessage({ type: "host", action: "focus" }, "*");
@@ -739,13 +809,15 @@ function standUp() {
 }
 backBtn.onclick = standUp;
 
+let lastMove = -1e9;
 canvas.addEventListener("pointermove", (e) => {
+  lastMove = performance.now();
   mouse.set((e.clientX / window.innerWidth) * 2 - 1, -((e.clientY / window.innerHeight) * 2 - 1));
   if (mode === "intro" || mode === "explore" || mode === "seated") {
     const id = hitTest(e.clientX, e.clientY);
     if (id !== hoverId) setHover(id);
     if (id) {
-      tooltip.textContent = mode === "seated" ? HOTSPOTS[id].label : "Take a seat";
+      tooltip.textContent = HOTSPOTS[id].dog !== undefined || mode === "seated" ? HOTSPOTS[id].label : "Take a seat";
       tooltip.style.transform = `translate(${e.clientX + 16}px, ${e.clientY + 14}px)`;
       tooltip.hidden = false;
     } else tooltip.hidden = true;
@@ -886,7 +958,8 @@ helpBtn.onclick = (e) => { e.stopPropagation(); sound.start(); sound.click(); he
 const soundBtn = $("#sound-btn");
 const syncSound = () => { soundBtn.textContent = sound.enabled ? "Sound on" : "Sound off"; soundBtn.setAttribute("aria-pressed", String(sound.enabled)); };
 syncSound();
-soundBtn.onclick = (e) => { e.stopPropagation(); sound.start(); sound.toggle(); syncSound(); syncVrMute(); };
+const syncOSMute = () => osFrame.contentWindow?.postMessage({ type: "host", action: "mute", on: sound.enabled }, "*");
+soundBtn.onclick = (e) => { e.stopPropagation(); sound.start(); sound.toggle(); syncSound(); syncVrMute(); syncOSMute(); };
 
 /* ------------------------------------------------------------------ *
  *  Loading
@@ -921,7 +994,7 @@ onResize();
 Object.assign(view, homeView());
 
 const clock = new THREE.Clock();
-let lastScreenMin = -1;
+let lastScreenMin = -1, excite = 0, tiltNext = 5, tiltAt = -9, tiltDir = 1, frameAvg = 1 / 60, lastScaleT = 0;
 const blinks = [0, 1, 2].map((i) => ({ next: 1.5 + i * 1.7 + Math.random() * 2, at: -9 }));
 const ears = [0, 1, 2, 3].map(() => ({ next: 4 + Math.random() * 8, at: -9, amp: 0 }));
 function frame() {
@@ -930,7 +1003,7 @@ function frame() {
   const t = clock.elapsedTime;
   uniforms.uTime.value = t;
 
-  const k = 1 - Math.pow(mode === "monitor" ? 0.035 : mode === "seated" ? 0.045 : 0.06, dt);
+  const k = 1 - Math.pow(mode === "monitor" ? 0.012 : mode === "seated" ? 0.012 : 0.02, dt);
   view.cx += (target.cx - view.cx) * k;
   view.cy += (target.cy - view.cy) * k;
   view.hh += (target.hh - view.hh) * k;
@@ -941,8 +1014,11 @@ function frame() {
 
   // parallax: follows the mouse (or drifts slowly on touch screens); calmer when focused
   const amt = mode === "monitor" || mode === "os" ? 0 : mode === "seated" ? 0.3 : 1;
-  const want = coarse ? new THREE.Vector2(Math.sin(t * 0.21) * 0.5, Math.sin(t * 0.15) * 0.25) : mouse;
-  mouseSmooth.lerp(want.clone().multiplyScalar(-amt), 1 - Math.pow(0.12, dt));
+  // when the mouse rests (or on touch screens), the view keeps a slow, hand-held drift so it never freezes
+  const idle = coarse ? 1 : Math.min(1, Math.max(0, (performance.now() - lastMove) / 1000 - 1.5) / 2);
+  const drift = new THREE.Vector2(Math.sin(t * 0.23) * 0.45 + Math.sin(t * 0.61) * 0.08, Math.sin(t * 0.17 + 1) * 0.22 + Math.sin(t * 0.53) * 0.05);
+  const want = mouse.clone().multiplyScalar(1 - idle * 0.6).add(drift.multiplyScalar(idle));
+  mouseSmooth.lerp(want.multiplyScalar(-amt), 1 - Math.pow(0.015, dt));
   uniforms.uMouse.value.copy(mouseSmooth);
   applyCamera();
 
@@ -974,7 +1050,20 @@ function frame() {
     const v = ep < 0 ? 0 : ep < 0.08 ? ep / 0.08 : Math.exp(-(ep - 0.08) * 6) * Math.cos((ep - 0.08) * 18);
     uniforms.uEar.value.setComponent(i, e.amp * v);
   });
-  uniforms.uDrone.value.set(Math.sin(t * 0.37) * 1.6 + Math.sin(t * 1.1) * 0.4, Math.sin(t * 1.25) * 1.1);
+  updateDrone(dt, t);
+  // tail wag (always a lazy sway; a proper wag after a pat) and the little one's head tilt
+  excite = Math.max(0, excite - dt * 0.25);
+  uniforms.uWag.value = Math.sin(t * (3 + excite * 9)) * (0.04 + excite * 0.14);
+  if (t > tiltNext) { tiltAt = t; tiltDir = Math.random() < 0.5 ? -1 : 1; tiltNext = t + rand(7, 16); }
+  { const tp = t - tiltAt; uniforms.uTilt.value = tiltDir * 0.13 * (tp < 0 ? 0 : tp < 0.35 ? ease(tp / 0.35) : tp < 2.2 ? 1 : 1 - ease((tp - 2.2) / 0.5)); }
+  // keep frames smooth: lower the render resolution if frames are slow, raise it again with headroom
+  frameAvg = frameAvg * 0.95 + dt * 0.05;
+  if (t - lastScaleT > 1.5) {
+    lastScaleT = t;
+    const want = frameAvg > 0.024 ? prScale - 0.15 : frameAvg < 0.015 ? prScale + 0.1 : prScale;
+    const next = Math.max(0.6, Math.min(MAX_PR, want));
+    if (Math.abs(next - prScale) > 0.01) { prScale = next; renderer.setPixelRatio(prScale); onResize(); }
+  }
 
   {
     const show = mode === "intro" || mode === "explore" || mode === "seated";

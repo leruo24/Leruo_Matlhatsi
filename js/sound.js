@@ -2,7 +2,7 @@
 // few synthesised layers (the pond, the office in the intro, the PC boot). Everything is positioned
 // in the stereo field by where it sits in the scene, and the wind follows the same gusts
 // that move the trees.
-const FILES = ["moo1", "moo2", "moo3", "rooster", "bark", "snore", "birds1", "birds2", "birds3", "crickets", "wind", "diesel", "click", "typing"];
+const FILES = ["moo1", "moo2", "moo3", "rooster", "bark", "bark1", "bark2", "bark3", "snore", "birds1", "birds2", "birds3", "crickets", "wind", "diesel", "click", "typing"];
 
 export class Sound {
   constructor() {
@@ -13,6 +13,8 @@ export class Sound {
     this.focus = null;
     this.gust = 0.5;
     this.view = { cx: 835, hw: 835 };
+    this.drone = { x: 1035, y: 173, near: 0, speed: 0 };
+    this.nature = 0;
   }
 
   start() {
@@ -42,7 +44,6 @@ export class Sound {
       { buf: this.noiseBuf, type: "bandpass", f: 650, q: 1.2, g: 0.022, wander: [450, 950] },
       { buf: this.noiseBuf, type: "bandpass", f: 1800, q: 2.0, g: 0.008, wander: [1400, 2400] },
     ], 0.55, 0);
-    this.nature = 0; // 0 = office (intro), 1 = workshop
     // the office in the intro: murmur of voices, air-con, the odd keyboard and phone
     this.office = this.bed([
       { buf: this.brownBuf, type: "lowpass", f: 180, g: 0.09 },                                // air-con rumble
@@ -65,8 +66,26 @@ export class Sound {
       return { g, lg };
     });
     this.nextOffice = ctx.currentTime + 0.5;
+    // the drone: a thin motor whine (two detuned saws through a band-pass), loudness set by where it is vs. the cursor
+    {
+      const out = ctx.createGain(); out.gain.value = 0;
+      const p = ctx.createStereoPanner(); out.connect(p).connect(this.amb);
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 900; bp.Q.value = 1.4;
+      const oscs = [180, 183.5, 361].map((f) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.start(); return o; });
+      const og = ctx.createGain(); og.gain.value = 0.03; oscs.forEach((o) => o.connect(og)); og.connect(bp).connect(out);
+      const n = ctx.createBufferSource(); n.buffer = this.noiseBuf; n.loop = true; const nf = ctx.createBiquadFilter(); nf.type = "bandpass"; nf.frequency.value = 2200; nf.Q.value = 2;
+      const ng = ctx.createGain(); ng.gain.value = 0.012; n.connect(nf).connect(ng).connect(out); n.start();
+      this.droneSnd = { out, p, oscs };
+    }
+    // leaves: a soft rustle (filtered noise) that rises and falls with the gusts
+    this.rustle = this.bed([
+      { buf: this.noiseBuf, type: "bandpass", f: 3800, q: 0.7, g: 0.03, wander: [2800, 5200] },
+      { buf: this.noiseBuf, type: "highpass", f: 7000, q: 0.5, g: 0.008 },
+    ], 0.3, 0);
+    this.nextChime = ctx.currentTime + 6;
+    this.nextFarm = ctx.currentTime + 12;
     this.nextBird = ctx.currentTime + 1.5;
-    this.nextRooster = ctx.currentTime + 40 + Math.random() * 60;
+    this.nextRooster = ctx.currentTime + 18 + Math.random() * 30;
 
     FILES.forEach((n) => fetch(`assets/audio/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => new Promise((res, rej) => ctx.decodeAudioData(a, res, rej))).then((bf) => {
       this.buf[n] = bf;
@@ -145,7 +164,14 @@ export class Sound {
     lvl(this.office.out, (1 - N) * 1.0, N > 0.02 ? 0.6 : 0.15);
     // voices come and go in waves
     this.babble.forEach((b, i) => b.g.gain.setTargetAtTime(Math.max(0, Math.sin(t * (0.21 + i * 0.07) + i * 1.7)) * 0.03, t, 0.5));
-    [this.river, this.office].forEach((bd) => bd.filters.forEach(({ f: fl, L }) => { if (L.wander && Math.random() < dt * 2) fl.frequency.setTargetAtTime(L.wander[0] + Math.random() * (L.wander[1] - L.wander[0]), t, 0.4); }));
+    lvl(this.rustle.out, N * (0.15 + 0.85 * this.gust * this.gust) * (f === "monitor" ? 0.3 : 1), 0.4);
+    if (this.droneSnd) {
+      lvl(this.droneSnd.out, N * (0.1 + 0.9 * this.drone.near) * 0.5 * (f === "monitor" ? 0.2 : 1), 0.3);
+      this.droneSnd.p.pan.setTargetAtTime(this.panAt(this.drone.x), t, 0.2);
+      const pitch = 1 + (this.drone.speed || 0) * 0.004;
+      this.droneSnd.oscs.forEach((o, i) => o.frequency.setTargetAtTime([180, 183.5, 361][i] * pitch, t, 0.2));
+    }
+    [this.river, this.office, this.rustle].forEach((bd) => bd.filters.forEach(({ f: fl, L }) => { if (L.wander && Math.random() < dt * 2) fl.frequency.setTargetAtTime(L.wander[0] + Math.random() * (L.wander[1] - L.wander[0]), t, 0.4); }));
     if (!this.ok) return;
     if (N < 0.5) {
       // office life: bursts of typing somewhere nearby, a distant phone now and then
@@ -163,6 +189,18 @@ export class Sound {
       const n = ["birds1", "birds2", "birds3"][Math.floor(Math.random() * 3)];
       this.play(n, { gain: (0.10 + Math.random() * 0.16) * (f === "monitor" ? 0.35 : 1), pan: Math.random() * 1.6 - 0.8, lp: 3000 + Math.random() * 6000, bus: this.amb, rate: 0.96 + Math.random() * 0.08 });
       this.nextBird = t + 6 + Math.random() * 10;
+    }
+    // wind chimes: a few soft notes when a gust picks up
+    if (t > this.nextChime) {
+      if (this.gust > 0.55) this.chimes(Math.round(1 + this.gust * 3));
+      this.nextChime = t + 2.5 + Math.random() * 5;
+    }
+    // the farm: distant cows, a dog from the farmhouse
+    if (t > this.nextFarm) {
+      const r = Math.random();
+      if (r < 0.6) this.moo(820 + Math.random() * 300, 4);
+      else this.play(["bark1", "bark3"][Math.floor(Math.random() * 2)], { gain: 0.05, pan: this.panAt(1450), lp: 1400, bus: this.amb, rate: 0.9 + Math.random() * 0.2 });
+      this.nextFarm = t + 14 + Math.random() * 20;
     }
     if (t > this.nextRooster) {
       this.play("rooster", { gain: 0.07, pan: this.panAt(940), lp: 2200, bus: this.amb });
@@ -302,6 +340,23 @@ export class Sound {
     });
   }
 
+  /** each of the three dogs has its own voice */
+  dog(i, x = 250) {
+    const n = ["bark1", "bark2", "bark3"][i];
+    if (!this.play(n, { gain: [0.5, 0.55, 0.45][i], pan: this.panAt(x), rate: [1.0, 0.92, 1.12][i] })) this.bark();
+  }
+  /** a few soft, randomly struck chime tubes (pentatonic, long ring) */
+  chimes(n = 2) {
+    if (!this.ok) return;
+    const ctx = this.ctx, notes = [880, 987.8, 1174.7, 1318.5, 1568, 1760];
+    for (let k = 0; k < n; k++) {
+      const t = ctx.currentTime + k * (0.12 + Math.random() * 0.25), f = notes[Math.floor(Math.random() * notes.length)];
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.018, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+      const p = ctx.createStereoPanner(); p.pan.value = this.panAt(1530) * 0.8;
+      [1, 2.76, 5.4].forEach((m, j) => { const o = ctx.createOscillator(); o.frequency.value = f * m; const og = ctx.createGain(); og.gain.value = [1, 0.35, 0.12][j]; o.connect(og).connect(g); o.start(t); o.stop(t + 3.3); });
+      g.connect(p).connect(this.amb);
+    }
+  }
   bark() { if (!this.play("bark", { gain: 0.55, pan: this.panAt(236) })) this.burst({ freq: 700, q: 3, gain: 0.3, dur: 0.12 }); }
   snore(near) { this.play("snore", { gain: near ? 0.32 : 0.05, pan: this.panAt(236), lp: near ? 0 : 1800, bus: this.amb }); }
   moo(x = 760, dist = 1) {
