@@ -45,10 +45,25 @@ export class Sound {
     this.nature = 0; // 0 = office (intro), 1 = workshop
     // the office in the intro: murmur of voices, air-con, the odd keyboard and phone
     this.office = this.bed([
-      { buf: this.brownBuf, type: "bandpass", f: 420, q: 0.8, g: 0.05, wander: [300, 700] },
-      { buf: this.noiseBuf, type: "bandpass", f: 1100, q: 1.6, g: 0.012, wander: [800, 1500] },
-      { buf: this.noiseBuf, type: "highpass", f: 5000, q: 0.5, g: 0.004 },
+      { buf: this.brownBuf, type: "lowpass", f: 180, g: 0.09 },                                // air-con rumble
+      { buf: this.brownBuf, type: "bandpass", f: 420, q: 0.8, g: 0.08, wander: [300, 700] },
+      { buf: this.noiseBuf, type: "bandpass", f: 1100, q: 1.6, g: 0.02, wander: [800, 1500] },
+      { buf: this.noiseBuf, type: "highpass", f: 5000, q: 0.5, g: 0.005 },
     ], 0, 0);
+    // a room full of people talking: several voice-band noises, each chopped at speaking rhythm
+    this.babble = [0, 1, 2, 3].map((i) => {
+      const s = ctx.createBufferSource(); s.buffer = this.noiseBuf; s.loop = true;
+      const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 350 + i * 180; f.Q.value = 3.5;
+      const f2 = ctx.createBiquadFilter(); f2.type = "peaking"; f2.frequency.value = 1100 + i * 250; f2.Q.value = 2; f2.gain.value = 8;
+      const g = ctx.createGain(); g.gain.value = 0;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 3.2 + i * 0.7;
+      const lg = ctx.createGain(); lg.gain.value = 0.02;
+      lfo.connect(lg).connect(g.gain); lfo.start();
+      const p = ctx.createStereoPanner(); p.pan.value = [-0.6, 0.5, -0.2, 0.75][i];
+      s.connect(f).connect(f2).connect(g).connect(p).connect(this.office.out);
+      s.start(0, Math.random() * 3);
+      return { g, lg };
+    });
     this.nextOffice = ctx.currentTime + 0.5;
     this.nextBird = ctx.currentTime + 1.5;
     this.nextRooster = ctx.currentTime + 40 + Math.random() * 60;
@@ -127,16 +142,20 @@ export class Sound {
     const lap = 0.6 + 0.4 * Math.sin(t * 0.9) * Math.sin(t * 0.37 + 1);
     lvl(this.river.out, N * lap * (f === "monitor" ? 0.25 : 1), 0.5);
     if (this.river.pan) this.river.pan.pan.setTargetAtTime(this.panAt(1400), t, 0.3);
-    lvl(this.office.out, (1 - N) * 1.0, 0.5);
+    lvl(this.office.out, (1 - N) * 1.0, N > 0.02 ? 0.6 : 0.15);
+    // voices come and go in waves
+    this.babble.forEach((b, i) => b.g.gain.setTargetAtTime(Math.max(0, Math.sin(t * (0.21 + i * 0.07) + i * 1.7)) * 0.03, t, 0.5));
     [this.river, this.office].forEach((bd) => bd.filters.forEach(({ f: fl, L }) => { if (L.wander && Math.random() < dt * 2) fl.frequency.setTargetAtTime(L.wander[0] + Math.random() * (L.wander[1] - L.wander[0]), t, 0.4); }));
     if (!this.ok) return;
     if (N < 0.5) {
       // office life: bursts of typing somewhere nearby, a distant phone now and then
       if (t > this.nextOffice) {
         const b = this.buf.typing;
-        if (b && Math.random() < 0.75) this.play("typing", { gain: 0.12 + Math.random() * 0.1, pan: Math.random() * 1.4 - 0.7, lp: 3500, offset: Math.random() * (b.duration - 1), dur: 0.6 + Math.random() * 0.8, bus: this.amb });
-        else this.ring();
-        this.nextOffice = t + 1.2 + Math.random() * 2.5;
+        const r = Math.random();
+        if (b && r < 0.7) this.play("typing", { gain: 0.16 + Math.random() * 0.14, pan: Math.random() * 1.4 - 0.7, lp: 3500, offset: Math.random() * (b.duration - 1), dur: 0.6 + Math.random() * 1.2, bus: this.office.out });
+        else if (r < 0.85) this.ring();
+        else if (this.buf.click) this.play("click", { gain: 0.2, pan: Math.random() * 1.2 - 0.6, lp: 3000, bus: this.office.out });
+        this.nextOffice = t + 0.5 + Math.random() * 1.4;
       }
       return;
     }
@@ -158,10 +177,10 @@ export class Sound {
     for (let k = 0; k < 2; k++) {
       const o = ctx.createOscillator(), o2 = ctx.createOscillator(); o.frequency.value = 440; o2.frequency.value = 480;
       const g = ctx.createGain(); const t0 = t + k * 0.45;
-      g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(0.012, t0 + 0.02); g.gain.setValueAtTime(0.012, t0 + 0.35); g.gain.linearRampToValueAtTime(0.0001, t0 + 0.38);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(0.03, t0 + 0.02); g.gain.setValueAtTime(0.03, t0 + 0.35); g.gain.linearRampToValueAtTime(0.0001, t0 + 0.38);
       const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1500;
       const p = ctx.createStereoPanner(); p.pan.value = pan;
-      o.connect(g); o2.connect(g); g.connect(lp).connect(p).connect(this.amb);
+      o.connect(g); o2.connect(g); g.connect(lp).connect(p).connect(this.office.out);
       o.start(t0); o2.start(t0); o.stop(t0 + 0.4); o2.stop(t0 + 0.4);
     }
   }

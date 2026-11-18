@@ -846,13 +846,24 @@ function updateIntro() {
   sound.nature = span(t, 1.8, 4.4);
   if (t > 4.6) finishIntro();
 }
+// first click: the office (and its noise) comes to life — browsers only allow sound after a click
+const vrGate = $("#vr-gate");
+vr.classList.add("gated");
+$("#vr-enter").onclick = (e) => {
+  e.stopPropagation();
+  sound.start();
+  sound.nature = 0;
+  vrGate.classList.add("out");
+  vr.classList.remove("gated");
+  setTimeout(() => $("#vr-go").focus(), 900);
+};
 $("#vr-go").onclick = (e) => { e.stopPropagation(); putOnHeadset(); };
 $("#vr-skip").onclick = (e) => { e.stopPropagation(); fadeOutIntro(); };
 const syncVrMute = () => { vrMute.textContent = sound.enabled ? "Sound on" : "Sound off"; vrMute.setAttribute("aria-pressed", String(sound.enabled)); };
 syncVrMute();
 vrMute.onclick = (e) => { e.stopPropagation(); sound.start(); sound.toggle(); syncVrMute(); syncSound && syncSound(); };
 window.addEventListener("keydown", (e) => { if (!vrDone && e.key === "Escape") fadeOutIntro(); });
-if (params.has("skip")) { vr.classList.add("gone"); vrDone = true; document.body.classList.remove("vr"); sound.nature = 1; queueMicrotask(() => setMode("explore")); }
+if (params.has("skip")) { vrGate.classList.add("out"); vr.classList.add("gone"); vrDone = true; document.body.classList.remove("vr"); sound.nature = 1; queueMicrotask(() => setMode("explore")); }
 $("#cv-btn").onclick = (e) => { e.stopPropagation(); pendingOpen = { page: "resume" }; sitDown(); };
 const helpBtn = $("#help-btn"), helpCard = $("#card");
 function showHelp() {
