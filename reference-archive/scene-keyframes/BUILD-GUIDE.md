@@ -30,4 +30,4 @@ Use the existing frame-independent springs for camera changes. Preload only the 
 
 ## Current integration
 
-This pack is added separately under assets/scene-keyframes. The live scene and its original depth/animation maps are unchanged. The preview is a static keyframe browser, not a 3D renderer. GitHub upload remains blocked by the connection’s write permissions.
+This pack is added separately under assets/scene-keyframes. This pack now lives in reference-archive/scene-keyframes. The live scene and its original depth/animation maps are unchanged. The preview is a static keyframe browser, not a 3D renderer. GitHub upload remains blocked by the connection’s write permissions.

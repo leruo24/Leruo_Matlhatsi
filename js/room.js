@@ -1,90 +1,230 @@
 import * as THREE from 'three';
+import { PHOTO, MONITOR, TABLET } from './photo-layer.js';
 
-// Metres. One scene graph is authoritative for every camera angle and device target.
-export const ROOM = Object.freeze({width:8,depth:8,height:3.4,eye:[0,1.65,1.8],door:{x:4,start:0,end:2}});
-export function createRoom({scene,loader}={}) {
- const root=new THREE.Group();root.name='workshop';scene.add(root);
- const materials={wood:new THREE.MeshStandardMaterial({color:0xc0a58b,roughness:.68}),dark:new THREE.MeshStandardMaterial({color:0x242825,roughness:.65}),metal:new THREE.MeshStandardMaterial({color:0x414747,roughness:.4,metalness:.65}),white:new THREE.MeshStandardMaterial({color:0xd9d8cb,roughness:.6}),green:new THREE.MeshStandardMaterial({color:0x254c32,roughness:.8}),floor:new THREE.MeshStandardMaterial({color:0x999185,roughness:.92}),screen:new THREE.MeshStandardMaterial({color:0x113a27,emissive:0x123b29,emissiveIntensity:.5,roughness:.3})};
- // Shared bevelled geometry catches light at furniture edges without per-object allocations.
- const profile=new THREE.Shape();profile.moveTo(-.46,-.46);profile.lineTo(.46,-.46);profile.lineTo(.46,.46);profile.lineTo(-.46,.46);profile.closePath();
- const cube=new THREE.ExtrudeGeometry(profile,{depth:.92,bevelEnabled:true,bevelThickness:.04,bevelSize:.04,bevelSegments:2,steps:1});cube.translate(0,0,-.46);
- const cylinder=new THREE.CylinderGeometry(1,1,1,16),sphere=new THREE.SphereGeometry(1,24,16);
- function mesh(name,g,m,pos,scale,parent=root){const o=new THREE.Mesh(g,m);o.name=name;o.position.set(...pos);o.scale.set(...scale);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;}
- const box=(name,pos,size,mat=materials.wood,parent=root)=>mesh(name,cube,mat,pos,size,parent);
- const round=(name,pos,size,mat=materials.dark,parent=root)=>mesh(name,cylinder,mat,pos,size,parent);
- box('floor',[0,-.1,0],[8.2,.2,8.2],materials.floor);
- box('rear-wall',[0,1.7,4],[8,.0+3.4,.16]);box('left-wall',[-4,1.7,0],[.16,3.4,8]);
- // Right wall has a real 2 m aperture; no invisible wall spans the doorway.
- box('right-wall-front',[4,1.7,-2],[.16,3.4,4]);box('right-wall-rear',[4,1.7,3],[.16,3.4,2]);box('door-lintel',[4,3,1],[.16,.8,2]);
- box('ceiling',[0,3.5,0],[8.3,.15,8.3]);
- for(const z of [-4,-2,0,2,4])box('ceiling-beam',[0,3.25,z],[8.2,.22,.16],materials.dark);
- for(const x of [-3.9,3.9])box('front-post',[x,1.65,-4],[.18,3.3,.18]);
- box('door-track',[3.88,2.63,2],[.12,.07,4],materials.metal);
- box('door-threshold',[4,.015,1],[.2,.03,2],materials.metal);
- const glass=new THREE.MeshStandardMaterial({color:0x9ebcc0,transparent:true,opacity:.16,roughness:.12,metalness:.15,depthWrite:false});
- // Sliding leaf stays fully parked alongside the rear wall, z=2..4.
- box('parked-glass',[3.84,1.3,3],[.035,2.55,1.9],glass);
- for(const z of [2.03,3.97])box('door-frame',[3.84,1.3,z],[.065,2.6,.045],materials.dark);
- for(const y of [.025,2.575])box('door-frame',[3.84,y,3],[.065,.05,2],materials.dark);
- box('door-handle',[3.74,1.15,2.17],[.05,.25,.04],materials.metal);
- function table(name,x,z,w,d){const g=new THREE.Group();g.name=name;g.position.set(x,0,z);root.add(g);box('top',[0,.76,0],[w,.09,d],materials.wood,g);for(const a of [-1,1])for(const b of [-1,1])box('leg',[a*(w/2-.1),.36,b*(d/2-.1)],[.09,.72,.09],materials.dark,g);return g;}
- const desk=table('desk',0,-1.35,2.8,.9),bench=table('electronics-bench',2.95,-1.4,1.25,2.1);
- const monitor=new THREE.Group();monitor.name='monitor';monitor.position.set(-.2,.82,-1.58);root.add(monitor);
- box('monitor-foot',[0,.015,.02],[.36,.03,.22],materials.dark,monitor);box('monitor-neck',[0,.17,0],[.06,.3,.05],materials.dark,monitor);
- box('monitor-case',[0,.43,0],[.68,.42,.045],materials.dark,monitor);
- const pc=box('pc-screen',[0,.43,.026],[.625,.36,.008],materials.screen,monitor);pc.userData.device='pc';
- if(typeof document!=='undefined'){
-  const c=document.createElement('canvas');c.width=1024;c.height=576;const g=c.getContext('2d');
-  g.fillStyle='#12291f';g.fillRect(0,0,1024,576);g.fillStyle='#dfe8cf';g.textAlign='center';g.font='120px Georgia';g.fillText('lm.',512,260);g.font='20px sans-serif';g.fillText('LERUO / WORKSPACE',512,325);g.strokeStyle='#74866d';g.strokeRect(362,385,300,60);g.font='18px sans-serif';g.fillText('ENTER COMPUTER',512,423);
-  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;pc.material=new THREE.MeshBasicMaterial({map:texture});
- }
- const tablet=new THREE.Group();tablet.name='tablet';tablet.position.set(.64,.81,-1.1);tablet.rotation.x=-.2;root.add(tablet);
- box('tablet-case',[0,.15,0],[.21,.3,.014],materials.dark,tablet);
- const tab=box('tablet-screen',[0,.15,.009],[.185,.267,.003],materials.screen,tablet);tab.userData.device='tablet';
- if(typeof document!=='undefined'){
-  const c=document.createElement('canvas');c.width=384;c.height=560;const g=c.getContext('2d');g.fillStyle='#e9ecdf';g.fillRect(0,0,384,560);g.fillStyle='#203c2e';g.font='24px sans-serif';g.fillText('LERUO',36,65);g.font='56px Georgia';g.fillText('Field',36,190);g.fillText('notes.',36,253);g.font='16px sans-serif';g.fillText('PROJECTS / IDEAS / PEOPLE',36,320);g.fillRect(36,390,312,2);g.fillText('OPEN MY PROJECTS',36,440);
-  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;tab.material=new THREE.MeshBasicMaterial({map:texture});
- }
- box('tablet-foot',[0,.015,-.05],[.22,.03,.16],materials.dark,tablet);
- box('keyboard',[-.2,.827,-1.08],[.46,.028,.16],materials.dark);round('mouse',[.22,.831,-1.03],[.035,.022,.052]);
- box('console',[1.03,.965,-1.55],[.15,.3,.065],materials.white);const vent=round('console-vent',[1.03,.985,-1.512],[.058,.004,.058]);vent.rotation.x=Math.PI/2;
- round('tumbler',[-1,.96,-1.28],[.045,.28,.045],materials.green);
- round('lamp-base',[-1.05,.82,-1.64],[.10,.025,.10]);box('lamp-stem',[-1.05,1.06,-1.64],[.025,.45,.025],materials.metal);round('lamp-shade',[-1.05,1.3,-1.64],[.12,.08,.12]);
- // The chair is clear of the fixed eye position and angled toward the desk.
- const chair=new THREE.Group();chair.name='chair';chair.position.set(-.65,0,.05);chair.rotation.y=.18;root.add(chair);
- round('chair-base',[0,.06,0],[.33,.05,.33],materials.dark,chair);round('chair-column',[0,.28,0],[.04,.4,.04],materials.metal,chair);box('chair-seat',[0,.5,0],[.53,.10,.5],materials.dark,chair);box('chair-back',[0,.86,.22],[.5,.7,.09],materials.dark,chair);
- for(const x of [-.31,.31])box('armrest',[x,.7,.04],[.07,.06,.35],materials.dark,chair);
- // Small physical details retain their positions from every angle.
- for(let row=0;row<5;row++)for(let col=0;col<14;col++)box('key',[-.41+col*.031,.846,-1.14+row*.028],[.024,.009,.020],materials.metal);
- box('wallet',[.9,.835,-1.06],[.17,.035,.105],materials.wood);
- const keyRing=new THREE.Mesh(new THREE.TorusGeometry(.018,.003,6,16),materials.metal);keyRing.rotation.x=Math.PI/2;keyRing.position.set(.98,.833,-.94);root.add(keyRing);box('key',[1.02,.832,-.94],[.05,.005,.012],materials.metal);
- const controller=new THREE.Group();controller.position.set(1.1,.86,-1.15);controller.rotation.x=-.25;root.add(controller);
- box('controller-body',[0,0,0],[.16,.045,.08],materials.white,controller);for(const x of [-.055,.055]){const grip=box('controller-grip',[x,-.01,.035],[.045,.05,.08],materials.white,controller);grip.rotation.y=x<0?-.2:.2;round('thumbstick',[x,.03,-.005],[.012,.012,.012],materials.dark,controller);}
- const lampGlow=new THREE.PointLight(0xffcf8c,8,2.5,2);lampGlow.position.set(-1.05,1.23,-1.64);root.add(lampGlow);
- // Wall joinery, desk drawers and hardware shelf trim add depth without flat photo layers.
- for(let z=-3.8;z<4;z+=.4)box('wall-batten',[-3.90,1.7,z],[.025,3.36,.018],materials.wood);
- for(let x=-3.8;x<4;x+=.4)box('rear-batten',[x,1.7,3.90],[.018,3.36,.025],materials.wood);
- for(const y of [.22,.43,.64]){box('drawer',[-1,.0+y,-1.35],[.55,.19,.72]);box('drawer-handle',[-1,y,-.974],[.17,.02,.025],materials.metal);}
- for(let i=0;i<10;i++)box('book',[-1.2+i*.14,1.48,3.69],[.09,.6-(i%3)*.05,.27],i%2?materials.green:materials.white);
- box('breadboard',[2.95,.83,-1.1],[.2,.045,.13],materials.white);box('esp32',[2.9,.84,-1.55],[.055,.02,.09],materials.green);box('multimeter',[3.1,.84,-1.8],[.12,.06,.19],materials.dark);
- box('whiteboard',[-3.89,1.9,-2.4],[.04,.8,.65],materials.white);
- for(const y of [.4,1.1,1.8,2.5])box('rear-shelf',[0,y,3.7],[3,.06,.5]);
- for(const x of [-1.4,1.4])box('shelf-upright',[x,1.4,3.7],[.05,2.8,.5],materials.dark);
- for(let i=0;i<6;i++)box('storage-box',[-1.05+(i%3)*1.05,.62+Math.floor(i/3)*.7,3.7],[.75,.35,.4],materials.dark);
- // Outdoor geometry has real depth too; no photo with a duplicate desk wraps the room.
- box('garden',[0,-.23,-10],[70,.22,70],materials.green);
- const water=new THREE.MeshStandardMaterial({color:0x557b81,roughness:.24,metalness:.35});round('pond',[8,-.095,-11],[5,.025,3],water);
- const leaves=new THREE.MeshStandardMaterial({color:0x3b532c,roughness:1});
- for(let i=0;i<20;i++){const angle=i*2.399,x=Math.cos(angle)*(12+i*.5),z=-12+Math.sin(angle)*(7+i*.3);if(Math.abs(x)<5&&z>-5)continue;round('tree-trunk',[x,1.3,z],[.17,2.6,.17],materials.wood);mesh('canopy',sphere,leaves,[x,3.1,z],[1.6,1.8,1.6]);}
- const house=box('farmhouse',[6,1,-19],[5,2,3],materials.wood);box('house-roof',[6,2.1,-19],[5.4,.22,3.5],materials.dark);
- box('garage',[-7,1.6,-14],[5,3.2,.15]);for(const x of [-9.5,-4.5])box('garage-side',[x,1.6,-12],[.15,3.2,4]);box('garage-roof',[-7,3.25,-12],[5.3,.15,4.4],materials.dark);
- const truck=box('land-cruiser-body',[-5,.9,-7],[1.8,.65,3.6],materials.white);box('land-cruiser-cab',[-5,1.5,-7.4],[1.7,.75,1.8],materials.white);
- for(const x of [-5.9,-4.1])for(const z of [-8.1,-5.9]){const w=round('wheel',[x,.43,z],[.43,.2,.43]);w.rotation.z=Math.PI/2;}
- scene.background=new THREE.Color(0xc9b799);scene.fog=new THREE.Fog(0xc9b799,24,65);
- scene.add(new THREE.HemisphereLight(0xffe8bd,0x55533d,2));
- const sun=new THREE.DirectionalLight(0xffce92,3);sun.position.set(-8,10,-6);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-6,right:6,top:6,bottom:-6,near:.5,far:35});sun.shadow.bias=-.001;scene.add(sun);
- if(loader){const wood=loader.load('assets/tex/oak.png');wood.colorSpace=THREE.SRGBColorSpace;wood.wrapS=wood.wrapT=THREE.RepeatWrapping;wood.repeat.set(1,1);materials.wood.map=wood;materials.wood.needsUpdate=true;const concrete=loader.load('assets/tex/concrete.jpg');concrete.colorSpace=THREE.SRGBColorSpace;concrete.wrapS=concrete.wrapT=THREE.RepeatWrapping;concrete.repeat.set(4,4);materials.floor.map=concrete;materials.floor.needsUpdate=true;}
- root.updateMatrixWorld(true);
- const focus={};for(const [kind,screen] of [['pc',pc],['tablet',tab]]){const point=screen.getWorldPosition(new THREE.Vector3());const normal=new THREE.Vector3(0,0,1).applyQuaternion(screen.getWorldQuaternion(new THREE.Quaternion()));focus[kind]={point,position:point.clone().addScaledVector(normal,kind==='pc'?.65:.38)};}
- return {root,devices:[pc,tab],focus,eye:new THREE.Vector3(...ROOM.eye)};
+/*
+ * The 3D preview room, anchored to the workshop photo.
+ *
+ * The eye stays where the photo was taken (1.3 m up, looking down -Z) and only turns, so the
+ * photo shell is pixel-exact from every angle: the desk, dogs, cows, sprinklers, drone and farm are
+ * the live, animated photo, not stand-in models. The shell is the photo plus an outpainted margin.
+ * Everything the photo never saw (side walls, back wall, ceiling, floor under the chair, the open
+ * sliding door and the view through it) is modelled, with surfaces sampled from the photo and
+ * Poly Haven (CC0) props, and the shell's edge is feathered into it.
+ */
+const { W, H, F, CX, YH, HC } = PHOTO;
+// the outpainted plate: the photo sits inside a margin generated around it
+export const WIDE = Object.freeze({ left: 240, right: 242, top: 144, bottom: 210, width: W + 482, height: H + 354, feather: 90 });
+export const ROOM = Object.freeze({
+  eye: [0, HC, 0],
+  minX: -4.6, maxX: 3.4, front: -3.8, back: 3.0, height: 2.9,
+  // the glass sliding door in the right wall, slid open
+  door: { x: 3.4, start: -3.4, end: -0.6, height: 2.3 },
+  shellDistance: 0.3,
+});
+
+/** photo pixel (x, y) at distance Z in front of the eye -> world point */
+export const unproject = (x, y, Z) => new THREE.Vector3((x - CX) * Z / F, HC - (y - YH) * Z / F, -Z);
+/** world point -> photo pixel, as the photo's camera saw it */
+export const project = (v) => [CX + F * v.x / -v.z, YH - F * (v.y - HC) / -v.z];
+
+export function createRoom({ scene, loader = null, gltf = null, photoTexture = null, maxAnisotropy = 4 } = {}) {
+  // photoTexture: { texture, rect, fill } from createLivePhoto
+  const root = new THREE.Group(); root.name = 'workshop-room'; scene.add(root);
+  const eye = new THREE.Vector3(...ROOM.eye);
+  const tex = (url, { repeat = [1, 1], color = true } = {}) => {
+    if (!loader) return null;
+    const t = loader.load(url); t.colorSpace = color ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); t.anisotropy = maxAnisotropy; return t;
+  };
+  const mat = (o) => new THREE.MeshStandardMaterial(o);
+  const add = (mesh, name, parent = root) => { mesh.name = name; mesh.castShadow = mesh.receiveShadow = true; parent.add(mesh); return mesh; };
+  const box = (w, h, d, m, x, y, z, name, parent) => { const b = add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), name, parent); b.position.set(x, y, z); return b; };
+  const plane = (w, h, m, name) => add(new THREE.Mesh(new THREE.PlaneGeometry(w, h), m), name);
+
+  /* ---- surfaces, colour-matched to the photo next to each seam ---- */
+  const wood = (rx, ry) => mat({ color: 0xffffff, map: tex('assets/room/wood-planks.jpg', { repeat: [rx, ry] }), roughness: 0.82 });
+  const concrete = mat({ color: 0xfee0bf, map: tex('assets/tex/concrete.jpg', { repeat: [3, 3] }), roughness: 0.62, metalness: 0 });
+  const darkWood = mat({ color: 0x6a5240, map: tex('assets/tex/oak.png', { repeat: [4, 1] }), roughness: 0.75 });
+  const steel = mat({ color: 0x2b2d2f, roughness: 0.45, metalness: 0.75 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0xc8d6d2, roughness: 0.05, metalness: 0, transmission: 0, transparent: true, opacity: 0.22, depthWrite: false });
+  const grass = mat({ color: 0xa9c486, map: tex('assets/room/grass.jpg', { repeat: [40, 40] }), roughness: 1 });
+
+  const { minX, maxX, front, back, height, door } = ROOM;
+  const width = maxX - minX, depth = back - front, midX = (minX + maxX) / 2, midZ = (front + back) / 2;
+
+  // floor, and the meadow outside
+  const floor = plane(width, depth, concrete, 'floor'); floor.rotation.x = -Math.PI / 2; floor.position.set(midX, 0, midZ);
+  const apron = plane(1.6, door.end - door.start + 1, concrete, 'apron'); apron.rotation.x = -Math.PI / 2; apron.position.set(maxX + 0.8, 0.001, (door.start + door.end) / 2);
+  const meadow = plane(160, 160, grass, 'meadow'); meadow.rotation.x = -Math.PI / 2; meadow.position.set(0, -0.02, 0); meadow.castShadow = false;
+
+  // walls: vertical planks like the wall in the photo
+  const left = plane(depth, height, wood(depth / 1.1, 1.6), 'left-wall'); left.rotation.y = Math.PI / 2; left.position.set(minX, height / 2, midZ);
+  const backWall = plane(width, height, wood(width / 1.1, 1.6), 'back-wall'); backWall.rotation.y = Math.PI; backWall.position.set(midX, height / 2, back);
+  // front wall: only the piece left of the big opening (the photo shows the rest is open)
+  const frontW = -2.7 - minX;
+  const frontWall = plane(frontW, height, wood(frontW / 1.1, 1.6), 'front-wall'); frontWall.position.set(minX + frontW / 2, height / 2, front);
+  box(maxX + 2.7, 0.42, 0.22, darkWood, (maxX - 2.7) / 2, 2.62, front, 'header-beam');
+  // ceiling with exposed rafters
+  const ceiling = plane(width, depth, darkWood, 'ceiling'); ceiling.rotation.x = Math.PI / 2; ceiling.position.set(midX, height, midZ);
+  for (let z = front + 0.6; z < back; z += 1.2) box(width, 0.18, 0.09, darkWood, midX, height - 0.09, z, 'rafter');
+
+  // right wall with the open sliding door
+  const rightWall = new THREE.Group(); rightWall.name = 'right-wall'; root.add(rightWall);
+  const rw = (z0, z1, y0, y1, name) => { const w = z1 - z0, h = y1 - y0; const p = plane(w, h, wood(w / 1.1, h / 1.8), name); p.rotation.y = -Math.PI / 2; p.position.set(maxX, (y0 + y1) / 2, (z0 + z1) / 2); rightWall.add(p); return p; };
+  rw(front, door.start, 0, height, 'right-wall-front');
+  rw(door.end, back, 0, height, 'right-wall-back');
+  rw(door.start, door.end, door.height, height, 'door-lintel');
+  // door frame (dark aluminium) and the glass panel, parked open beside the aperture
+  const frame = new THREE.Group(); frame.name = 'door-frame'; root.add(frame);
+  box(0.12, 0.05, door.end - door.start + 0.1, steel, maxX, door.height + 0.025, (door.start + door.end) / 2, 'door-track-top', frame);
+  box(0.12, 0.02, door.end - door.start + 0.1, steel, maxX, 0.01, (door.start + door.end) / 2, 'door-track-floor', frame);
+  box(0.12, door.height, 0.05, steel, maxX, door.height / 2, door.start - 0.025, 'door-jamb', frame);
+  box(0.12, door.height, 0.05, steel, maxX, door.height / 2, door.end + 0.025, 'door-jamb', frame);
+  const parked = new THREE.Group(); parked.name = 'parked-glass'; root.add(parked);
+  const pw = door.end - door.start, pz = door.end + 0.06 + pw / 2;
+  const pane = add(new THREE.Mesh(new THREE.PlaneGeometry(pw - 0.08, door.height - 0.1), glass), 'glass', parked); pane.rotation.y = -Math.PI / 2; pane.position.set(maxX - 0.09, door.height / 2, pz); pane.castShadow = false;
+  box(0.04, door.height, 0.04, steel, maxX - 0.09, door.height / 2, pz - pw / 2 + 0.02, 'panel-stile', parked);
+  box(0.04, door.height, 0.04, steel, maxX - 0.09, door.height / 2, pz + pw / 2 - 0.02, 'panel-stile', parked);
+  box(0.04, 0.05, pw, steel, maxX - 0.09, door.height - 0.025, pz, 'panel-rail', parked);
+  box(0.04, 0.05, pw, steel, maxX - 0.09, 0.025, pz, 'panel-rail', parked);
+
+
+  /* ---- the outdoor view through the door: sky, and the farm's tree line ---- */
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(90, 32, 16), new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: { tBack: { value: tex('assets/room/backdrop.jpg') } },
+    vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `precision highp float; uniform sampler2D tBack; varying vec3 vDir;
+      void main(){
+        float el = asin(clamp(vDir.y, -1.0, 1.0)), az = atan(vDir.x, -vDir.z);
+        vec3 c = mix(vec3(0.93, 0.74, 0.60), vec3(0.47, 0.50, 0.62), smoothstep(0.05, 0.9, el));
+        c = mix(vec3(0.38, 0.30, 0.19), c, smoothstep(-0.02, 0.02, el));
+        // the photo's tree line and mountains, between 1.3 and 16 degrees above the horizon
+        float v = (el - 0.023) / (0.28 - 0.023);
+        float u = az / 1.57;
+        vec3 strip = texture2D(tBack, vec2(fract(u), clamp(v, 0.002, 0.998))).rgb;
+        float wgt = step(0.0, v) * (1.0 - smoothstep(0.82, 1.0, v)) + step(v, 0.0) * smoothstep(-0.25, 0.0, v);
+        c = mix(c, strip, wgt);
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  }));
+  sky.name = 'sky'; sky.renderOrder = 5; root.add(sky);   // after the room, so hidden sky isn't shaded
+
+  /* ---- light, matched to the photo: low sun from the front left, warm bounce inside ---- */
+  const sunDir = new THREE.Vector3((300 - CX) / F, (YH - 196) / F, -1).normalize();
+  const sun = new THREE.DirectionalLight(0xffc89a, 4.2); sun.name = 'sun';
+  sun.position.copy(sunDir).multiplyScalar(20); sun.target.position.set(0, 0, 0);
+  sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.02;
+  Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 5, bottom: -5, near: 5, far: 40 });
+  root.add(sun, sun.target);
+  root.add(new THREE.HemisphereLight(0xffd7b0, 0x6a4a30, 2.4));
+  const lamp = new THREE.PointLight(0xffb070, 9, 8, 2); lamp.position.set(-1.2, 2.5, 1.6); lamp.name = 'workshop-lamp'; root.add(lamp);
+
+  /* ---- Poly Haven props (CC0) where the photo can't see ---- */
+  const props = [
+    ['steel_frame_shelves_01', [-3.6, 0, 2.7], Math.PI, 0.1],
+    ['steel_frame_shelves_01', [-2.4, 0, 2.7], Math.PI, 0.1],
+    ['steel_frame_shelves_01', [-4.33, 0, -1.9], Math.PI / 2, 0.1],
+    ['wooden_table_03', [1.3, 0, 2.45], Math.PI],
+    ['wooden_stool_01', [0.35, 0, 2.1], 0.4],
+    ['wooden_crate_01', [-4.0, 0, 0.9], 0.2],
+    ['wooden_crate_01', [-3.95, 0.5, 0.95], -0.1],
+    ['cardboard_box_01', [-0.9, 0, 2.6], 0.3],
+    ['cardboard_box_01', [2.6, 0, 2.55], -0.5],
+    ['jug_01', [1.0, 0.75, 2.4], 0.6],
+    ['lantern_01', [1.7, 0.75, 2.45], 0],
+  ];
+  if (gltf) {
+    const cache = new Map();
+    for (const [name, pos, rot, scale = 1] of props) {
+      if (!cache.has(name)) cache.set(name, new Promise((ok) => gltf.load(`assets/models/${name}.glb`, (g) => ok(g.scene), undefined, () => ok(null))));
+      cache.get(name).then((src) => {
+        if (!src) return;
+        const o = src.clone(true); o.name = name; o.position.set(...pos); o.rotation.y = rot; o.scale.setScalar(scale);
+        o.traverse((m) => { if (m.isMesh) { m.castShadow = m.receiveShadow = true; } });
+        root.add(o); room.onChange?.();
+      });
+    }
+  }
+
+  /* ---- the photo shell: the live photo inside its outpainted margin ----
+   * Drawn very close to the eye (it only ever turns, so distance doesn't change what you see):
+   * the opaque core goes first and hides the room behind it from the depth test, the feathered
+   * rim goes last and blends into the modelled room. */
+  const D = ROOM.shellDistance;
+  const x0 = -WIDE.left, x1 = W + WIDE.right, y0 = -WIDE.top, y1 = H + WIDE.bottom;
+  const shellU = {
+    tWide: { value: tex('assets/room/photo-wide.jpg', { color: false }) }, tLive: { value: photoTexture?.texture ?? null },
+    uLiveRect: { value: photoTexture?.rect ?? new THREE.Vector4(0, 0, 1, 1) }, uLiveFill: { value: photoTexture?.fill ?? new THREE.Vector2(1, 1) },
+    uLiveOn: { value: 0 },
+    uInner: { value: new THREE.Vector4(WIDE.left / WIDE.width, WIDE.bottom / WIDE.height, (WIDE.left + W) / WIDE.width, (WIDE.bottom + H) / WIDE.height) },
+    uPx: { value: new THREE.Vector2(WIDE.width, WIDE.height) }, uFeather: { value: WIDE.feather },
+  };
+  const shellFrag = (rim) => `precision highp float; uniform sampler2D tWide, tLive; uniform vec4 uInner, uLiveRect; uniform vec2 uPx, uLiveFill; uniform float uFeather, uLiveOn; varying vec2 vUv;
+      void main(){
+        vec2 edge = min(vUv, 1.0 - vUv) * uPx;                          // distance to the shell's border, px
+        float a = smoothstep(0.0, uFeather, min(edge.x, edge.y));
+        ${rim ? 'if (a >= 1.0) discard;' : ''}
+        vec3 c = texture2D(tWide, vUv).rgb;
+        vec2 q = (vUv - uInner.xy) / (uInner.zw - uInner.xy);             // photo uv
+        vec2 inPx = min(q, 1.0 - q) * (uInner.zw - uInner.xy) * uPx;    // distance inside the photo, px
+        vec2 l = (q - uLiveRect.xy) / (uLiveRect.zw - uLiveRect.xy);
+        float live = uLiveOn * smoothstep(0.0, 14.0, min(inPx.x, inPx.y)) * step(0.0, l.x) * step(l.x, 1.0) * step(0.0, l.y) * step(l.y, 1.0);
+        if (live > 0.0) c = mix(c, texture2D(tLive, l * uLiveFill).rgb, live);
+        gl_FragColor = vec4(c, ${rim ? 'a' : '1.0'});
+      }`;
+  const shellVert = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+  const tl = unproject(x0, y0, D), br = unproject(x1, y1, D), pxW = (br.x - tl.x) / WIDE.width;
+  const centre = new THREE.Vector3((tl.x + br.x) / 2, (tl.y + br.y) / 2, -D);
+  const shell = new THREE.Mesh(new THREE.PlaneGeometry(br.x - tl.x, tl.y - br.y), new THREE.ShaderMaterial({
+    uniforms: shellU, transparent: true, depthTest: false, depthWrite: false, fog: false, vertexShader: shellVert, fragmentShader: shellFrag(true),
+  }));
+  shell.name = 'photo-shell'; shell.renderOrder = 10; shell.frustumCulled = false; shell.userData.photo = true;
+  shell.position.copy(centre); root.add(shell);
+  // the opaque core: the shell inset by the feather, with matching uvs
+  const f = WIDE.feather, coreGeo = new THREE.PlaneGeometry(br.x - tl.x - 2 * f * pxW, tl.y - br.y - 2 * f * pxW);
+  { const uv = coreGeo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, (f + uv.getX(i) * (WIDE.width - 2 * f)) / WIDE.width, (f + uv.getY(i) * (WIDE.height - 2 * f)) / WIDE.height); }
+  const core = new THREE.Mesh(coreGeo, new THREE.ShaderMaterial({ uniforms: shellU, depthWrite: true, fog: false, vertexShader: shellVert, fragmentShader: shellFrag(false) }));
+  core.name = 'photo-shell-core'; core.renderOrder = -10; core.frustumCulled = false; core.userData.photo = true;
+  core.position.copy(centre); root.add(core);
+
+  /* ---- the screens you can open: hit quads exactly over the photo's monitor and tablet ---- */
+  const devices = [], focus = {};
+  const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+  function device(kind, quad, Z) {
+    const pts = quad.map(([x, y]) => unproject(x, y, Z));
+    const g = new THREE.BufferGeometry().setFromPoints([pts[0], pts[3], pts[1], pts[1], pts[3], pts[2]]);
+    g.computeVertexNormals(); g.computeBoundingSphere();
+    const m = new THREE.Mesh(g, hitMat); m.name = `${kind}-screen`; m.userData.device = kind; root.add(m); devices.push(m);
+    const point = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(0.25);
+    // zoom so the screen fills about 80% of the view height
+    const ys = quad.map((p) => p[1]), span = Math.max(...ys) - Math.min(...ys);
+    const fov = THREE.MathUtils.radToDeg(2 * Math.atan(span / 0.8 / 2 / F));
+    focus[kind] = { point, position: eye.clone(), fov };
+  }
+  device('pc', MONITOR, 3.1);
+  device('tablet', TABLET, 2.7);
+
+  const modelled = () => root.children.filter((o) => !o.userData.photo && !o.isLight);
+  const room = {
+    root, devices, focus, eye, shell, core, shellUniforms: shellU, sun, onChange: null,
+    // photo px covered by the opaque core (inside the feathered rim)
+    coreBounds: [x0 + f, y0 + f, x1 - f, y1 - f],
+    setModelVisible(on) { if (on === room.modelVisible) return; room.modelVisible = on; for (const o of modelled()) o.visible = on; shell.visible = on; },
+    modelVisible: true,
+  };
+  return room;
+}
+
+/** the view that frames the photo the way the main experience does */
+export function homeView(aspect) {
+  const pitch = -Math.atan(((H / 2) - YH) / F);
+  const vfov = 2 * Math.atan((H / 2) / F);
+  // keep the horizontal view inside the photo plus its margin on very wide screens
+  const maxH = 2 * Math.atan(((W / 2) + WIDE.left - WIDE.feather) / F);
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
+  const fov = hfov > maxH ? 2 * Math.atan(Math.tan(maxH / 2) / aspect) : vfov;
+  // narrow (portrait) screens see a slice of the photo: centre it between the dogs and the monitor
+  const yaw = aspect < 1 ? -Math.atan((930 - CX) / F) : 0;
+  return { pitch, yaw, fov: THREE.MathUtils.radToDeg(fov) };
 }

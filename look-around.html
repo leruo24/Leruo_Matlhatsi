@@ -1,9 +1,18 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f5c43'/%3E%3Cpath d='M16 6c-5 4-7 9-5 14 1 3 3 5 5 6 2-1 4-3 5-6 2-5 0-10-5-14z' fill='%239be37d'/%3E%3C/svg%3E" /><meta name="viewport" content="width=device-width,initial-scale=1"><title>Leruo · Look around the workshop</title>
-<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js"}}</script>
+<html lang="en"><head><meta charset="utf-8"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f5c43'/%3E%3Cpath d='M16 6c-5 4-7 9-5 14 1 3 3 5 5 6 2-1 4-3 5-6 2-5 0-10-5-14z' fill='%239be37d'/%3E%3C/svg%3E" /><meta name="viewport" content="width=device-width,initial-scale=1"><title>Leruo · 3D workshop (preview)</title>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}</script>
 <link rel="stylesheet" href="css/room.css"></head><body>
 <canvas id="view" tabindex="0" aria-label="Three-dimensional workshop. Drag in any direction or use all four arrow keys. Home centres the view."></canvas>
-<header><p class="eyebrow">LERUO MATLHATSI / THE WORKSHOP</p><h1>A space for possibility.</h1><p>Drag to look around. Select a screen to explore.</p><p id="status" role="status">Opening the workshop…</p></header>
-<footer><a class="back-home" href="index.html">Photo experience</a><div class="direction-pad" aria-label="Look controls"><button id="up" aria-label="Look up">↑</button><button id="left" aria-label="Look left">←</button><button id="centre" aria-label="Centre view">◎</button><button id="right" aria-label="Look right">→</button><button id="down" aria-label="Look down">↓</button></div><div class="actions"><button id="pc" class="primary">Enter computer</button><button id="tablet">Open field notes</button></div><span id="readout"></span></footer>
+<header><p class="eyebrow">LERUO MATLHATSI / THE WORKSHOP <span class="preview-badge">3D PREVIEW · IN PRODUCTION</span></p><h1>A space for possibility.</h1><p>Drag to look around. Select the monitor or the tablet to open them.</p><p id="status" role="status">Opening the workshop…</p></header>
+<footer><a class="back-home" href="index.html">← Main experience</a><div class="direction-pad" aria-label="Look controls"><button id="up" aria-label="Look up">↑</button><button id="left" aria-label="Look left">←</button><button id="centre" aria-label="Centre view">◎</button><button id="right" aria-label="Look right">→</button><button id="down" aria-label="Look down">↓</button></div><div class="actions"><button id="pause" aria-pressed="false" hidden>Pause scenery</button><button id="drone-btn" aria-expanded="false" aria-controls="drone-panel" hidden>Fly drone</button><button id="pc" class="primary">Enter computer</button><button id="tablet">Open field notes</button></div><span id="readout"></span></footer>
+<section id="drone-panel" aria-label="Drone controls" hidden>
+<div class="drone-heading"><strong>Sky controller</strong><button id="drone-close" aria-label="Close drone controls">×</button></div>
+<p>Fly over the farm. The drone stays in the distant sky.</p>
+<label>Left / right<input id="drone-x" type="range" min="760" max="1420" value="1035" step="1"></label>
+<label>Altitude<input id="drone-y" type="range" min="120" max="215" value="162" step="1"></label>
+<label>Rotate / bank<input id="drone-angle" type="range" min="-45" max="45" value="0" step="1"></label>
+<div class="drone-actions"><button id="drone-reset">Centre drone</button><button id="drone-auto" aria-pressed="false">Resume autopilot</button></div>
+<p id="drone-status" role="status">Manual flight · use the sliders or their arrow keys.</p>
+</section>
 <dialog id="screen"><button id="exit">Back to look-around</button><iframe title="Portfolio device" id="device"></iframe></dialog>
 <script type="module" src="js/look-around.js"></script></body></html>

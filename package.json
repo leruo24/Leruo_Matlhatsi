@@ -5,7 +5,7 @@
   "description": "Leruo Matlhatsi's interactive workshop portfolio (static site for GitHub Pages)",
   "scripts": {
     "start": "npx --yes http-server . -p 8000 -c-1 -o",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --import ./tests/register.mjs --test tests/*.test.mjs"
   },
   "type": "module"
 }

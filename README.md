@@ -52,7 +52,7 @@ The scene is `assets/workshop.jpg`. It comes with:
 - an animation mask (`workshop-masks.png`: red = water, green = leaves, blue = sky),
 - a second mask (`workshop-masks2.png`: blue = grass and reeds that sway).
 
-A new image needs new maps, new monitor-corner coordinates (`SCREEN` in `js/world.js`), and new positions for the dogs' eyes and ears (in the photo shader).
+A new image needs new maps, new monitor-corner coordinates (`SCREEN` in `js/world.js`, and `MONITOR`/`TABLET` in `js/photo-layer.js` for the 3D preview), a new outpainted `assets/room/photo-wide.jpg`, and new positions for the dogs' eyes and ears (in the photo shader).
 
 The intro headline is `intro.headline` in `os/content.js`, and the intro images are `assets/intro-office.jpg` and `assets/intro-headset.jpg`.
 
@@ -62,6 +62,59 @@ The intro headline is `intro.headline` in `os/content.js`, and the intro images 
 - Whiteboard handwriting fonts: Permanent Marker (Apache-2.0) and Caveat (OFL), baked into the image
 - Sound recordings: CC0 clips from freesound.org, taken from the [ESC-50 dataset](https://github.com/karolpiczak/ESC-50): cows by felix.blume and others, birdsong, crickets, wind, "Dog Snores", a diesel truck idling, mouse clicks and typing. Per-clip credits are in that repo's LICENSE file. The supercar rev, river, PC and sprinkler sounds are synthesised.
 - [Three.js](https://threejs.org) (MIT). Concept inspired by [Henry Heffernan's portfolio](https://henryheffernan.com).
+
+## 3D preview room (`look-around.html`)
+
+A preview of the workshop as a room you can turn around in. It's linked from the main experience as "3D preview" and labelled "in production" until it looks as good as the photo.
+
+How it's built (`js/room.js`, `js/look-around.js`, shared code in `js/photo-layer.js`):
+- **The eye stays where the photo was taken** (1.3 m up) and only turns. The photo is mapped onto a shell from that exact point, so it's pixel-exact at every angle and objects can't drift between views.
+- **The photo is live.** It uses the same shader as the main experience: pond, trees, grass, clouds, dogs (blinks, ears, tail, head tilt), grazing cows, working sprinklers, the lit monitor, and the drone. The drone has the same sky controller.
+- **An outpainted margin** (LaMa, 240 px either side, 144 px above, 210 px below) widens the photo to about 94° × 70°. Its tone is matched to the photo along the edges.
+- **Everything the photo never saw is modelled:**
+  - Side, back and front walls, with planks sampled from the photo's wall.
+  - Ceiling and rafters, and a concrete floor tinted to the photo's floor.
+  - The open glass sliding door in the right wall, with a meadow, sky and the farm's tree line outside.
+  - Poly Haven props: steel shelving, a table, a stool, crates, boxes, a jug and a lantern.
+  - The photo's edge is feathered over 90 px into this.
+- **Light is matched to the photo:** a low warm sun from the front left (from the sun's position in the photo), a warm sky/bounce light and a workshop lamp. There's no tone curve, so textures sampled from the photo keep its colours.
+- **The PC and tablet:** select the monitor or tablet in the photo (or use the buttons). The view turns and zooms to the screen without moving, so nothing tears, then opens LeruOS or the field notes.
+- **Rendering cost:**
+  - Only the part of the photo that's on screen is rendered, at screen resolution.
+  - While the photo fills the view, the modelled room isn't drawn.
+  - Pixel ratio adapts to sustained load.
+  - Reduced-motion and "Pause scenery" stop the animation.
+  - Without WebGL, a still image is shown.
+
+### Measuring performance
+
+Add `?perf` to the URL (e.g. `look-around.html?perf`) to show frame rate, frame time, 95th-percentile frame time, draw calls, triangles and pixel ratio, measured live. Please check it on your own devices; numbers from my test machine (below) don't predict real ones.
+
+Last measured in headless Chrome with **software** WebGL (SwiftShader on 2 CPU cores, no GPU). Absolute numbers are far below a real GPU; only the comparison means something:
+
+| View | Main experience | 3D preview room |
+| --- | --- | --- |
+| Desktop 1440×810, home view | 3.4 fps | 3.5 fps (10 draw calls) |
+| Phone 390×844 @3×, home view | 29.4 fps | 30.5 fps |
+| Desktop, looking left or right (photo plus room) | n/a | 1.6–2.0 fps (20–31 draw calls) |
+| Desktop, looking at the back wall (room only) | n/a | 0.4 fps (64 draw calls, 53k triangles) |
+
+The back of the room is the heaviest view in software rendering. Real-GPU numbers are still unmeasured.
+
+### What still doesn't match the photo (honest gaps)
+
+- **No 3D models of the photo's subjects.** I couldn't reach free photoreal models of the dogs, cows, Land Cruiser, sports cars, trees, drone, gaming chair, monitor, console or tablet from here. Poly Haven, Sketchfab and similar sites are blocked from my build machine; only workshop props were reachable, through a mirror. Those subjects stay part of the live photo. That's correct from the fixed eye, but you can't walk around them.
+- **The outpainted margin is generated.** It's softer than the photo. LaMa turned the edge of the electronics bench into a low platform, and part of the chair base at the bottom edge is missing.
+- **Visible seams where the photo hands over to the modelled room**, especially where the photo shows the tree and the meadow and the modelled side shows the sliding door. The ceiling is darker than the photo's beam.
+- **Simple outdoor view.** It's a mirrored strip of the photo's own tree line, so it repeats if you look for it.
+- **The modelled walls, floor and ceiling are flat planes** with photo-sampled textures, not detailed geometry.
+
+### Asset sources and licences
+
+- `assets/models/*.glb`: Poly Haven models, CC0, from the `ezEngine/store-sample` mirror. Converted to GLB and decimated with glTF-Transform. Sources: `steel_frame_shelves_01` (scaled 0.1, the mirror's copy is in decimetres), `WoodenTable_03`, `wooden_stool_01`, `wooden_crate_01`, `cardboard_box_01`, `jug_01`, `Lantern_01`.
+- `assets/room/photo-wide.jpg`: the workshop photo plus a LaMa-outpainted margin.
+- `assets/room/wood-planks.jpg`, `grass.jpg` and `backdrop.jpg`: sampled from the workshop photo.
+- `vendor/three/addons/`: GLTFLoader and BufferGeometryUtils from three.js r170 (MIT).
 
 ## Scene motion and verification
 
@@ -86,4 +139,4 @@ Checked in a WebGL-enabled browser after merging. Fixes made:
 - The drone passes behind the tree's leaves instead of drawing over them.
 - The look-around and tablet pages now have a tab icon (this removes a 404).
 
-`assets/scene-keyframes/`, `assets/tablet-zoom/` and `assets/panorama/workshop.png` are reference images and aren't loaded by the site.
+Concept images (scene keyframes, tablet-zoom concepts and the old panorama) live in `reference-archive/`. The site doesn't load them.

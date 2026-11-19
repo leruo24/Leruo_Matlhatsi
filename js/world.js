@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { constrainFlight } from "./drone-control.js";
 import { createFarm } from "./farm.js";
+import { PHOTO_VERT, PHOTO_FRAG, droneMaterial, DogAnimator, homography } from "./photo-layer.js";
 import { OfficeMotion } from "./office.js";
 import { spring, blend, FrameBudget } from "./motion.js";
 import { Sound } from "./sound.js";
@@ -104,155 +105,9 @@ const photo = new THREE.Mesh(
   new THREE.PlaneGeometry(W, H),
   new THREE.ShaderMaterial({
     uniforms, depthTest: false, depthWrite: false,
-    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: /* glsl */ `
-      precision highp float;
-      uniform sampler2D tImg, tDepth, tMask, tMask2, tGravel, tConcrete;
-      uniform float uTime, uPar, uFocusD, uTexel, uGust;
-      uniform vec2 uMouse, uSize;
-      uniform vec3 uBlink; uniform vec4 uEar; uniform float uWag, uTilt;
-      varying vec2 vUv;
-      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float noise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.0-2.0*f);
-        return mix(mix(hash(i), hash(i+vec2(1,0)), u.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y); }
-      float lum(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
-      vec2 parallax(vec2 uv){
-        vec2 p = uv;
-        for (int i = 0; i < 3; i++) { float d = texture2D(tDepth, p).r; p = uv - uMouse * (d - uFocusD) * uPar; }
-        return p;
-      }
-      vec2 px(vec2 uv){ return vec2(uv.x * uSize.x, (1.0 - uv.y) * uSize.y); }
-      vec2 toUv(vec2 P){ return vec2(P.x / uSize.x, 1.0 - P.y / uSize.y); }
-      float glow(vec2 P, vec2 c, float r){ float d = length(P - c); return exp(-d * d / (r * r)); }
-      // two-phase advection: moves the picture itself along a direction, looping seamlessly
-      vec3 advect(vec2 uv, vec2 vel, float period, float jit){
-        float ph0 = fract(uTime / period), ph1 = fract(uTime / period + 0.5);
-        float w1 = abs(ph0 - 0.5) * 2.0;
-        vec2 j0 = vec2(jit * floor(uTime / period), 0.0), j1 = vec2(jit * floor(uTime / period + 0.5) + 0.37, 0.0);
-        vec3 a = texture2D(tImg, uv - vel * period * (ph0 - 0.5) + j0 * 0.0).rgb;
-        vec3 b = texture2D(tImg, uv - vel * period * (ph1 - 0.5) + j1 * 0.0).rgb;
-        return mix(a, b, w1);
-      }
-      void main(){
-        float t = uTime;
-        vec2 uv = parallax(vUv);
-        float dd = texture2D(tDepth, uv).r;
-        vec3 m = texture2D(tMask, uv).rgb;   // r water, g trees/vines, b sky
-        vec3 m2 = texture2D(tMask2, uv).rgb; // r dirt yard, g concrete floor, b grass
-        vec2 P = px(uv);
-        vec2 ipx = 1.0 / uSize;
+    vertexShader: PHOTO_VERT,
+    fragmentShader: PHOTO_FRAG,
 
-        // trees + vines: big masses move together in travelling gusts, leaves flutter on top
-        float gustF = noise(vec2(P.x * 0.0035 - t * 0.32, 0.5));
-        float gust = (0.35 + 0.65 * smoothstep(0.25, 0.85, gustF)) * (0.6 + 0.8 * uGust);
-        vec2 sway = vec2(sin(t * 0.9 + P.y * 0.012) * 0.8 + sin(t * 2.1 + P.x * 0.025) * 0.3, sin(t * 1.4 + P.x * 0.018) * 0.3);
-        vec2 flut = vec2(noise(P * 0.09 + t * 2.6), noise(P * 0.09 - t * 2.3 + 5.0)) - 0.5;
-        uv += m.g * gust * (sway * 2.6 + flut * 1.7) * ipx;
-        // grass and plants bend with the same wind; nearer grass moves more on screen
-        float gg = noise(vec2(P.x * 0.012 - t * 0.7, P.y * 0.03));
-        uv.x += m2.b * (sin(t * 1.7 + P.x * 0.05 + P.y * 0.03) * 0.5 + (gg - 0.5) * 1.6) * gust * (0.4 + dd * 14.0) * ipx.x;
-
-        if (P.x < 480.0 && P.y > 500.0) {
-        // the three dogs: each breathes at its own pace (chest/back rises a touch)
-        {
-          float b1 = 0.5 - 0.5 * cos(6.28318 * t / 3.1), b2 = 0.5 - 0.5 * cos(6.28318 * t / 4.2 + 1.3), b3 = 0.5 - 0.5 * cos(6.28318 * t / 2.6 + 2.1);
-          uv.y -= smoothstep(1.0, 0.25, length((P - vec2(238.0, 650.0)) / vec2(40.0, 46.0))) * b1 * 0.9 * ipx.y;   // standing dog
-          uv.y -= smoothstep(1.0, 0.25, length((P - vec2(262.0, 770.0)) / vec2(70.0, 32.0))) * smoothstep(812.0, 750.0, P.y) * b2 * 1.4 * ipx.y; // lying dog
-          uv.y -= smoothstep(1.0, 0.25, length((P - vec2(405.0, 730.0)) / vec2(30.0, 34.0))) * b3 * 0.8 * ipx.y;   // little one
-        }
-        // ears: the pricked ears twitch now and then (a small turn about the base of each ear)
-        {
-          vec2 eb[4]; vec2 et[4];
-          eb[0] = vec2(244.0, 576.0); et[0] = vec2(238.0, 557.0);
-          eb[1] = vec2(290.0, 576.0); et[1] = vec2(305.0, 552.0);
-          eb[2] = vec2(396.0, 666.0); et[2] = vec2(380.0, 640.0);
-          eb[3] = vec2(430.0, 658.0); et[3] = vec2(438.0, 632.0);
-          for (int i = 0; i < 4; i++) {
-            float a = i == 0 ? uEar.x : i == 1 ? uEar.y : i == 2 ? uEar.z : uEar.w;
-            vec2 ab = et[i] - eb[i]; float L = length(ab);
-            vec2 q = P - eb[i]; float h = clamp(dot(q, ab) / (L * L), 0.0, 1.25);
-            float w = smoothstep(9.0, 4.0, length(q - ab * min(h, 1.0))) * smoothstep(-0.05, 0.25, dot(q, ab) / (L * L));
-            float an = a * w * h;
-            vec2 rq = vec2(q.x * cos(an) - q.y * sin(an), q.x * sin(an) + q.y * cos(an));
-            uv = mix(uv, toUv(eb[i] + rq), step(0.001, w * abs(a)));
-          }
-        }
-        // eyes: each dog blinks on its own (the fur above slides down over the eye)
-        {
-          vec2 ec[6]; vec3 er[6];
-          ec[0] = vec2(266.0, 595.0); er[0] = vec3(4.2, 2.6, 0.0);
-          ec[1] = vec2(287.5, 592.5); er[1] = vec3(4.2, 2.6, 0.0);
-          ec[2] = vec2(325.0, 707.0); er[2] = vec3(4.6, 2.6, 1.0);
-          ec[3] = vec2(346.0, 702.0); er[3] = vec3(4.0, 2.4, 1.0);
-          ec[4] = vec2(405.5, 675.0); er[4] = vec3(4.2, 2.8, 2.0);
-          ec[5] = vec2(429.5, 671.0); er[5] = vec3(4.2, 2.8, 2.0);
-          for (int i = 0; i < 6; i++) {
-            float bl = er[i].z < 0.5 ? uBlink.x : er[i].z < 1.5 ? uBlink.y : uBlink.z;
-            vec2 q2 = (P - ec[i]) / er[i].xy;
-            float lid = step(P.y, ec[i].y - er[i].y + 2.0 * er[i].y * bl) * smoothstep(1.4, 0.85, length(q2)) * step(0.02, bl);
-            uv = mix(uv, toUv(P - vec2(0.0, 2.3 * er[i].y)), lid);
-          }
-        }
-        // the standing dog's curled tail wags (a turn about its base); faster when he's excited
-        {
-          vec2 tb = vec2(236.0, 596.0), q = P - tb;
-          float w = smoothstep(46.0, 30.0, length(P - vec2(222.0, 548.0))) * step(P.x, 252.0) * step(P.y, 600.0);
-          float an = uWag * w;
-          vec2 rq = vec2(q.x * cos(an) - q.y * sin(an), q.x * sin(an) + q.y * cos(an));
-          uv = mix(uv, toUv(tb + rq), step(0.001, w));
-        }
-        // the little one tilts its head now and then
-        {
-          vec2 nb = vec2(415.0, 712.0), q = P - nb;
-          float w = smoothstep(44.0, 30.0, length(P - vec2(414.0, 670.0))) * step(P.y, 716.0);
-          float an = uTilt * w;
-          vec2 rq = vec2(q.x * cos(an) - q.y * sin(an), q.x * sin(an) + q.y * cos(an));
-          uv = mix(uv, toUv(nb + rq), step(0.001, w));
-        }
-        }
-
-
-        // the hanging lamp sways a touch on its cord
-        float ang = 0.010 * sin(t * 0.8) + 0.004 * sin(t * 1.9 + 1.0);
-        float lm = smoothstep(1462.0, 1472.0, P.x) * smoothstep(1600.0, 1590.0, P.x) * smoothstep(122.0, 112.0, P.y);
-        vec2 pv = vec2(1530.0, -80.0), q = P - pv;
-        vec2 rq = vec2(q.x * cos(ang) + q.y * sin(ang), -q.x * sin(ang) + q.y * cos(ang));
-        uv = mix(uv, toUv(pv + rq), lm);
-
-        vec3 col = texture2D(tImg, uv).rgb;
-        P = px(uv);
-
-        // clouds drift slowly to the right (the picture of the sky itself moves)
-        if (m.b > 0.02) {
-          vec3 sky = advect(uv, vec2(0.0024, 0.0), 16.0, 0.0);
-          float edge = texture2D(tMask, uv - vec2(0.0024 * 8.0, 0.0)).b * texture2D(tMask, uv + vec2(0.0024 * 8.0, 0.0)).b;
-          col = mix(col, sky, m.b * edge);
-        }
-        // the pond: calm water with slow, small ripples; the light on it shimmers gently
-        if (m.r > 0.02) {
-          float zf = 0.3 + dd * 6.0; // nearer water shows bigger ripples
-          vec2 rip = vec2(noise(P * vec2(0.05, 0.16) + vec2(t * 0.35, t * 0.12)), noise(P * vec2(0.07, 0.2) - vec2(t * 0.28, -t * 0.1) + 7.0)) - 0.5;
-          vec2 rip2 = vec2(noise(P * vec2(0.14, 0.4) + t * 0.6), noise(P * vec2(0.16, 0.45) - t * 0.55 + 3.0)) - 0.5;
-          vec2 off = (rip * 3.4 + rip2 * 1.3) * zf * ipx * vec2(1.0, 0.55);
-          vec3 w = texture2D(tImg, uv + off * m.r).rgb;
-          col = mix(col, w, m.r);
-          float gl = smoothstep(0.82, 0.97, noise(P * vec2(0.22, 0.7) + vec2(t * 0.25, 0.0))) * smoothstep(0.55, 0.9, lum(col));
-          col += m.r * gl * vec3(1.0, 0.85, 0.65) * 0.35;
-        }
-
-        // Preserve the photograph: no sharpening or synthetic surface overlays.
-
-        // light: lamps, sun, monitor spill, LEDs (steady, like the real things)
-        col += vec3(1.0, 0.72, 0.42) * 0.07 * glow(P, vec2(300.0, 196.0), 70.0);       // the sun
-        col += vec3(1.0, 0.72, 0.42) * 0.12 * glow(P, vec2(790.0, 446.0), 30.0);       // desk lamp
-        col += vec3(1.0, 0.75, 0.45) * 0.045 * glow(P, vec2(770.0, 540.0), 110.0);
-        col += vec3(1.0, 0.70, 0.40) * 0.08 * glow(P, vec2(1530.0, 102.0), 40.0);      // hanging lamp
-        col += vec3(0.55, 0.85, 1.0) * 0.035 * glow(P, vec2(995.0, 590.0), 120.0);     // screen spill on the desk
-        float led = step(0.5, fract(t * 0.9));
-        col += vec3(0.3, 0.6, 1.0) * 0.5 * glow(P, vec2(1462.0, 862.0), 3.0) * led;    // ESP32 LED
-        col += vec3(0.6, 0.9, 1.0) * 0.06 * glow(P, vec2(1566.0, 800.0), 10.0);       // multimeter display
-        gl_FragColor = vec4(col, dd);
-      }`,
   })
 );
 photo.position.set(W / 2, H / 2, 0);
@@ -261,26 +116,6 @@ photoScene.add(photo);
 /* ------------------------------------------------------------------ *
  *  The main monitor: a live screen mapped onto the photo
  * ------------------------------------------------------------------ */
-function homography(src, dst) {
-  const A = [], b = [];
-  for (let i = 0; i < 4; i++) {
-    const [x, y] = src[i], [u, v] = dst[i];
-    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
-    A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
-  }
-  for (let c = 0; c < 8; c++) {
-    let p = c;
-    for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
-    [A[c], A[p]] = [A[p], A[c]]; [b[c], b[p]] = [b[p], b[c]];
-    for (let r = 0; r < 8; r++) if (r !== c) {
-      const f = A[r][c] / A[c][c];
-      for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k];
-      b[r] -= f * b[c];
-    }
-  }
-  const h = b.map((v, i) => v / A[i][i]);
-  return (x, y) => { const w = h[6] * x + h[7] * y + 1; return [(h[0] * x + h[1] * y + h[2]) / w, (h[3] * x + h[4] * y + h[5]) / w]; };
-}
 const toWorld = ([x, y]) => [x, H - y];
 const Hm = homography([[0, 1], [1, 1], [1, 0], [0, 0]], SCREEN.map(toWorld));
 const screenGeo = new THREE.PlaneGeometry(1, 1, 24, 24);
@@ -488,19 +323,7 @@ function contact(parent, w, d, opacity, x = 0, z = 0, y = 0.002) {
 /* --- the drone: lifted out of the photo, now it actually flies --- */
 const droneTex = raw(loader.load("assets/drone.png"));
 const DRONE_W = 100, DRONE_H = 26;
-const drone = new THREE.Mesh(new THREE.PlaneGeometry(DRONE_W, DRONE_H), new THREE.ShaderMaterial({
-  uniforms: { tDrone: { value: droneTex }, tMask: { value: tMask }, uTime: uniforms.uTime, uTilt: { value: 0 } },
-  transparent: true, depthTest: false, depthWrite: false, ...KEEP_ALPHA, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
-  vertexShader: `uniform float uTilt; varying vec2 vUv; varying vec2 vPhoto; void main(){ vUv = uv; vec3 p = position; float c = cos(uTilt), s = sin(uTilt); p.xy = vec2(p.x * c - p.y * s, p.x * s + p.y * c); vec4 w = modelMatrix * vec4(p, 1.0); vPhoto = w.xy / vec2(${W}.0, ${H}.0); gl_Position = projectionMatrix * viewMatrix * w; }`,
-  fragmentShader: `uniform sampler2D tDrone, tMask; uniform float uTime; varying vec2 vUv; varying vec2 vPhoto;
-    void main(){ vec4 c = texture2D(tDrone, vUv);
-      // the tree is nearer than the drone: its leaves hide it
-      c.a *= 1.0 - smoothstep(0.15, 0.55, texture2D(tMask, vPhoto).g);
-      // spinning rotors: the blade areas flicker slightly
-      float rot = step(0.72, vUv.y) * (0.75 + 0.25 * sin(uTime * 90.0 + vUv.x * 40.0));
-      c.a *= mix(1.0, rot, step(0.72, vUv.y));
-      gl_FragColor = c; }`,
-}));
+const drone = new THREE.Mesh(new THREE.PlaneGeometry(DRONE_W, DRONE_H), droneMaterial({ droneTex, tMask, uTime: uniforms.uTime, keepAlpha: KEEP_ALPHA }));
 drone.position.z = 1.5;
 photoScene.add(drone);
 const droneState = { x: 1035, y: 173, vx: 0, vy: 0, tx: 1035, ty: 173, next: 0, tilt: 0 };
@@ -767,10 +590,7 @@ function activate(id) {
 // click a dog: it barks (each in its own voice), pricks its ears, the standing one wags
 function patDog(i) {
   sound.dog(i, HOTSPOTS[["dogA", "dogB", "dogC"][i]].x);
-  const e = i === 0 ? [0, 1] : i === 2 ? [2, 3] : [];
-  e.forEach((k) => { ears[k].at = sceneTime; ears[k].amp = (k % 2 ? 1 : -1) * 0.2; });
-  if (i === 0) excite = 1;
-  if (i === 2) { tiltAt = sceneTime; tiltDir = -tiltDir; }
+  dogs.pat(i, sceneTime);
 }
 const hintEl = $("#hint");
 const HINTS = {
@@ -1042,9 +862,8 @@ const cameraMotion = {cx:{x:view.cx,v:0},cy:{x:view.cy,v:0},hh:{x:view.hh,v:0}};
 const lookX={x:0,v:0},lookY={x:0,v:0};
 const drift=new THREE.Vector2(), want=new THREE.Vector2();
 const budget=new FrameBudget(MAX_PR,prScale);
-let lastScreenMin = -1, excite = 0, tiltNext = 5, tiltAt = -9, tiltDir = 1;
-const blinks = [0, 1, 2].map((i) => ({ next: 1.5 + i * 1.7 + Math.random() * 2, at: -9 }));
-const ears = [0, 1, 2, 3].map(() => ({ next: 4 + Math.random() * 8, at: -9, amp: 0 }));
+let lastScreenMin = -1;
+const dogs = new DogAnimator(uniforms);
 function frame() {
   requestAnimationFrame(frame);
   const elapsed = clock.getDelta();
@@ -1098,25 +917,8 @@ function frame() {
   // living things
   updateBirds(motionDt, t);
   farm.update(motionDt, t, innerHeight / (view.hh * 2) * prScale, !moving);
-  // each dog blinks on its own clock (sometimes a quick double blink)
-  blinks.forEach((b, i) => {
-    if (t > b.next) { b.at = t; b.next = t + 2.8 + Math.random() * 5; if (Math.random() < 0.18) b.next = t + 0.38; }
-    const bp = (t - b.at) / 0.17;
-    uniforms.uBlink.value.setComponent(i, bp >= 0 && bp < 1 ? Math.sin(bp * Math.PI) : 0);
-  });
-  // the odd ear flick: a quick turn and a slower settle
-  ears.forEach((e, i) => {
-    if (t > e.next) { e.at = t; e.amp = (i % 2 ? 1 : -1) * (0.12 + Math.random() * 0.1); e.next = t + 6 + Math.random() * 12; }
-    const ep = t - e.at;
-    const v = ep < 0 ? 0 : ep < 0.08 ? ep / 0.08 : Math.exp(-(ep - 0.08) * 6) * Math.cos((ep - 0.08) * 18);
-    uniforms.uEar.value.setComponent(i, e.amp * v);
-  });
+  dogs.update(t, motionDt);
   updateDrone(motionDt, t);
-  // tail wag (always a lazy sway; a proper wag after a pat) and the little one's head tilt
-  excite = Math.max(0, excite - motionDt * 0.25);
-  uniforms.uWag.value = Math.sin(t * (3 + excite * 9)) * (0.04 + excite * 0.14);
-  if (t > tiltNext) { tiltAt = t; tiltDir = Math.random() < 0.5 ? -1 : 1; tiltNext = t + rand(7, 16); }
-  { const tp = t - tiltAt; uniforms.uTilt.value = tiltDir * 0.13 * (tp < 0 ? 0 : tp < 0.35 ? ease(tp / 0.35) : tp < 2.2 ? 1 : 1 - ease((tp - 2.2) / 0.5)); }
   const nextScale=budget.sample(elapsed);
   if (Math.abs(nextScale-prScale)>.001) {
     prScale=nextScale; renderer.setPixelRatio(prScale); onResize();
