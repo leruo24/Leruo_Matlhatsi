@@ -1,0 +1,12 @@
+[
+  {
+    "name": "09-tablet-approach",
+    "prompt": "Use case: photorealistic-natural. Create a separate 16:9 photographic keyframe of a CAMERA dolly toward the tablet in the reference workshop. Reference is authoritative for exact objects, their world positions, sunset lighting and materials. NO HANDS, NO ARMS, NO PEOPLE, NO PICKING UP THE TABLET. Tablet stays planted in its dark triangular folio stand at the same spot on wooden desk between mouse and white Xbox. Same portrait tablet dimensions. Camera moves; no props move. Preserve physical scale, natural depth and perspective. Tablet screen blank dark forest green, no text, no UI. Real full-frame photograph, natural detail without squiggles or painterly textures. Camera has moved right and forward from original seated position to aim at the tablet. Tablet centered and occupies 55 percent of image height; monitor partly cropped along left edge and Xbox visible right. Folio stand and contact with desk clearly visible. Background pond and house unchanged. One continuous believable camera path.",
+    "path": "/workspace/scratch/5efb46ca0807/generated_images/exec-8ab733bb-bcc4-4cb6-8578-daf93c298fa2.png"
+  },
+  {
+    "name": "10-tablet-closeup",
+    "prompt": "Use case: photorealistic-natural. Create a separate 16:9 photographic keyframe of a CAMERA dolly toward the tablet in the reference workshop. Reference is authoritative for exact objects, their world positions, sunset lighting and materials. NO HANDS, NO ARMS, NO PEOPLE, NO PICKING UP THE TABLET. Tablet stays planted in its dark triangular folio stand at the same spot on wooden desk between mouse and white Xbox. Same portrait tablet dimensions. Camera moves; no props move. Preserve physical scale, natural depth and perspective. Tablet screen blank dark forest green, no text, no UI. Real full-frame photograph, natural detail without squiggles or painterly textures. Camera now very close to and directly square-on to the tilted tablet screen, with optical axis perpendicular to its screen. Tablet centered and fills 94 percent of image height. Entire thin portrait bezel visible, tiny portion of folio and desk at bottom, background heavily cropped and softly blurred. Monitor edge only at far left, Xbox edge far right. This is final camera pose immediately before pushing through the screen into the interactive tablet website. Device remains on desk, not floating.",
+    "path": "/workspace/scratch/5efb46ca0807/generated_images/exec-ee160035-b5c4-4fab-9f0e-07990f9ea4ef.png"
+  }
+]

@@ -44,6 +44,10 @@ export class Sound {
       { buf: this.noiseBuf, type: "bandpass", f: 650, q: 1.2, g: 0.022, wander: [450, 950] },
       { buf: this.noiseBuf, type: "bandpass", f: 1800, q: 2.0, g: 0.008, wander: [1400, 2400] },
     ], 0.55, 0);
+    this.sprinklers = this.bed([
+      {buf:this.noiseBuf,type:"bandpass",f:3200,q:.7,g:.006},
+    ], 0, 0);
+    this.sprinklerMotion = 0;
     // the office in the intro: murmur of voices, air-con, the odd keyboard and phone
     this.office = this.bed([
       { buf: this.brownBuf, type: "lowpass", f: 180, g: 0.09 },                                // air-con rumble
@@ -161,6 +165,8 @@ export class Sound {
     const lap = 0.6 + 0.4 * Math.sin(t * 0.9) * Math.sin(t * 0.37 + 1);
     lvl(this.river.out, N * lap * (f === "monitor" ? 0.25 : 1), 0.5);
     if (this.river.pan) this.river.pan.pan.setTargetAtTime(this.panAt(1400), t, 0.3);
+    lvl(this.sprinklers.out, N * (0.35 + .15 * Math.sin((this.sprinklerMotion || 0) * .43)) * (f === "monitor" ? .2 : 1), .5);
+    if(this.sprinklers.pan)this.sprinklers.pan.pan.setTargetAtTime(this.panAt(900),t,.3);
     lvl(this.office.out, (1 - N) * 1.0, N > 0.02 ? 0.6 : 0.15);
     // voices come and go in waves
     this.babble.forEach((b, i) => b.g.gain.setTargetAtTime(Math.max(0, Math.sin(t * (0.21 + i * 0.07) + i * 1.7)) * 0.03, t, 0.5));

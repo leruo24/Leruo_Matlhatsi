@@ -1,4 +1,8 @@
 import * as THREE from "three";
+import { constrainFlight } from "./drone-control.js";
+import { createFarm } from "./farm.js";
+import { OfficeMotion } from "./office.js";
+import { spring, blend, FrameBudget } from "./motion.js";
 import { Sound } from "./sound.js";
 
 /*
@@ -10,7 +14,7 @@ import { Sound } from "./sound.js";
  *     pass in front of them.
  *  3. The pond, trees, grass, clouds, the drone and the three dogs (breathing, blinking, ears)
  *     are animated inside the photo, with restrained, believable motion.
- *  4. Everything is graded together in one final pass (focus pull, vignette, grain).
+ *  4. Everything is graded together in one final pass (focus pull and vignette).
  */
 const P = window.PORTFOLIO || {};
 const W = 1670, H = 942; // image size (px)
@@ -236,21 +240,7 @@ const photo = new THREE.Mesh(
           col += m.r * gl * vec3(1.0, 0.85, 0.65) * 0.35;
         }
 
-        // mild sharpening to keep the photo crisp when it's scaled up
-        vec3 nb = (texture2D(tImg, uv + vec2(ipx.x, 0.0)).rgb + texture2D(tImg, uv - vec2(ipx.x, 0.0)).rgb + texture2D(tImg, uv + vec2(0.0, ipx.y)).rgb + texture2D(tImg, uv - vec2(0.0, ipx.y)).rgb) * 0.25;
-        col += (col - nb) * clamp(0.22 * uTexel, 0.0, 0.55);
-
-        // ground: real surface detail projected in perspective onto the dirt yard and the concrete floor
-        if (m2.r + m2.g > 0.02 && P.y > 330.0) {
-          float Z = 1300.0 / max(P.y - 318.0, 4.0);
-          vec2 gp = vec2((P.x - 835.0) * Z / 1000.0, Z);
-          float gd = lum(texture2D(tGravel, gp * 0.9).rgb) - lum(texture2D(tGravel, gp * 0.9, 3.5).rgb);
-          float cd = lum(texture2D(tConcrete, gp * 0.45).rgb) - lum(texture2D(tConcrete, gp * 0.45, 3.5).rgb);
-          float near = smoothstep(0.02, 0.12, 1.0 / Z);
-          col *= 1.0 + m2.r * gd * 0.85 * near + m2.g * cd * 0.55;
-          // polished concrete catches a soft moving sheen from the sky as you look around
-          col += m2.g * vec3(1.0, 0.85, 0.65) * 0.035 * smoothstep(0.3, 1.0, noise(vec2(P.x * 0.004 + uMouse.x * 1.5, P.y * 0.01)));
-        }
+        // Preserve the photograph: no sharpening or synthetic surface overlays.
 
         // light: lamps, sun, monitor spill, LEDs (steady, like the real things)
         col += vec3(1.0, 0.72, 0.42) * 0.07 * glow(P, vec2(300.0, 196.0), 70.0);       // the sun
@@ -499,11 +489,13 @@ function contact(parent, w, d, opacity, x = 0, z = 0, y = 0.002) {
 const droneTex = raw(loader.load("assets/drone.png"));
 const DRONE_W = 100, DRONE_H = 26;
 const drone = new THREE.Mesh(new THREE.PlaneGeometry(DRONE_W, DRONE_H), new THREE.ShaderMaterial({
-  uniforms: { tDrone: { value: droneTex }, uTime: uniforms.uTime, uTilt: { value: 0 } },
+  uniforms: { tDrone: { value: droneTex }, tMask: { value: tMask }, uTime: uniforms.uTime, uTilt: { value: 0 } },
   transparent: true, depthTest: false, depthWrite: false, ...KEEP_ALPHA, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
-  vertexShader: `uniform float uTilt; varying vec2 vUv; void main(){ vUv = uv; vec3 p = position; float c = cos(uTilt), s = sin(uTilt); p.xy = vec2(p.x * c - p.y * s, p.x * s + p.y * c); gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0); }`,
-  fragmentShader: `uniform sampler2D tDrone; uniform float uTime; varying vec2 vUv;
+  vertexShader: `uniform float uTilt; varying vec2 vUv; varying vec2 vPhoto; void main(){ vUv = uv; vec3 p = position; float c = cos(uTilt), s = sin(uTilt); p.xy = vec2(p.x * c - p.y * s, p.x * s + p.y * c); vec4 w = modelMatrix * vec4(p, 1.0); vPhoto = w.xy / vec2(${W}.0, ${H}.0); gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `uniform sampler2D tDrone, tMask; uniform float uTime; varying vec2 vUv; varying vec2 vPhoto;
     void main(){ vec4 c = texture2D(tDrone, vUv);
+      // the tree is nearer than the drone: its leaves hide it
+      c.a *= 1.0 - smoothstep(0.15, 0.55, texture2D(tMask, vPhoto).g);
       // spinning rotors: the blade areas flicker slightly
       float rot = step(0.72, vUv.y) * (0.75 + 0.25 * sin(uTime * 90.0 + vUv.x * 40.0));
       c.a *= mix(1.0, rot, step(0.72, vUv.y));
@@ -512,23 +504,52 @@ const drone = new THREE.Mesh(new THREE.PlaneGeometry(DRONE_W, DRONE_H), new THRE
 drone.position.z = 1.5;
 photoScene.add(drone);
 const droneState = { x: 1035, y: 173, vx: 0, vy: 0, tx: 1035, ty: 173, next: 0, tilt: 0 };
+const droneX={x:1035,v:0}, droneY={x:173,v:0};
+const pilot={manual:false,angle:0,rotation:0};
+const droneButton=$('#drone-btn'),dronePanel=$('#drone-panel');
+droneButton.hidden=false;
+function syncFlightControls(){
+ $('#drone-x').value=droneState.tx;$('#drone-y').value=335-droneState.ty;$('#drone-angle').value=pilot.angle*180/Math.PI;
+ $('#drone-auto').setAttribute('aria-pressed',String(!pilot.manual));
+ $('#drone-status').textContent=pilot.manual?'Manual flight · arrow keys adjust the selected slider.':'Autopilot · select a slider to take control.';
+}
+function closeFlight(){dronePanel.hidden=true;droneButton.setAttribute('aria-expanded','false');}
+droneButton.onclick=()=>{
+ if(!dronePanel.hidden){closeFlight();return;}
+ pilot.manual=true;droneState.tx=droneState.x;droneState.ty=droneState.y;
+ dronePanel.hidden=false;droneButton.setAttribute('aria-expanded','true');syncFlightControls();$('#drone-x').focus();
+};
+$('#drone-close').onclick=()=>{closeFlight();droneButton.focus();};
+for(const id of ['#drone-x','#drone-y','#drone-angle'])$(id).addEventListener('input',()=>{
+ const f=constrainFlight(Number($('#drone-x').value),335-Number($('#drone-y').value),Number($('#drone-angle').value)*Math.PI/180);
+ pilot.manual=true;droneState.tx=f.x;droneState.ty=f.y;pilot.angle=f.angle;syncFlightControls();
+});
+$('#drone-reset').onclick=()=>{pilot.manual=true;droneState.tx=1035;droneState.ty=173;pilot.angle=0;syncFlightControls();};
+$('#drone-auto').onclick=()=>{pilot.manual=false;pilot.angle=0;droneState.next=-1;syncFlightControls();};
+
 function updateDrone(dt, t) {
   const d = droneState;
-  if (t > d.next) {
+  if (!pilot.manual && t > d.next) {
     // pick the next spot in the sky over the farm and the pond, sometimes hang still for a bit
     d.tx = rand(760, 1420); d.ty = rand(120, 215); d.next = t + rand(4, 9);
   }
-  const ax = (d.tx - d.x) * 0.6 - d.vx * 1.1, ay = (d.ty - d.y) * 0.6 - d.vy * 1.3;
-  d.vx += ax * dt; d.vy += ay * dt;
-  d.x += d.vx * dt; d.y += d.vy * dt;
-  d.tilt += (-d.vx * 0.004 - d.tilt) * Math.min(1, dt * 3);
+  const bounded=constrainFlight(d.tx,d.ty,pilot.angle);d.tx=bounded.x;d.ty=bounded.y;pilot.angle=bounded.angle;
+  if(pilot.manual&&reduceMotion){d.x=d.tx;d.y=d.ty;d.vx=d.vy=0;pilot.rotation=pilot.angle;}
+  droneX.x=d.x; droneX.v=d.vx; droneY.x=d.y; droneY.v=d.vy;
+  // autopilot drifts lazily; manual flight answers the sliders in about a second and a half
+  const k=pilot.manual?3.2:.8;
+  d.x=spring(droneX,d.tx,k,dt); d.vx=droneX.v;
+  d.y=spring(droneY,d.ty,k*1.1,dt); d.vy=droneY.v;
+  d.tilt += (-d.vx * 0.004 - d.tilt) * blend(3,dt);
   const hover = Math.sin(t * 1.9) * 1.2;
   // smaller when it's further away (higher in the sky)
   const sc = 0.75 + (d.y - 120) / 95 * 0.35;
   const off = uniforms.uMouse.value, depthOff = (0.01 - FOCUS_D) * PAR;
   drone.position.x = d.x + off.x * depthOff * W;
   drone.position.y = H - (d.y + hover) - off.y * depthOff * H;
-  drone.scale.setScalar(sc);
+  drone.scale.setScalar(Math.min(1.1,sc));
+  pilot.rotation+=(pilot.angle-pilot.rotation)*blend(5,dt);
+  drone.rotation.z=pilot.rotation;
   drone.material.uniforms.uTilt.value = d.tilt;
   const [mx, my] = screenToImg((mouse.x * 0.5 + 0.5) * window.innerWidth, (0.5 - mouse.y * 0.5) * window.innerHeight);
   sound.drone.x = d.x; sound.drone.speed = Math.hypot(d.vx, d.vy);
@@ -537,23 +558,26 @@ function updateDrone(dt, t) {
 
 /* --- birds: the odd flock crossing the sky, plus a single bird now and then --- */
 const birdMat = std({ color: 0x1b1714, roughness: 1, side: THREE.DoubleSide });
+const birdBody = new THREE.CapsuleGeometry(0.06, 0.22, 3, 6).rotateZ(Math.PI / 2);
+const birdWing = new THREE.BufferGeometry();
+birdWing.setAttribute("position", new THREE.Float32BufferAttribute([0,0,0,.12,0,0,-.06,0,.5,.06,0,0,-.1,0,.45,-.02,0,.5],3));
+birdWing.computeVertexNormals();
+const birdWingRight = birdWing.clone().scale(1,1,-1);
 function makeBird() {
   const g = new THREE.Group();
-  mesh(new THREE.CapsuleGeometry(0.06, 0.22, 3, 6).rotateZ(Math.PI / 2), birdMat, 0, 0, 0, g);
-  const wing = new THREE.BufferGeometry();
-  wing.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, 0.12, 0, 0, -0.06, 0, 0.5, 0.06, 0, 0, -0.1, 0, 0.45, -0.02, 0, 0.5], 3));
-  wing.computeVertexNormals();
-  const L = mesh(wing, birdMat, 0, 0.01, 0.03, g), R = mesh(wing.clone().scale(1, 1, -1), birdMat, 0, 0.01, -0.03, g);
+  mesh(birdBody, birdMat, 0, 0, 0, g);
+  const L=mesh(birdWing,birdMat,0,.01,.03,g), R=mesh(birdWingRight,birdMat,0,.01,-.03,g);
   L.castShadow = R.castShadow = false;
   g.children[0].castShadow = false;
   return { g, L, R, ph: Math.random() * 10 };
 }
+const farm = createFarm({scene:photoScene,loader,uniforms,keepAlpha:KEEP_ALPHA,depthAt,depthTexture:tDepth});
 const flocks = [];
 let nextFlock = 2.5;
 function spawnFlock() {
   const dir = Math.random() < 0.5 ? 1 : -1;
   const Z = rand(55, 110), yImg = rand(70, 230);
-  const n = Math.random() < 0.3 ? 1 : 3 + Math.floor(Math.random() * 5);
+  const n = Math.random() < 0.3 ? 1 : 2 + Math.floor(Math.random() * 3);
   const startX = ((dir > 0 ? -60 : W + 60) - CX) * Z / F;
   const Y = HC + ((YH - yImg) * Z) / F;
   const birds = [];
@@ -561,7 +585,7 @@ function spawnFlock() {
     const b = makeBird();
     const row = Math.ceil(i / 2), side = i % 2 ? 1 : -1;
     b.off = new THREE.Vector3(-dir * row * 1.3, rand(-0.3, 0.3), side * row * 1.1);
-    b.flap = rand(3.2, 4.2); b.scale = rand(1.6, 2.2);
+    b.flap = rand(3.2, 4.2); b.scale = rand(0.65, 1.0);
     b.g.scale.setScalar(b.scale);
     add3("bird", b.g); birds.push(b);
   }
@@ -569,16 +593,17 @@ function spawnFlock() {
 }
 function updateBirds(dt, t) {
   nextFlock -= dt;
-  if (nextFlock < 0) { spawnFlock(); nextFlock = rand(6, 15); }
+  if (nextFlock < 0) { if (flocks.length < 2) spawnFlock(); nextFlock = rand(12, 30); }
   for (let k = flocks.length - 1; k >= 0; k--) {
     const f = flocks[k];
     f.pos.addScaledVector(f.vel, dt);
     for (const b of f.birds) {
-      const p = f.pos.clone().add(b.off); p.y += Math.sin(t * 0.7 + b.ph) * 0.4;
+      const p = b.g.position.copy(f.pos).add(b.off); p.y += Math.sin(t * 0.7 + b.ph) * 0.4;
       b.g.position.copy(p);
       b.g.rotation.y = f.dir > 0 ? 0 : Math.PI;
+      b.g.rotation.z = Math.sin(t * .37 + b.ph) * .065;
       // flap in bursts, then glide
-      const gl = Math.sin(t * 0.45 + b.ph) > 0.55 ? 0.15 : 1;
+      const gl = 1 - 0.85 * THREE.MathUtils.smoothstep(Math.sin(t * 0.45 + b.ph), 0.25, 0.75);
       const a = Math.sin(t * b.flap * Math.PI * 2 + b.ph) * 0.75 * gl + 0.12;
       b.L.rotation.x = a; b.R.rotation.x = -a;
     }
@@ -630,7 +655,7 @@ postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMate
       col = (col - 0.5) * 1.03 + 0.5;
       vec2 q = vUv - 0.5;
       col *= 1.0 - 0.3 * smoothstep(0.3, 0.9, length(q * vec2(1.15, 1.0)));
-      col += (hash(gl_FragCoord.xy + fract(uTime) * 100.0) - 0.5) * 0.022;
+      // No temporal grain: retain clean detail during movement.
       gl_FragColor = vec4(col, 1.0);
     }`,
 })));
@@ -743,9 +768,9 @@ function activate(id) {
 function patDog(i) {
   sound.dog(i, HOTSPOTS[["dogA", "dogB", "dogC"][i]].x);
   const e = i === 0 ? [0, 1] : i === 2 ? [2, 3] : [];
-  e.forEach((k) => { ears[k].at = clock.elapsedTime; ears[k].amp = (k % 2 ? 1 : -1) * 0.2; });
+  e.forEach((k) => { ears[k].at = sceneTime; ears[k].amp = (k % 2 ? 1 : -1) * 0.2; });
   if (i === 0) excite = 1;
-  if (i === 2) { tiltAt = clock.elapsedTime; tiltDir = -tiltDir; }
+  if (i === 2) { tiltAt = sceneTime; tiltDir = -tiltDir; }
 }
 const hintEl = $("#hint");
 const HINTS = {
@@ -761,6 +786,7 @@ function takeSeat() {
 }
 function setMode(m) {
   mode = m;
+  if(m === "monitor" || m === "os" || m === "seated")closeFlight();
   document.body.classList.toggle("exploring", m !== "intro");
   document.body.classList.toggle("away", m === "monitor" || m === "os");
   document.body.classList.toggle("seated", m === "seated");
@@ -849,6 +875,7 @@ canvas.addEventListener("click", (e) => {
   hideHelp();
 });
 window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !dronePanel.hidden){closeFlight();droneButton.focus();return;}
   if (e.key === "Escape") { if (!vrDone) return; if (!helpCard.hidden) return hideHelp(); if (mode === "os") standUp(); else if (mode === "seated" || mode === "monitor") backToRoom(); }
 });
 window.addEventListener("message", (e) => {
@@ -864,7 +891,23 @@ window.addEventListener("message", (e) => {
  * ------------------------------------------------------------------ */
 const vr = $("#vr"), vrOffice = $(".vr-office"), vrHands = $(".vr-hands"), vrBlack = $(".vr-black"), vrLens = $(".vr-lens"), vrWelcome = $(".vr-welcome");
 const vrMute = $("#vr-mute");
-const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const motionQuery = matchMedia("(prefers-reduced-motion: reduce)");
+let reduceMotion = motionQuery.matches, sceneryPaused = false;
+motionQuery.addEventListener("change", e => { reduceMotion = e.matches; });
+const officeMotion = new OfficeMotion(vrOffice);
+const pauseButton = $("#pause-btn");
+pauseButton.onclick = () => {
+  sceneryPaused = !sceneryPaused;
+  pauseButton.setAttribute("aria-pressed", String(sceneryPaused));
+  pauseButton.textContent = sceneryPaused ? "Resume scenery" : "Pause scenery";
+};
+let audioWasRunning = false;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    audioWasRunning = sound.ctx?.state === "running";
+    if (audioWasRunning) sound.ctx.suspend();
+  } else if (audioWasRunning) sound.ctx?.resume();
+});
 let vrT0 = -1, vrDone = false;
 if (P.intro && P.intro.headline) $("#vr-title").textContent = P.intro.headline;
 document.body.classList.add("vr");
@@ -994,19 +1037,36 @@ onResize();
 Object.assign(view, homeView());
 
 const clock = new THREE.Clock();
-let lastScreenMin = -1, excite = 0, tiltNext = 5, tiltAt = -9, tiltDir = 1, frameAvg = 1 / 60, lastScaleT = 0;
+let sceneTime = 0;
+const cameraMotion = {cx:{x:view.cx,v:0},cy:{x:view.cy,v:0},hh:{x:view.hh,v:0}};
+const lookX={x:0,v:0},lookY={x:0,v:0};
+const drift=new THREE.Vector2(), want=new THREE.Vector2();
+const budget=new FrameBudget(MAX_PR,prScale);
+let lastScreenMin = -1, excite = 0, tiltNext = 5, tiltAt = -9, tiltDir = 1;
 const blinks = [0, 1, 2].map((i) => ({ next: 1.5 + i * 1.7 + Math.random() * 2, at: -9 }));
 const ears = [0, 1, 2, 3].map(() => ({ next: 4 + Math.random() * 8, at: -9, amp: 0 }));
 function frame() {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.05, clock.getDelta());
-  const t = clock.elapsedTime;
+  const elapsed = clock.getDelta();
+  const dt = Math.min(0.05, elapsed);
+  if (document.hidden) return;
+  updateIntro();
+  officeMotion.draw(dt, !vrDone && !vr.classList.contains("gated"), reduceMotion);
+  sound.update(dt);
+  if (mode === "os") return;
+  if (!vrDone && !vr.classList.contains("playing")) return;
+  const moving = !reduceMotion && !sceneryPaused;
+  const motionDt = moving ? dt : 0;
+  sceneTime += motionDt;
+  const t = sceneTime;
   uniforms.uTime.value = t;
+  sound.sprinklerMotion = t;
 
-  const k = 1 - Math.pow(mode === "monitor" ? 0.012 : mode === "seated" ? 0.012 : 0.02, dt);
-  view.cx += (target.cx - view.cx) * k;
-  view.cy += (target.cy - view.cy) * k;
-  view.hh += (target.hh - view.hh) * k;
+  // Camera acceleration and settling stay continuous when a new target is chosen.
+  for (const key of ['cx','cy','hh']) {
+    cameraMotion[key].x=view[key];
+    view[key]=spring(cameraMotion[key],target[key],mode==='monitor'?8:6,dt);
+  }
   if (mode === "monitor") {
     const done = Math.abs(view.hh - target.hh) < 1.2 && Math.abs(view.cx - target.cx) < 1.2;
     if (done) openOS();
@@ -1016,9 +1076,9 @@ function frame() {
   const amt = mode === "monitor" || mode === "os" ? 0 : mode === "seated" ? 0.3 : 1;
   // when the mouse rests (or on touch screens), the view keeps a slow, hand-held drift so it never freezes
   const idle = coarse ? 1 : Math.min(1, Math.max(0, (performance.now() - lastMove) / 1000 - 1.5) / 2);
-  const drift = new THREE.Vector2(Math.sin(t * 0.23) * 0.45 + Math.sin(t * 0.61) * 0.08, Math.sin(t * 0.17 + 1) * 0.22 + Math.sin(t * 0.53) * 0.05);
-  const want = mouse.clone().multiplyScalar(1 - idle * 0.6).add(drift.multiplyScalar(idle));
-  mouseSmooth.lerp(want.multiplyScalar(-amt), 1 - Math.pow(0.015, dt));
+  drift.set(Math.sin(t * .16) * .28 + Math.sin(t * .37) * .035, Math.cos(t * .16) * .13);
+  want.copy(mouse).multiplyScalar(1 - idle * .6).addScaledVector(drift,idle).multiplyScalar(reduceMotion ? 0 : -amt);
+  mouseSmooth.set(spring(lookX,want.x,9,dt),spring(lookY,want.y,9,dt));
   uniforms.uMouse.value.copy(mouseSmooth);
   applyCamera();
 
@@ -1026,17 +1086,18 @@ function frame() {
   const gust = 0.5 + 0.5 * Math.sin(t * 0.21) * Math.sin(t * 0.083 + 1.3);
   uniforms.uGust.value = gust; sound.gust = gust;
 
-  postU.uHoverAmt.value += ((hoverId && mode !== "monitor" && mode !== "os" ? 1 : 0) - postU.uHoverAmt.value) * Math.min(1, dt * 8);
+  postU.uHoverAmt.value += ((hoverId && mode !== "monitor" && mode !== "os" ? 1 : 0) - postU.uHoverAmt.value) * blend(8,dt);
   // sitting at the desk: the screens are sharp, the view outside goes soft
   if (mode === "seated") postU.uFocusDepth.value = 0.37;
-  postU.uFocusAmt.value += ((mode === "seated" ? (aspect() < 1.2 ? 0.35 : 0.6) : 0) - postU.uFocusAmt.value) * Math.min(1, dt * 3);
-  screenU.uWake.value += ((mode === "monitor" || mode === "os" || screenHover ? 1 : 0) - screenU.uWake.value) * Math.min(1, dt * 4);
+  postU.uFocusAmt.value += ((mode === "seated" ? (aspect() < 1.2 ? 0.35 : 0.6) : 0) - postU.uFocusAmt.value) * blend(3,dt);
+  screenU.uWake.value += ((mode === "monitor" || mode === "os" || screenHover ? 1 : 0) - screenU.uWake.value) * blend(4,dt);
 
   const min = new Date().getMinutes();
   if (min !== lastScreenMin) { lastScreenMin = min; drawScreen(); }
 
   // living things
-  updateBirds(dt, t);
+  updateBirds(motionDt, t);
+  farm.update(motionDt, t, innerHeight / (view.hh * 2) * prScale, !moving);
   // each dog blinks on its own clock (sometimes a quick double blink)
   blinks.forEach((b, i) => {
     if (t > b.next) { b.at = t; b.next = t + 2.8 + Math.random() * 5; if (Math.random() < 0.18) b.next = t + 0.38; }
@@ -1050,19 +1111,15 @@ function frame() {
     const v = ep < 0 ? 0 : ep < 0.08 ? ep / 0.08 : Math.exp(-(ep - 0.08) * 6) * Math.cos((ep - 0.08) * 18);
     uniforms.uEar.value.setComponent(i, e.amp * v);
   });
-  updateDrone(dt, t);
+  updateDrone(motionDt, t);
   // tail wag (always a lazy sway; a proper wag after a pat) and the little one's head tilt
-  excite = Math.max(0, excite - dt * 0.25);
+  excite = Math.max(0, excite - motionDt * 0.25);
   uniforms.uWag.value = Math.sin(t * (3 + excite * 9)) * (0.04 + excite * 0.14);
   if (t > tiltNext) { tiltAt = t; tiltDir = Math.random() < 0.5 ? -1 : 1; tiltNext = t + rand(7, 16); }
   { const tp = t - tiltAt; uniforms.uTilt.value = tiltDir * 0.13 * (tp < 0 ? 0 : tp < 0.35 ? ease(tp / 0.35) : tp < 2.2 ? 1 : 1 - ease((tp - 2.2) / 0.5)); }
-  // keep frames smooth: lower the render resolution if frames are slow, raise it again with headroom
-  frameAvg = frameAvg * 0.95 + dt * 0.05;
-  if (t - lastScaleT > 1.5) {
-    lastScaleT = t;
-    const want = frameAvg > 0.024 ? prScale - 0.15 : frameAvg < 0.015 ? prScale + 0.1 : prScale;
-    const next = Math.max(0.6, Math.min(MAX_PR, want));
-    if (Math.abs(next - prScale) > 0.01) { prScale = next; renderer.setPixelRatio(prScale); onResize(); }
+  const nextScale=budget.sample(elapsed);
+  if (Math.abs(nextScale-prScale)>.001) {
+    prScale=nextScale; renderer.setPixelRatio(prScale); onResize();
   }
 
   {
@@ -1070,9 +1127,7 @@ function frame() {
     helpBtn.style.display = show ? "" : "none";
     if (show) { const [hx2, hy2] = imgToScreen(560, 565); helpBtn.style.transform = `translate(${hx2}px, ${hy2}px)`; }
   }
-  updateIntro();
   sound.view = { cx: view.cx, hw: view.hh * aspect() };
-  sound.update(dt);
 
   renderer.setRenderTarget(rt);
   renderer.setClearColor(0x000000, 0);

@@ -9,7 +9,7 @@
   <meta property="og:description" content="A living, photoreal workshop portfolio. Look around, then sit down at the computer." />
   <meta property="og:image" content="assets/workshop.jpg" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f5c43'/%3E%3Cpath d='M16 6c-5 4-7 9-5 14 1 3 3 5 5 6 2-1 4-3 5-6 2-5 0-10-5-14z' fill='%239be37d'/%3E%3C/svg%3E" />
-  <link rel="preload" as="image" href="assets/intro-office.jpg" />
+  <link rel="preload" as="image" href="assets/intro-office-clean.png" />
   <link rel="preload" as="image" href="assets/workshop.jpg" crossorigin="anonymous" />
   <link rel="stylesheet" href="css/world.css" />
   <script type="importmap">
@@ -31,6 +31,9 @@
   <header id="top">
     <div class="brand">LERUO MATLHATSI<small>SOFTWARE · IoT · BUSINESS ANALYSIS</small></div>
     <div class="top-actions">
+      <a href="look-around.html" class="pill">Look around</a>
+      <button id="drone-btn" class="pill" aria-expanded="false" aria-controls="drone-panel" hidden>Fly drone</button>
+      <button id="pause-btn" class="pill" aria-pressed="false">Pause scenery</button>
       <button id="sound-btn" class="pill" aria-pressed="true">Sound on</button>
       <button id="cv-btn" class="pill">Open CV ↗</button>
     </div>
@@ -42,7 +45,7 @@
       <button id="vr-enter" class="vr-btn">Click to enter</button>
       <p>Best with sound on 🔊</p>
     </div>
-    <img class="vr-shot vr-office" src="assets/intro-office.jpg" alt="A busy black-and-white office seen from a desk, with a VR headset in front of you." />
+    <canvas class="vr-shot vr-office" role="img" aria-label="A busy black-and-white office with a VR headset on the desk."></canvas>
     <img class="vr-shot vr-hands" src="assets/intro-headset.jpg" alt="" aria-hidden="true" />
     <div class="vr-black"></div>
     <div class="vr-lens" aria-hidden="true"></div>
@@ -59,6 +62,15 @@
   <div id="hint">Move your mouse to look around · click the computer to take a seat · ? for help</div>
   <button id="help-btn" aria-label="How this website works" title="How this website works">?</button>
 
+  <section id="drone-panel" aria-label="Drone controls" hidden>
+    <div class="drone-heading"><strong>Sky controller</strong><button id="drone-close" aria-label="Close drone controls">×</button></div>
+    <p>Fly over the farm. The drone stays in the distant sky. Resume scenery if flight is paused.</p>
+    <label>Left / right<input id="drone-x" type="range" min="760" max="1420" value="1035" step="1"></label>
+    <label>Altitude<input id="drone-y" type="range" min="120" max="215" value="162" step="1"></label>
+    <label>Rotate / bank<input id="drone-angle" type="range" min="-45" max="45" value="0" step="1"></label>
+    <div class="drone-actions"><button id="drone-reset">Centre drone</button><button id="drone-auto" aria-pressed="false">Resume autopilot</button></div>
+    <p id="drone-status" role="status">Manual flight · use the sliders or their arrow keys.</p>
+  </section>
   <!-- info card -->
   <aside id="card" hidden aria-live="polite"></aside>
 
@@ -70,6 +82,6 @@
 
   <noscript><p style="padding:2rem;font-family:sans-serif">This portfolio needs JavaScript. <a href="os/index.html">Open the simple version</a>.</p></noscript>
   <script src="os/content.js"></script>
-  <script type="module" src="js/world.js"></script>
+  <script type="module" src="js/boot.js"></script>
 </body>
 </html>

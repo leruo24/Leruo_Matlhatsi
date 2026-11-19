@@ -1,0 +1,50 @@
+{
+  "note": "Concept keyframes, not a frame-accurate animation sequence or cubemap. Existing live scene remains authoritative.",
+  "views": [
+    {
+      "image": "00-office.png",
+      "label": "Busy office",
+      "role": "reference-keyframe"
+    },
+    {
+      "image": "01-headset-lift.jpg",
+      "label": "Lift the headset",
+      "role": "reference-keyframe"
+    },
+    {
+      "image": "02-vr-world-reveal.png",
+      "label": "World reveal",
+      "role": "reference-keyframe"
+    },
+    {
+      "image": "03-workshop-home.jpg",
+      "label": "Workshop home",
+      "role": "reference-keyframe"
+    },
+    {
+      "image": "04-workshop-left.png",
+      "label": "Left angle",
+      "role": "reference-keyframe"
+    },
+    {
+      "image": "05-workshop-right.png",
+      "label": "Right angle",
+      "role": "reference-keyframe"
+    },
+    {
+      "image": "06-seated-desk.png",
+      "label": "Seated at desk",
+      "role": "reference-keyframe"
+    },
+    {
+      "image": "07-monitor-entry.png",
+      "label": "Enter the monitor",
+      "role": "reference-keyframe"
+    },
+    {
+      "image": "08-hardware-bench.png",
+      "label": "Hardware bench",
+      "role": "reference-keyframe"
+    }
+  ]
+}

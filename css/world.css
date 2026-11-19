@@ -108,7 +108,7 @@ body.away #help-btn { display: none; }
 .vr-ui, .vr-ctrl { transition: opacity .8s .4s; }
 body.vr header#top, body.vr #hint, body.vr #help-btn { opacity: 0 !important; pointer-events: none !important; }
 .vr-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; will-change: transform, opacity; filter: contrast(1.04) brightness(.92); }
-.vr-office { object-position: 52% 60%; transform-origin: 52% 66%; animation: vrDrift 18s ease-in-out infinite alternate; }
+.vr-office { object-position: 52% 60%; transform-origin: 52% 66%; background: #393939; }
 @keyframes vrDrift { from { transform: scale(1.02) translate(0, 0); } to { transform: scale(1.06) translate(-.6%, -.4%); } }
 #vr.playing .vr-office { animation: none; }
 .vr-hands { object-position: 50% 62%; transform-origin: 50% 64%; opacity: 0; }
@@ -137,3 +137,16 @@ header#top { justify-content: flex-end; gap: 18px; align-items: center; }
 header#top .brand { text-align: right; order: 0; }
 header#top .top-actions { order: 1; }
 @media (max-width: 700px) { header#top .brand { display: none; } }
+
+.fallback-pc { position:fixed; bottom:40px; left:50%; transform:translateX(-50%); z-index:12; background:#e2edcf; color:#142518; padding:18px 24px; white-space:nowrap; }
+.fallback-pc[hidden], #pause-btn[hidden] { display:none; }
+
+/* Sky controls are separate from scene gestures and remain usable on touch screens. */
+#drone-panel{position:fixed;right:24px;top:104px;width:min(320px,calc(100vw - 32px));padding:20px;border:1px solid #778569;border-radius:16px;background:#14241bf5;color:#edf1e5;z-index:35;box-shadow:0 16px 60px #0005;font:14px/1.5 system-ui}
+#drone-panel[hidden]{display:none}#drone-panel p{color:#bccab4;margin:10px 0;font-size:13px}.drone-heading{display:flex;align-items:center;justify-content:space-between}.drone-heading strong{font:24px Georgia}#drone-panel label{display:block;margin:16px 0}#drone-panel input{display:block;width:100%;margin-top:8px;accent-color:#c9dbb2;min-height:28px}#drone-panel button{min-height:40px;border:1px solid #68775c;background:#263c2c;color:inherit;border-radius:8px;padding:8px 12px;cursor:pointer}.drone-actions{display:flex;gap:8px}#drone-panel :focus-visible{outline:2px solid #dceabf;outline-offset:3px}body.vr #drone-btn{display:none}@media(max-width:650px){#drone-panel{right:16px;top:120px;max-height:calc(100dvh - 145px);overflow:auto}}
+
+/* small screens: keep the five top buttons on one tidy row */
+@media (max-width: 700px) {
+  header#top .top-actions { gap: 5px; flex-wrap: wrap; justify-content: center; }
+  header#top .top-actions .pill { padding: 6px 9px; font-size: 11.5px; white-space: nowrap; }
+}

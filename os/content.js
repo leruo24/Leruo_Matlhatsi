@@ -20,8 +20,8 @@ window.PORTFOLIO = {
     outdoors: "../assets/leruo-outdoors.jpg",
   },
 
-  // Drop your CV into /assets with exactly this name (or change the path).
-  resumeUrl: "../assets/Leruo-Matlhatsi-CV.pdf",
+  // Upload the PDF, then set resumeUrl to "../assets/Leruo-Matlhatsi-CV.pdf".
+  resumeUrl: null,
 
   /* The intro (the black-and-white office before the headset goes on) */
   intro: { headline: "Step into my ideal world" },
@@ -37,7 +37,7 @@ window.PORTFOLIO = {
       ["Explore the computer.", "Double-click icons on the desktop. Showcase is my gallery of highlights, Portfolio has my projects, experience and contact details, and Resume is my CV, and Overland Run is a little 4x4 game. The start button has everything too."],
       ["Head back.", "Press Esc or use Back to the workshop to stand up, and Esc again to step away from the desk."],
     ],
-    tips: ["Turn the sound on for the river, birds and cows.", "Open CV (top right) takes you straight to my CV."],
+    tips: ["Turn the sound on for the pond, birds and cows.", "Open CV (top right) takes you straight to my CV."],
   },
 
   /* Showcase: a gallery of moments. Drop photos into assets/gallery/ and add an entry here.
@@ -201,7 +201,7 @@ window.PORTFOLIO = {
       year: "2026",
       tags: ["Three.js", "WebGL", "GLSL", "Web Audio", "Vanilla JS"],
       summary:
-        "A photoreal workshop brought to life in WebGL: an AI depth map gives the photo real depth, and live 3D objects (the second monitor, the home-lab rack, the longboard, birds and sprinklers) are rendered with a camera matched to the photo, so they sit behind and in front of things correctly. The river, trees, grass and clouds move, and the sounds are real field recordings mixed live. Inspired by Henry Heffernan's portfolio.",
+        "A photograph-based workshop with depth parallax, a grayscale office-to-VR introduction, an interactive computer, grazing cows, rotating sprinkler spray and occasional birds. The pond, foliage and dogs have subtle local motion. Inspired by Henry Heffernan’s portfolio.",
       role: "Designer and developer.",
       points: [],
       links: [{ label: "Source on GitHub", url: "https://github.com/leruo24/Leruo_Matlhatsi" }],

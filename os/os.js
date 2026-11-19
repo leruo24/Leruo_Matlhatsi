@@ -342,7 +342,7 @@
 
   /* ---------------- Showcase: a gallery of highlights ---------------- */
   function openGallery() {
-    const G = P.gallery || [];
+    const G = (P.gallery || []).filter(g => g.src && !/TODO/.test(g.title + " " + g.text));
     const desk = $("#desktop").getBoundingClientRect();
     const width = Math.min(1040, desk.width - 110);
     openWindow("gallery", {
@@ -380,10 +380,11 @@
                   <img src="${esc(g.src)}" alt="" loading="lazy" />
                   <span class="gal-cap"><b>${txt(g.title)}</b>${g.date ? `<small>${esc(g.date)}</small>` : ""}</span>
                 </button>`).join("")}</div>`
-            : `<div class="empty-state">No pictures yet — add some to the gallery list in os/content.js.</div>`;
+            : `<div class="empty-state">More photographs coming soon.</div>`;
           main.querySelectorAll("[data-i]").forEach((b) => b.addEventListener("click", () => view(+b.dataset.i)));
         };
         const view = (i) => {
+          if (!G.length) return;
           cur = (i + G.length) % G.length;
           const g = G[cur];
           main.innerHTML = `
@@ -398,7 +399,7 @@
           $('[data-b="grid"]', main).addEventListener("click", grid);
           $('[data-b="slide"]', main).addEventListener("click", () => (timer ? (stop(), view(cur)) : slide()));
         };
-        const slide = () => { stop(); view(cur); timer = setInterval(() => (main.isConnected ? view(cur + 1) : stop()), 4500); view(cur); };
+        const slide = () => { if (!G.length) return; stop(); view(cur); timer = setInterval(() => (main.isConnected ? view(cur + 1) : stop()), 4500); view(cur); };
         main.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") view(cur + 1); if (e.key === "ArrowLeft") view(cur - 1); });
         body.querySelectorAll("[data-x]").forEach((b) => b.addEventListener("click", () => {
           const x = b.dataset.x;
@@ -412,36 +413,22 @@
   /* ---------------- other apps ---------------- */
   function openResume() {
     openWindow("resume", {
-      title: "Resume.pdf",
-      icon: "resume",
-      width: 720,
-      height: 640,
-      render: (body) => {
+      title: "Resume", icon: "resume", width: 720, height: 640,
+      render: async (body) => {
+        const unavailable = () => {
+          body.innerHTML = `<div class="empty-state"><b>A downloadable CV is not available yet.</b><span>You can explore my projects and experience in Portfolio, or ask me for a copy.</span><button class="btn95" data-cv="portfolio">View portfolio</button><button class="btn95" data-cv="contact">Ask for a copy</button></div>`;
+          body.querySelectorAll("[data-cv]").forEach(b => b.onclick = () => APPS[b.dataset.cv]());
+        };
+        if (!P.resumeUrl) return unavailable();
         body.innerHTML = `<div class="empty-state">Loading…</div>`;
-        fetch(P.resumeUrl, { method: "HEAD" })
-          .then((r) => {
-            if (!r.ok) throw 0;
-            body.innerHTML = `<iframe class="pdf-frame" src="${esc(P.resumeUrl)}" title="Resume"></iframe>`;
-          })
-          .catch(() => {
-            body.innerHTML = `
-              <div class="empty-state">
-                <b style="font-size:15px">My CV isn't uploaded here yet.</b>
-                <span>${txt("TODO: add your CV as assets/Leruo-Matlhatsi-CV.pdf")}</span>
-                <button class="btn95" data-x="contact">Ask me for a copy</button>
-              </div>`;
-            $("[data-x]", body).addEventListener("click", () => APPS.contact());
-          });
+        try {
+          const response = await fetch(P.resumeUrl, {method:"HEAD"});
+          if (!response.ok || !response.headers.get("content-type")?.includes("application/pdf")) throw new Error("PDF unavailable");
+          if (!body.isConnected) return;
+          body.innerHTML = `<a class="btn95" href="${esc(P.resumeUrl)}" download>Download CV</a><iframe class="pdf-frame" src="${esc(P.resumeUrl)}" title="Resume"></iframe>`;
+        } catch { if (body.isConnected) unavailable(); }
       },
     });
-    const w = open.get("resume");
-    // Add a download button in the status area
-    if (w && !$(".statusbar", w.el)) {
-      const sb = document.createElement("div");
-      sb.className = "statusbar";
-      sb.innerHTML = `<span class="sunken">${esc(P.resumeUrl.split("/").pop())}</span><a class="btn95" style="text-decoration:none;color:#000" href="${esc(P.resumeUrl)}" download>Download</a>`;
-      w.el.appendChild(sb);
-    }
   }
 
   function openContact() {
@@ -488,7 +475,7 @@
           `You're using ${P.name}'s computer. Have a look around:`,
           `  • Showcase   — my highlights, in photos`,
           `  • Portfolio  — projects, experience and contact`,
-          `  • Resume.pdf — my CV`,
+          `  • Resume — my CV`,
           `  • Overland Run — a 4x4 game: jump rocks, collect water`,
           `  • Minesweeper — because every OS needs one`,
           ``,
@@ -798,7 +785,7 @@
     ["recycle", "recycle", "Recycle Bin"],
     ["showcase", "gallery", "Showcase"],
     ["portfolio", "showcase", "Portfolio"],
-    ["resume", "resume", "Resume.pdf"],
+    ["resume", "resume", "Resume"],
     ["contact", "contact", "Contact"],
     ["game", "game", "Overland Run"],
     ["solitaire", "cards", "Solitaire"],
