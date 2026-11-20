@@ -15,7 +15,7 @@
   <script type="importmap">
     { "imports": { "three": "./vendor/three/three.module.min.js" } }
   </script>
-</head>
+<link rel="stylesheet" href="css/drone-remote.css"></head>
 <body>
   <canvas id="world" aria-label="Leruo's workshop at golden hour: a desk with a computer and a games console, an ESP32 workbench, a whiteboard and caps on the wall, a longboard, three dogs, a 4x4, two sports cars in the garage, a pond, a farmhouse and the Johannesburg skyline in the distance."></canvas>
   <div id="tooltip" hidden></div>
@@ -63,13 +63,18 @@
   <button id="help-btn" aria-label="How this website works" title="How this website works">?</button>
 
   <section id="drone-panel" aria-label="Drone controls" hidden>
-    <div class="drone-heading"><strong>Sky controller</strong><button id="drone-close" aria-label="Close drone controls">×</button></div>
+    <div class="drone-heading"><strong>SKY / REMOTE</strong><button id="drone-close" aria-label="Close drone controls">×</button></div>
     <p>Fly over the farm. The drone stays in the distant sky. Resume scenery if flight is paused.</p>
-    <label>Left / right<input id="drone-x" type="range" min="760" max="1420" value="1035" step="1"></label>
+    <div class="remote-sticks">
+<div><button class="remote-stick" id="flight-stick" aria-label="Flight stick. Use arrow keys or W A S D to move across the sky." aria-describedby="remote-help"><span class="stick-cross">+</span><span class="stick-thumb"></span></button><span class="stick-label">POSITION / ALTITUDE</span></div>
+<div class="remote-link" aria-hidden="true"><span>●</span><small>LINK</small></div>
+<div><button class="remote-stick" id="bank-stick" aria-label="Bank stick. Use Q and E to bank the drone." aria-describedby="remote-help"><span class="stick-cross">↔</span><span class="stick-thumb"></span></button><span class="stick-label">BANK</span></div>
+</div><p id="remote-help">Drag the sticks. Arrow keys / WASD fly · Q / E bank. Release to hover. Esc closes.</p>
+<div hidden aria-hidden="true"><label>Left / right<input id="drone-x" type="range" min="760" max="1420" value="1035" step="1"></label>
     <label>Altitude<input id="drone-y" type="range" min="120" max="215" value="162" step="1"></label>
     <label>Rotate / bank<input id="drone-angle" type="range" min="-45" max="45" value="0" step="1"></label>
-    <div class="drone-actions"><button id="drone-reset">Centre drone</button><button id="drone-auto" aria-pressed="false">Resume autopilot</button></div>
-    <p id="drone-status" role="status">Manual flight · use the sliders or their arrow keys.</p>
+    </div><div class="drone-actions"><button id="drone-reset">Centre drone</button><button id="drone-auto" aria-pressed="false">Resume autopilot</button></div>
+    <p id="drone-status" role="status">Manual flight · release the sticks to hover.</p>
   </section>
   <!-- info card -->
   <aside id="card" hidden aria-live="polite"></aside>
@@ -83,5 +88,5 @@
   <noscript><p style="padding:2rem;font-family:sans-serif">This portfolio needs JavaScript. <a href="os/index.html">Open the simple version</a>.</p></noscript>
   <script src="os/content.js"></script>
   <script type="module" src="js/boot.js"></script>
-</body>
+<script type="module" src="js/drone-remote.js"></script></body>
 </html>

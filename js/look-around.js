@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { createRoom, homeView } from './room.js';
+import { createRoom, homeView, photoInView as photoRegion } from './room.js';
 import { createLivePhoto, PHOTO } from './photo-layer.js';
 import { createRenderLoop } from './render-loop.js';
 import { spring, FrameBudget } from './motion.js';
@@ -13,7 +13,7 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const coarse = matchMedia('(pointer: coarse)').matches;
 const maxRatio = Math.min(devicePixelRatio, coarse ? 1.25 : 1.5);
 const budget = new FrameBudget(maxRatio);
-let ratio = maxRatio, readout = '', paused = false;
+let ratio = maxRatio, readout = '', paused = false, photoInView = true;
 
 // look state: yaw/pitch are offsets from the home view, which frames the photo like the main experience
 const yaw = { x: 0, v: 0 }, pitch = { x: 0, v: 0 };
@@ -55,25 +55,11 @@ function resize() {
 const _d = new THREE.Vector3();
 let coreCovers = false;
 function visiblePhotoRect() {
-  const { F, CX, YH, W, H } = PHOTO, c = room.coreBounds;
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  coreCovers = true;
-  for (let i = 0; i < 9; i++) {
-    _d.set((i % 3) - 1, Math.floor(i / 3) - 1, 0.5).unproject(camera).sub(camera.position).normalize();
-    if (_d.z < -0.02) {
-      const x = CX + F * _d.x / -_d.z, y = YH - F * _d.y / -_d.z;
-      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
-      if (x < c[0] || x > c[2] || y < c[1] || y > c[3]) coreCovers = false;
-    } else {
-      coreCovers = false;   // this edge of the view looks past the photo's plane: open that side fully
-      if (_d.x < 0) x0 = -Infinity; if (_d.x > 0) x1 = Infinity;
-      if (_d.y > 0) y0 = -Infinity; if (_d.y < 0) y1 = Infinity;
-    }
-  }
-  x0 = Math.max(0, x0 - 4); y0 = Math.max(0, y0 - 4); x1 = Math.min(W, x1 + 4); y1 = Math.min(H, y1 + 4);
-  if (!(x1 > x0 && y1 > y0)) return null;
-  const scale = Math.min(1.5, (innerHeight * ratio / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / F);
-  return [x0, y0, x1, y1, scale];
+  const v = photoRegion(camera, room.coreBounds);
+  coreCovers = !!v?.covers;
+  if (!v) return null;
+  const scale = Math.min(1.5, (innerHeight * ratio / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / PHOTO.F);
+  return [...v.rect, scale];
 }
 
 function lookRotation(y, p) { return new THREE.Quaternion().setFromEuler(new THREE.Euler(home.pitch + p, home.yaw + y, 0, 'YXZ')); }
@@ -93,9 +79,10 @@ function draw(dt, elapsed) {
     } else camera.quaternion.copy(lookRotation(yaw.x, pitch.x));
     renderer.info.reset();
     if (live) {
-      live.update(animating() ? dt : 0, reduced.matches);
       camera.updateMatrixWorld();
       const r = window.__room?.flags.nolive ? null : visiblePhotoRect();
+      photoInView = !!r;
+      if (r) live.update(animating() ? dt : 0, reduced.matches);
       room.shellUniforms.uLiveOn.value = r && live.render(r[0], r[1], r[2], r[3], r[4]) ? 1 : 0;
       // when the photo's opaque core fills the view, the modelled room behind it isn't drawn at all
       room.setModelVisible(!(r && coreCovers));
@@ -106,7 +93,7 @@ function draw(dt, elapsed) {
   const nextReadout = `Turn ${Math.round(yaw.x * 180 / Math.PI)}° · Tilt ${Math.round(pitch.x * 180 / Math.PI)}°`;
   if (nextReadout !== readout) { $('#readout').textContent = nextReadout; readout = nextReadout; }
   const settling = !!transition || Math.abs(yaw.x - yawTarget) > .0001 || Math.abs(yaw.v) > .0001 || Math.abs(pitch.x - pitchTarget) > .0001 || Math.abs(pitch.v) > .0001;
-  return settling || animating();
+  return settling || (animating() && photoInView);
 }
 
 const turn = (v) => { if (transition || zoom) return; yawTarget = limitYaw(v); wake(); };
@@ -159,7 +146,7 @@ canvas.addEventListener('pointerup', (e) => {
 });
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(ev, () => { drag = null; });
 addEventListener('keydown', (e) => {
-  if (transition || screen.open || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  if (!$('#drone-panel').hidden || transition || screen.open || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
   const k = { ArrowLeft: () => turn(yawTarget + .15), ArrowRight: () => turn(yawTarget - .15), ArrowUp: () => tilt(pitchTarget + .15), ArrowDown: () => tilt(pitchTarget - .15), Home: centre }[e.key];
   if (k) { e.preventDefault(); k(); }
 });
@@ -169,11 +156,11 @@ $('#centre').onclick = centre;
 $('#up').onclick = () => tilt(pitchTarget + Math.PI / 12);
 $('#down').onclick = () => tilt(pitchTarget - Math.PI / 12);
 
-/* ---- the PC and the tablet: turn to face the screen and zoom in, then open it ---- */
+/* ---- the PC: turn to face the screen and zoom in, then open it ---- */
 function rotateTo(q1, f1, done) { transition = { q0: camera.quaternion.clone(), q1: q1.clone(), f0: camera.fov, f1, time: 0, done }; wake(); }
 function openDevice(kind) {
   if (transition || screen.open) return;
-  const show = () => { device.title = kind === 'tablet' ? 'Leruo’s tablet' : 'Leruo’s PC'; screen.dataset.kind = kind; device.src = kind === 'tablet' ? 'tablet/index.html' : 'os/index.html?embedded=1&crt=0'; screen.showModal(); loop.stop(); };
+  const show = () => { device.title = 'Leruo’s PC'; screen.dataset.kind = kind; device.src = 'os/index.html?embedded=1&crt=0'; screen.showModal(); loop.stop(); };
   if (!room) { show(); return; }
   // a camera looks down -Z: Matrix4.lookAt builds that orientation (Object3D.lookAt would face away)
   const f = room.focus[kind], aim = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(f.position, f.point, camera.up));
@@ -181,7 +168,7 @@ function openDevice(kind) {
   rotateTo(aim, f.fov, show);
 }
 $('#pc').onclick = () => openDevice('pc');
-$('#tablet').onclick = () => openDevice('tablet');
+
 $('#exit').onclick = () => screen.close();
 screen.addEventListener('close', () => {
   device.src = 'about:blank';
@@ -197,12 +184,12 @@ function syncFlight() {
   const f = live.flight;
   $('#drone-x').value = f.tx; $('#drone-y').value = 335 - f.ty; $('#drone-angle').value = f.angle * 180 / Math.PI;
   $('#drone-auto').setAttribute('aria-pressed', String(!f.manual));
-  $('#drone-status').textContent = f.manual ? 'Manual flight · arrow keys adjust the selected slider.' : 'Autopilot · select a slider to take control.';
+  $('#drone-status').textContent = f.manual ? 'Manual flight · release the sticks to hover.' : 'Autopilot · move either stick to take control.';
 }
 const closeFlight = () => { panel.hidden = true; droneBtn.setAttribute('aria-expanded', 'false'); };
 droneBtn.onclick = () => {
   if (!panel.hidden) { closeFlight(); return; }
-  live?.pilot.take(); panel.hidden = false; droneBtn.setAttribute('aria-expanded', 'true'); syncFlight(); $('#drone-x').focus();
+  live?.pilot.take(); panel.hidden = false; droneBtn.setAttribute('aria-expanded', 'true'); syncFlight(); $('#flight-stick').focus();
   if (yawTarget || pitchTarget) centre();   // the drone flies over the farm, in front of you
 };
 $('#drone-close').onclick = () => { closeFlight(); droneBtn.focus(); };

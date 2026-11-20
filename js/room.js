@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { PHOTO, MONITOR, TABLET } from './photo-layer.js';
+import { addRoomDetail } from './room-detail.js';
+import { PHOTO, MONITOR } from './photo-layer.js';
 
 /*
  * The 3D preview room, anchored to the workshop photo.
@@ -42,9 +43,20 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
   const plane = (w, h, m, name) => add(new THREE.Mesh(new THREE.PlaneGeometry(w, h), m), name);
 
   /* ---- surfaces, colour-matched to the photo next to each seam ---- */
-  const wood = (rx, ry) => mat({ color: 0xffffff, map: tex('assets/room/wood-planks.jpg', { repeat: [rx, ry] }), roughness: 0.82 });
-  const concrete = mat({ color: 0xfee0bf, map: tex('assets/tex/concrete.jpg', { repeat: [3, 3] }), roughness: 0.62, metalness: 0 });
-  const darkWood = mat({ color: 0x6a5240, map: tex('assets/tex/oak.png', { repeat: [4, 1] }), roughness: 0.75 });
+  const boardTexture = tex('assets/tex/oak.png', { repeat: [.12, 1.5] });
+  if (boardTexture) { boardTexture.center.set(.5,.5); boardTexture.rotation = Math.PI / 2; }
+  const timber = mat({ color: 0xb7afa0, map: boardTexture, roughness: .78 });
+  // Wall planes are the dark backing behind narrow physical board joints.
+  const wood = () => mat({color:0x473c31,roughness:.95});
+  const concrete = mat({ color: 0x8b867b, roughness: .82, metalness: 0 });
+  concrete.onBeforeCompile = shader => {
+    shader.vertexShader = 'varying vec3 vFloorPosition;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvFloorPosition = position;');
+    shader.fragmentShader = 'varying vec3 vFloorPosition;\n' + shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      float cloud = sin(vFloorPosition.x * 1.7 + sin(vFloorPosition.y * 2.1)) * sin(vFloorPosition.y * 1.3);
+      float grain = fract(sin(dot(vFloorPosition.xy, vec2(127.1,311.7))) * 43758.5453);
+      diffuseColor.rgb *= 0.96 + cloud * 0.025 + grain * 0.018;`);
+  };
+  const darkWood = mat({ color: 0x867967, map: tex('assets/tex/oak.png', { repeat: [4, 1] }), roughness: 0.75 });
   const steel = mat({ color: 0x2b2d2f, roughness: 0.45, metalness: 0.75 });
   const glass = new THREE.MeshPhysicalMaterial({ color: 0xc8d6d2, roughness: 0.05, metalness: 0, transmission: 0, transparent: true, opacity: 0.22, depthWrite: false });
   const grass = mat({ color: 0xa9c486, map: tex('assets/room/grass.jpg', { repeat: [40, 40] }), roughness: 1 });
@@ -112,27 +124,27 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
 
   /* ---- light, matched to the photo: low sun from the front left, warm bounce inside ---- */
   const sunDir = new THREE.Vector3((300 - CX) / F, (YH - 196) / F, -1).normalize();
-  const sun = new THREE.DirectionalLight(0xffc89a, 4.2); sun.name = 'sun';
+  const sun = new THREE.DirectionalLight(0xffdebb, 2.4); sun.name = 'sun';
   sun.position.copy(sunDir).multiplyScalar(20); sun.target.position.set(0, 0, 0);
   sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.02;
   Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 5, bottom: -5, near: 5, far: 40 });
   root.add(sun, sun.target);
-  root.add(new THREE.HemisphereLight(0xffd7b0, 0x6a4a30, 2.4));
-  const lamp = new THREE.PointLight(0xffb070, 9, 8, 2); lamp.position.set(-1.2, 2.5, 1.6); lamp.name = 'workshop-lamp'; root.add(lamp);
+  root.add(new THREE.HemisphereLight(0xe1e6df, 0x706557, 1.25));
+  const lamp = new THREE.PointLight(0xffd7aa, 12, 7, 2); lamp.position.set(.75, 2.15, 2.3); lamp.name = 'workshop-lamp'; root.add(lamp);
 
   /* ---- Poly Haven props (CC0) where the photo can't see ---- */
   const props = [
     ['steel_frame_shelves_01', [-3.6, 0, 2.7], Math.PI, 0.1],
     ['steel_frame_shelves_01', [-2.4, 0, 2.7], Math.PI, 0.1],
     ['steel_frame_shelves_01', [-4.33, 0, -1.9], Math.PI / 2, 0.1],
-    ['wooden_table_03', [1.3, 0, 2.45], Math.PI],
-    ['wooden_stool_01', [0.35, 0, 2.1], 0.4],
+    
+    ['wooden_stool_01', [0.35, 0.014, 1.5], 0.4],
     ['wooden_crate_01', [-4.0, 0, 0.9], 0.2],
     ['wooden_crate_01', [-3.95, 0.5, 0.95], -0.1],
     ['cardboard_box_01', [-0.9, 0, 2.6], 0.3],
     ['cardboard_box_01', [2.6, 0, 2.55], -0.5],
-    ['jug_01', [1.0, 0.75, 2.4], 0.6],
-    ['lantern_01', [1.7, 0.75, 2.45], 0],
+    ['jug_01', [-.42, 0.93, 2.55], 0.6],
+    ['lantern_01', [2.0, 0.93, 2.55], 0],
   ];
   if (gltf) {
     const cache = new Map();
@@ -146,6 +158,8 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
       });
     }
   }
+
+  addRoomDetail({root, limits:ROOM, oak:timber, concrete, steel});
 
   /* ---- the photo shell: the live photo inside its outpainted margin ----
    * Drawn very close to the eye (it only ever turns, so distance doesn't change what you see):
@@ -188,7 +202,7 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
   core.name = 'photo-shell-core'; core.renderOrder = -10; core.frustumCulled = false; core.userData.photo = true;
   core.position.copy(centre); root.add(core);
 
-  /* ---- the screens you can open: hit quads exactly over the photo's monitor and tablet ---- */
+  /* ---- the screens you can open: hit quads exactly over the photo's monitor ---- */
   const devices = [], focus = {};
   const hitMat = new THREE.MeshBasicMaterial({ visible: false });
   function device(kind, quad, Z) {
@@ -203,7 +217,7 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
     focus[kind] = { point, position: eye.clone(), fov };
   }
   device('pc', MONITOR, 3.1);
-  device('tablet', TABLET, 2.7);
+
 
   const modelled = () => root.children.filter((o) => !o.userData.photo && !o.isLight);
   const room = {
@@ -214,6 +228,34 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
     modelVisible: true,
   };
   return room;
+}
+
+/**
+ * Which part of the photo the camera sees (image px), and whether the photo's opaque core fills the
+ * view. Returns null when none of the photo is in view (for example facing the back wall).
+ * `coreBounds` is room.coreBounds.
+ */
+export function photoInView(camera, coreBounds) {
+  const c = coreBounds, d = new THREE.Vector3();
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, hits = 0, covers = true;
+  for (let i = 0; i < 9; i++) {
+    d.set((i % 3) - 1, Math.floor(i / 3) - 1, 0.5).unproject(camera).sub(camera.position).normalize();
+    if (d.z < -0.02) {
+      hits++;
+      const x = CX + F * d.x / -d.z, y = YH - F * d.y / -d.z;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      if (x < c[0] || x > c[2] || y < c[1] || y > c[3]) covers = false;
+    } else {
+      covers = false;   // this edge of the view looks past the photo's plane: open that side fully
+      if (d.x < 0) x0 = -Infinity; if (d.x > 0) x1 = Infinity;
+      if (d.y > 0) y0 = -Infinity; if (d.y < 0) y1 = Infinity;
+    }
+  }
+  // the view is convex: if no sample reaches the photo's side, nothing between them does either
+  if (!hits) return null;
+  x0 = Math.max(0, x0 - 4); y0 = Math.max(0, y0 - 4); x1 = Math.min(W, x1 + 4); y1 = Math.min(H, y1 + 4);
+  if (!(x1 > x0 && y1 > y0)) return null;
+  return { rect: [x0, y0, x1, y1], covers };
 }
 
 /** the view that frames the photo the way the main experience does */

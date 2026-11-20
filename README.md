@@ -78,7 +78,7 @@ How it's built (`js/room.js`, `js/look-around.js`, shared code in `js/photo-laye
   - Poly Haven props: steel shelving, a table, a stool, crates, boxes, a jug and a lantern.
   - The photo's edge is feathered over 90 px into this.
 - **Light is matched to the photo:** a low warm sun from the front left (from the sun's position in the photo), a warm sky/bounce light and a workshop lamp. There's no tone curve, so textures sampled from the photo keep its colours.
-- **The PC and tablet:** select the monitor or tablet in the photo (or use the buttons). The view turns and zooms to the screen without moving, so nothing tears, then opens LeruOS or the field notes.
+- **The PC:** select the monitor or Enter computer. The view turns and zooms to the screen without moving, then opens LeruOS. The tablet remains decorative; Field Notes has been removed.
 - **Rendering cost:**
   - Only the part of the photo that's on screen is rendered, at screen resolution.
   - While the photo fills the view, the modelled room isn't drawn.
@@ -140,3 +140,28 @@ Checked in a WebGL-enabled browser after merging. Fixes made:
 - The look-around and tablet pages now have a tab icon (this removes a 404).
 
 Concept images (scene keyframes, tablet-zoom concepts and the old panorama) live in `reference-archive/`. The site doesn't load them.
+
+## Drone remote update
+
+Both pages use the same two-stick remote. Drag the left stick for horizontal flight and altitude; drag the right stick horizontally for banking. Keyboard: arrows or WASD to fly, Q/E to bank, Escape to close. Release to hover; Centre drone resets its target and Resume autopilot restores automatic flight. The existing distant-sky bounds remain enforced. Banking rotates the existing photo-layer drone; this update does not add a 3D drone model or a drone camera feed.
+
+Input resets on pointer cancellation, focus loss, panel closure, and hidden tabs. The input animation loop runs only while a stick or key is held. Paused scenery must be resumed for visible flight. Field Notes, its button, and its tablet click target have been removed.
+
+## Room interior revision
+
+The modelled sides and rear now use individual timber boards, skirting, posts and ceiling boards. A fitted 0.9 m high maker bench replaces the isolated rear cabinet, with drawers, a slatted tool panel, hand tools, component bins, a breadboard and a small radio board. Storage cases sit at the measured shelf heights of the existing shelf asset. Ceiling fixtures and an under-shelf strip accompany revised, less orange lighting. Concrete uses low-amplitude procedural variation rather than the old floor image.
+
+Repeated details are instanced. Static rear views stop requesting frames once camera movement settles; moving the camera wakes rendering, and visible farm scenery keeps animating. This is an implementation optimisation, not a measured device-FPS claim.
+
+Validation: 25 Node tests pass, including clear door aperture, fixed photo projection, PC hit target, finite bounds and batched joinery. An offline geometry render was used to check the rear layout; it is not a browser screenshot and uses different lighting. WebGL visual verification and device speed remain unconfirmed. The photo-to-room boundary still uses the existing feathered projection and can remain visible.
+
+### WebGL check of the remote and room revision
+
+Checked in headless Chrome with software WebGL (SwiftShader):
+- The two-stick remote flies the drone on both pages: stick drag, bank, A/D keys and Escape all work.
+- The PC transition opens LeruOS. There were no console errors and no missing files.
+- The revised room renders the maker bench, tool board, stocked shelves and ceiling boards.
+
+Fixed during the check: the room kept rendering the off-screen photo when you faced the back wall, so it never went idle. The visible-photo test now returns nothing when no part of the photo is in view (`photoInView` in `js/room.js`, covered by a test). After settling, the rear view now draws 0 frames, and the photo view keeps animating.
+
+The neutral grey floor now meets the warmer photo floor with a visible colour change at the seam. Real-GPU frame rates are still unmeasured; use `?perf`.

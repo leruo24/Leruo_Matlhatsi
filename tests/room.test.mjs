@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createRoom, ROOM, WIDE, project, homeView } from '../js/room.js';
+import { createRoom, ROOM, WIDE, project, homeView, photoInView } from '../js/room.js';
 import { PHOTO, MONITOR, TABLET } from '../js/photo-layer.js';
 
 const build = () => { const scene = new THREE.Scene(), room = createRoom({ scene }); scene.updateMatrixWorld(true); return room; };
@@ -31,7 +31,7 @@ test('the photo shell is pixel-exact from the eye: its corners land on the outpa
 
 test('screens are hit from the eye and the zoom keeps the camera still (no depth tearing)', () => {
   const room = build();
-  for (const [kind, quad] of [['pc', MONITOR], ['tablet', TABLET]]) {
+  for (const [kind, quad] of [['pc', MONITOR]]) {
     const f = room.focus[kind];
     assert.ok(f.position.equals(room.eye), 'transitions turn and zoom, they do not move the eye');
     assert.ok(f.fov > 4 && f.fov < 30, `zoom for ${kind} is ${f.fov}`);
@@ -77,4 +77,27 @@ test('every mesh has finite bounds and nothing modelled sits between the eye and
     const hit = new THREE.Raycaster(room.eye, dir, 0, 1).intersectObjects(solid)[0];
     assert.equal(hit, undefined, `modelled ${hit?.object.name} in front of the photo at ${x},${y}`);
   }
+});
+
+test('joinery is instanced and leaves the central viewing position clear', () => {
+ const room=build(), detail=room.root.getObjectByName('room-joinery');
+ assert.ok(detail);
+ assert.ok(detail.children.length < 24, 'repeated boards and hardware should share batches');
+ const ray=new THREE.Raycaster(room.eye,new THREE.Vector3(0,0,1),0,.8);
+ assert.equal(ray.intersectObjects(detail.children,false).length,0,'furnishings must not crowd the eye');
+ const boards=detail.getObjectByName('individual-timber-boards');
+ assert.ok(boards.isInstancedMesh && boards.count>80);
+});
+
+test('the live photo is only rendered when some of it is in view', () => {
+  const room = build(), cam = new THREE.PerspectiveCamera(50.4, 16 / 9, 0.05, 200);
+  cam.position.copy(room.eye);
+  const view = (yaw, pitch = 0) => { cam.rotation.set(pitch, yaw, 0, 'YXZ'); cam.updateMatrixWorld(true); return photoInView(cam, room.coreBounds); };
+  const home = view(0, -0.1);
+  assert.ok(home && home.covers, 'facing the photo, its core fills the view');
+  assert.ok(home.rect[0] < 60 && home.rect[2] > PHOTO.W - 60 && home.rect[1] < 60 && home.rect[3] > PHOTO.H - 60, 'home view sees about the whole photo');
+  assert.equal(view(Math.PI), null, 'facing the back wall, nothing of the photo is visible');
+  assert.equal(view(Math.PI / 2 + 0.7), null, 'facing the left wall past the photo');
+  const side = view(0.7);
+  assert.ok(side && !side.covers && side.rect[0] === 0, 'looking left shows the left of the photo and the room');
 });

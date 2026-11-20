@@ -1,0 +1,16 @@
+#drone-panel{top:auto;bottom:100px;right:24px;width:min(400px,calc(100vw - 32px));padding:18px 22px;border-radius:26px 26px 40px 40px;border:1px solid #667066;background:linear-gradient(145deg,#303832f7,#111a16fa);box-shadow:inset 0 1px 1px #ffffff24,0 16px 50px #0007}
+#drone-panel .drone-heading strong{font:600 12px system-ui;letter-spacing:.2em;color:#e4ecd8}
+#drone-panel .drone-heading button{border-radius:50%;width:36px;min-height:36px;padding:0}
+#drone-panel>p{font-size:13px;line-height:1.5;margin:8px 0;color:#b9c4b9}
+.remote-sticks{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 10px;text-align:center}
+#drone-panel .remote-stick{position:relative;display:grid;place-items:center;width:112px;height:112px;min-height:0;padding:0;border-radius:50%;border:1px solid #59645b;background:radial-gradient(circle,#131b17 0 45%,#252e28 46% 60%,#111813 62%);box-shadow:inset 0 5px 15px #0008,0 1px 1px #ffffff25;touch-action:none;user-select:none;cursor:grab}
+#drone-panel .remote-stick:active{cursor:grabbing}
+.stick-thumb{position:absolute;width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 35% 25%,#758275,#343f35 65%);border:1px solid #85917d;box-shadow:0 5px 10px #000a,inset 0 0 0 5px #374137;pointer-events:none}
+.stick-cross{color:#a7b39a;font-size:34px;opacity:.5;pointer-events:none}
+.stick-label{display:block;font:12px system-ui;letter-spacing:.1em;color:#b8c6b6;margin-top:10px}
+.remote-link{color:#b5d89c;display:grid;gap:8px;font-size:10px}.remote-link small{font-size:10px;letter-spacing:.15em}
+#drone-panel .drone-actions{display:flex;gap:8px;margin-top:14px}#drone-panel .drone-actions button{flex:1;font-size:14px;padding:10px 6px;border:1px solid #606c5c;border-radius:9px;background:#253228}
+#drone-panel #drone-status{padding-top:8px;border-top:1px solid #53604b70;font-size:12px;min-height:26px}
+#drone-panel [hidden]{display:none!important}
+@media(max-width:650px){#drone-panel{top:auto;bottom:100px;right:16px;max-height:calc(100dvh - 120px);overflow:auto}.remote-sticks{margin-top:10px}#drone-panel .remote-stick{width:96px;height:96px}}
+@media(max-height:530px){#drone-panel{bottom:12px;max-height:calc(100dvh - 24px)}#drone-panel>p:not(#drone-status):not(#remote-help){display:none}.remote-sticks{margin:8px 0}#drone-panel .remote-stick{width:78px;height:78px}}

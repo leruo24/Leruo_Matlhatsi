@@ -334,13 +334,13 @@ droneButton.hidden=false;
 function syncFlightControls(){
  $('#drone-x').value=droneState.tx;$('#drone-y').value=335-droneState.ty;$('#drone-angle').value=pilot.angle*180/Math.PI;
  $('#drone-auto').setAttribute('aria-pressed',String(!pilot.manual));
- $('#drone-status').textContent=pilot.manual?'Manual flight · arrow keys adjust the selected slider.':'Autopilot · select a slider to take control.';
+ $('#drone-status').textContent=pilot.manual?'Manual flight · release the sticks to hover.':'Autopilot · move either stick to take control.';
 }
 function closeFlight(){dronePanel.hidden=true;droneButton.setAttribute('aria-expanded','false');}
 droneButton.onclick=()=>{
  if(!dronePanel.hidden){closeFlight();return;}
  pilot.manual=true;droneState.tx=droneState.x;droneState.ty=droneState.y;
- dronePanel.hidden=false;droneButton.setAttribute('aria-expanded','true');syncFlightControls();$('#drone-x').focus();
+ dronePanel.hidden=false;droneButton.setAttribute('aria-expanded','true');syncFlightControls();$('#flight-stick').focus();
 };
 $('#drone-close').onclick=()=>{closeFlight();droneButton.focus();};
 for(const id of ['#drone-x','#drone-y','#drone-angle'])$(id).addEventListener('input',()=>{
