@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createRoom, ROOM, WIDE, project, homeView, photoInView } from '../js/room.js';
+import { createRoom, ROOM, WIDE, CORE, project, homeView, photoInView } from '../js/room.js';
+import { BENCH, TRUNK } from '../js/room-seam.js';
 import { PHOTO, MONITOR, TABLET } from '../js/photo-layer.js';
 
 const build = () => { const scene = new THREE.Scene(), room = createRoom({ scene }); scene.updateMatrixWorld(true); return room; };
@@ -49,14 +50,15 @@ test('screens are hit from the eye and the zoom keeps the camera still (no depth
   assert.deepEqual(room.devices.map((d) => d.matrixWorld.elements), before);
 });
 
-test('home view frames the photo height and never shows past the margin on wide screens', () => {
-  const tall = homeView(9 / 16), wide = homeView(21 / 9);
-  assert.ok(Math.abs(tall.fov - 2 * Math.atan(PHOTO.H / 2 / PHOTO.F) * 180 / Math.PI) < 0.01);
-  const hfov = 2 * Math.atan(Math.tan(wide.fov * Math.PI / 360) * 21 / 9);
-  assert.ok(hfov <= 2 * Math.atan((PHOTO.W / 2 + WIDE.left) / PHOTO.F) + 1e-6);
-  assert.ok(tall.pitch < 0 && tall.pitch > -0.2);
-  assert.equal(wide.yaw, 0);
-  assert.ok(tall.yaw < 0 && tall.yaw > -0.15, 'portrait turns slightly right, toward the monitor');
+test('home view keeps the whole view on the opaque photo core at any aspect ratio', () => {
+  for (const aspect of [9 / 19.5, 3 / 4, 16 / 9, 21 / 9, 32 / 9]) {
+    const h = homeView(aspect), cam = new THREE.PerspectiveCamera(h.fov, aspect, 0.05, 200);
+    cam.position.set(...ROOM.eye); cam.rotation.set(h.pitch, h.yaw, 0, 'YXZ'); cam.updateMatrixWorld(true);
+    assert.ok(photoInView(cam, CORE)?.covers, `aspect ${aspect.toFixed(2)} shows the feathered edge`);
+  }
+  const wide = homeView(16 / 9), full = 2 * Math.atan(PHOTO.H / 2 / PHOTO.F) * 180 / Math.PI;
+  assert.ok(wide.fov > full - 6, `16:9 home view keeps most of the photo height (${wide.fov.toFixed(1)} vs ${full.toFixed(1)} deg)`);
+  assert.ok(homeView(9 / 16).yaw < 0, 'portrait turns slightly right, toward the monitor');
 });
 
 test('every mesh has finite bounds and nothing modelled sits between the eye and the photo', () => {
@@ -93,11 +95,29 @@ test('the live photo is only rendered when some of it is in view', () => {
   const room = build(), cam = new THREE.PerspectiveCamera(50.4, 16 / 9, 0.05, 200);
   cam.position.copy(room.eye);
   const view = (yaw, pitch = 0) => { cam.rotation.set(pitch, yaw, 0, 'YXZ'); cam.updateMatrixWorld(true); return photoInView(cam, room.coreBounds); };
-  const home = view(0, -0.1);
+  const hv = homeView(16 / 9); cam.fov = hv.fov; cam.updateProjectionMatrix();
+  const home = view(hv.yaw, hv.pitch);
   assert.ok(home && home.covers, 'facing the photo, its core fills the view');
-  assert.ok(home.rect[0] < 60 && home.rect[2] > PHOTO.W - 60 && home.rect[1] < 60 && home.rect[3] > PHOTO.H - 60, 'home view sees about the whole photo');
+  assert.ok(home.rect[0] < 80 && home.rect[2] > PHOTO.W - 80 && home.rect[1] < 80 && home.rect[3] > PHOTO.H - 80, 'home view sees about the whole photo');
   assert.equal(view(Math.PI), null, 'facing the back wall, nothing of the photo is visible');
   assert.equal(view(Math.PI / 2 + 0.7), null, 'facing the left wall past the photo');
   const side = view(0.7);
   assert.ok(side && !side.covers && side.rect[0] === 0, 'looking left shows the left of the photo and the room');
+});
+
+test('objects continued past the photo edge line up with the photo, rest on the floor and keep the door clear', () => {
+  const room = build();
+  // the bench top's back and front edges project onto the rows measured in the photo
+  const backEdge = project(new THREE.Vector3(1.6, BENCH.top, -BENCH.back)), frontEdge = project(new THREE.Vector3(1.6, BENCH.top, -BENCH.front));
+  assert.ok(Math.abs(backEdge[1] - 716) < 0.5 && Math.abs(frontEdge[1] - 925) < 0.5);
+  assert.ok(BENCH.back - BENCH.front > 0.5 && BENCH.back - BENCH.front < 0.7, 'believable bench depth');
+  // the trunk leaves the frame at the photo's right edge, where the real trunk does
+  const [tx] = project(new THREE.Vector3(TRUNK.x, 1, -TRUNK.z));
+  assert.ok(Math.abs(tx - PHOTO.W) < 2);
+  const group = room.root.getObjectByName('seam-continuations');
+  for (const name of ['bench-leg', 'tree-root-flare']) {
+    group.traverse((o) => { if (o.name === name) { const bb = new THREE.Box3().setFromObject(o); assert.ok(Math.abs(bb.min.y) < 0.005, `${name} floats or sinks (${bb.min.y})`); } });
+  }
+  const bench = new THREE.Box3().setFromObject(group.getObjectByName('bench-top'));
+  assert.ok(ROOM.door.x - bench.max.x > 0.9, 'at least 0.9 m of walking space between the bench and the sliding door');
 });

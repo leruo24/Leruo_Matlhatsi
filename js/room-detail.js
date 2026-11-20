@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 // Small repeated parts share instanced geometry and materials: visual detail without
 // a separate draw call for every board, tool, cabinet pull or shelf item.
-export function addRoomDetail({root, limits, oak, concrete, steel}) {
+export function addRoomDetail({root, limits, oak, ceiling = oak, concrete, steel}) {
   const group = new THREE.Group(); group.name='room-joinery'; root.add(group);
   const batches = new Map(), cube=new THREE.BoxGeometry(1,1,1);
   const cylinder=new THREE.CylinderGeometry(1,1,1,16);
@@ -46,7 +46,7 @@ export function addRoomDetail({root, limits, oak, concrete, steel}) {
   }
   for(const x of [minX+.085,maxX-.085]) box('rear-post',trim,[.16,height,.16],[x,height/2,back-.085]);
   // Slender ceiling boards, laid perpendicular to the existing exposed rafters.
-  for(let x=minX+.1;x<maxX;x+=.2)box('ceiling-board',cedar,[.193,.024,back-front],[x,height-.018,(front+back)/2]);
+  for(let x=minX+.1;x<maxX;x+=.2)box('ceiling-board',ceiling,[.193,.024,back-front],[x,height-.018,(front+back)/2]);
   // Rear maker bench: normal 0.9 m working height, 0.68 m depth, usable clear floor.
   box('worktop',cedar,[3.1,.06,.74],[.75,.90,back-.50]);
   for(const x of [-.55,2.05]){

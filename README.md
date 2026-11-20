@@ -70,13 +70,13 @@ A preview of the workshop as a room you can turn around in. It's linked from the
 How it's built (`js/room.js`, `js/look-around.js`, shared code in `js/photo-layer.js`):
 - **The eye stays where the photo was taken** (1.3 m up) and only turns. The photo is mapped onto a shell from that exact point, so it's pixel-exact at every angle and objects can't drift between views.
 - **The photo is live.** It uses the same shader as the main experience: pond, trees, grass, clouds, dogs (blinks, ears, tail, head tilt), grazing cows, working sprinklers, the lit monitor, and the drone. The drone has the same sky controller.
-- **An outpainted margin** (LaMa, 240 px either side, 144 px above, 210 px below) widens the photo to about 94° × 70°. Its tone is matched to the photo along the edges.
+- **A thin generated margin** (LaMa: 60 px left, 40 px right, 40 px above, 60 px below) gives the photo's edges room to fade. Further out the generated pixels smeared, so modelled geometry takes over there (see "Seam pass" below).
 - **Everything the photo never saw is modelled:**
   - Side, back and front walls, with planks sampled from the photo's wall.
   - Ceiling and rafters, and a concrete floor tinted to the photo's floor.
   - The open glass sliding door in the right wall, with a meadow, sky and the farm's tree line outside.
   - Poly Haven props: steel shelving, a table, a stool, crates, boxes, a jug and a lantern.
-  - The photo's edge is feathered over 90 px into this.
+  - Each edge fades into the modelled room over 60–80 px.
 - **Light is matched to the photo:** a low warm sun from the front left (from the sun's position in the photo), a warm sky/bounce light and a workshop lamp. There's no tone curve, so textures sampled from the photo keep its colours.
 - **The PC:** select the monitor or Enter computer. The view turns and zooms to the screen without moving, then opens LeruOS. The tablet remains decorative; Field Notes has been removed.
 - **Rendering cost:**
@@ -104,16 +104,17 @@ The back of the room is the heaviest view in software rendering. Real-GPU number
 ### What still doesn't match the photo (honest gaps)
 
 - **No 3D models of the photo's subjects.** I couldn't reach free photoreal models of the dogs, cows, Land Cruiser, sports cars, trees, drone, gaming chair, monitor, console or tablet from here. Poly Haven, Sketchfab and similar sites are blocked from my build machine; only workshop props were reachable, through a mirror. Those subjects stay part of the live photo. That's correct from the fixed eye, but you can't walk around them.
-- **The outpainted margin is generated.** It's softer than the photo. LaMa turned the edge of the electronics bench into a low platform, and part of the chair base at the bottom edge is missing.
-- **Visible seams where the photo hands over to the modelled room**, especially where the photo shows the tree and the meadow and the modelled side shows the sliding door. The ceiling is darker than the photo's beam.
-- **Simple outdoor view.** It's a mirrored strip of the photo's own tree line, so it repeats if you look for it.
-- **The modelled walls, floor and ceiling are flat planes** with photo-sampled textures, not detailed geometry.
+- **The thin generated margin** is slightly softer than the photo next to it.
+- **The seams are still visible.** See "Seam pass" below for what was measured, what was fixed and what's left.
+- **Simple outdoor view.** Procedural ridges, a tree line and a pond in the photo's colours. It doesn't repeat, but it's plainer than the photo.
+- **The floor is a flat plane** with low-amplitude variation. The walls and ceiling are individual boards.
 
 ### Asset sources and licences
 
-- `assets/models/*.glb`: Poly Haven models, CC0, from the `ezEngine/store-sample` mirror. Converted to GLB and decimated with glTF-Transform. Sources: `steel_frame_shelves_01` (scaled 0.1, the mirror's copy is in decimetres), `WoodenTable_03`, `wooden_stool_01`, `wooden_crate_01`, `cardboard_box_01`, `jug_01`, `Lantern_01`.
-- `assets/room/photo-wide.jpg`: the workshop photo plus a LaMa-outpainted margin.
-- `assets/room/wood-planks.jpg`, `grass.jpg` and `backdrop.jpg`: sampled from the workshop photo.
+- `assets/models/*.glb`: Poly Haven models, CC0, from the `ezEngine/store-sample` mirror. Converted to GLB and decimated with glTF-Transform. Sources: `steel_frame_shelves_01` (scaled 0.1, the mirror's copy is in decimetres), `wooden_stool_01`, `wooden_crate_01`, `cardboard_box_01`, `jug_01`, `Lantern_01`.
+- `assets/room/photo-wide.jpg`: the workshop photo plus a thin LaMa-outpainted margin (cropped from the earlier wide version).
+- `assets/room/grass.jpg`: patch-synthesised from the photo's meadow.
+- Moved out of the runtime folders (unused): `backdrop.jpg`, `wood-planks.jpg`, `wooden_table_03.glb`. They're now in `reference-archive/unused-room-assets/`.
 - `vendor/three/addons/`: GLTFLoader and BufferGeometryUtils from three.js r170 (MIT).
 
 ## Scene motion and verification
@@ -165,3 +166,73 @@ Checked in headless Chrome with software WebGL (SwiftShader):
 Fixed during the check: the room kept rendering the off-screen photo when you faced the back wall, so it never went idle. The visible-photo test now returns nothing when no part of the photo is in view (`photoInView` in `js/room.js`, covered by a test). After settling, the rear view now draws 0 frames, and the photo view keeps animating.
 
 The neutral grey floor now meets the warmer photo floor with a visible colour change at the seam. Real-GPU frame rates are still unmeasured; use `?perf`.
+
+## Seam pass: where the photo meets the modelled room (20 November 2026)
+
+**How it was checked.** I rendered the room in headless Chrome with software WebGL and measured each edge: the mean colour of the photo just inside its opaque core against the modelled room just outside it, at 25 points along each edge. I also checked by eye, and every prop and detail went through a downward-raycast contact check.
+
+**What the renders showed:**
+- The generated margins were the main problem. Beyond about 40–60 px from the real photo, LaMa smeared: blotchy foliage on the right, smeared shelving on the left, a streaky beam at the top, and the electronics bench turned into a floor slab at the bottom right.
+- Objects that cross the photo's edge stopped dead at the seam: the ESP32 bench, the shade tree's trunk and the pond.
+- The modelled floor was grey-green against the photo's warm concrete. The hemisphere light's sky colour was a cool neutral.
+- The left wall was much darker than the photo's warmly lit front wall. The ceiling was dark and red.
+- The first rafter sat inside the photo's feathered edge and showed through it as a second beam.
+- A wall strip at the front right sat inside the feathered edge, where the photo shows open outdoors.
+- The outdoor view was a mirrored, repeating strip of the photo.
+- The stacked crate floated 16 cm above the lower crate.
+
+**What changed:**
+- The margin is cut to a thin band, 40–60 px depending on the side, with per-side feathering. The home view fits itself to the opaque area at any aspect ratio.
+- New `js/room-seam.js` continues three objects in 3D from measured photo pixels, so they line up from the eye by construction:
+  - **ESP32 bench.** Top at 0.76 m, 0.58 m deep, 4 cm thick, with legs under the corners where the photo draws them. It leaves 1.1 m of walking space to the sliding door.
+  - **Shade tree's trunk.** About 7.5 m out, 0.56 m across, with procedural bark (no stretched image).
+  - **Pond.** Continued to the right in colours sampled from the photo's pond.
+- The sliding-door opening starts at the front corner, so the photo's open outdoors continues into the open door.
+- **Light:** the hemisphere sky colour is warm-neutral, with a brighter bounce from the floor. A small warm bounce light at the open front lifts the front wall, as the photo shows.
+- **Materials:**
+  - The floor is tinted to the measured photo floor.
+  - The ceiling and the bench keep the oak grain but lose most of its orange.
+  - The lawn is brightened by the measured ratio and has large-scale patches so its tiling doesn't show.
+- The outdoor view is procedural: hazy ridges, hills and an irregular tree line in colours sampled from the photo. It doesn't repeat.
+- The first rafter moved just past the photo's top edge.
+- The stacked crate now sits on the lower crate's lid. A test caught the trunk's root flare sinking 2.5 cm, and that's fixed.
+- Unused runtime assets moved to `reference-archive/unused-room-assets/`.
+
+**Measured result** (photo against model mean RGB, 0–255, at the final edges):
+
+| Edge | Photo | Model |
+| --- | --- | --- |
+| Left | 94, 67, 46 | 106, 68, 42 |
+| Bottom | 120, 92, 73 | 114, 84, 63 |
+| Top | 76, 58, 29 | 57, 36, 25 |
+| Bench top | 85, 59, 39 | 91, 62, 43 |
+
+The mean absolute difference per point is still 32–41. Detail doesn't match point for point: the photo's boards, caps and grass sit next to plainer modelled surfaces. These figures aren't comparable with the earlier ones, because those sampled the generated margin, not the photo's real edge. The right-edge number isn't meaningful because its samples straddle the trunk.
+
+**Verification:**
+- 27 Node tests pass. New tests cover:
+  - the home view staying on the opaque core at five aspect ratios
+  - bench edges projecting onto the measured photo rows
+  - the trunk leaving the frame at the photo's edge
+  - legs and root flare resting on the ground
+  - walking space to the door
+  - the visible-photo check
+- **Browser checks (software WebGL, desktop and phone):**
+  - looking around, and the PC transition with its return
+  - the two-stick remote on both pages, including that drone keys don't turn the room
+  - pause and resume, reduced motion, and the no-WebGL fallback
+  - the rear view going idle once settled
+  - no console errors and no missing files
+- **Performance, same machine, software rendering:**
+  - Main experience: 5.0 fps desktop, 40 fps phone.
+  - Room home view: 4.8 fps desktop, 43 fps phone.
+  - These aren't real-device numbers.
+- **Asset path check:** 31 asset references found in the site's code. All exist with matching case, except `assets/Leruo-Matlhatsi-CV.pdf`, which LeruOS links to and which hasn't been supplied yet.
+
+**Still not right:**
+- The seams remain visible, mostly as a change of detail.
+- The photo's yellow-and-black toolbox shelf, the hanging lamp and the pen cup are cut where the left and right edges fade.
+- The photo's top right is foliage, while the modelled side above it is the ceiling.
+- The chair base stops at the bottom edge.
+- The modelled bench is a simple slab and frame, and the trunk ends where the lintel hides it.
+- Real-GPU appearance and frame rates are unverified.

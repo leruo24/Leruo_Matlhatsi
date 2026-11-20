@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { addRoomDetail } from './room-detail.js';
+import { addSeamContinuations } from './room-seam.js';
 import { PHOTO, MONITOR } from './photo-layer.js';
 
 /*
@@ -14,12 +15,19 @@ import { PHOTO, MONITOR } from './photo-layer.js';
  */
 const { W, H, F, CX, YH, HC } = PHOTO;
 // the outpainted plate: the photo sits inside a margin generated around it
-export const WIDE = Object.freeze({ left: 240, right: 242, top: 144, bottom: 210, width: W + 482, height: H + 354, feather: 90 });
+// Only a thin band of generated margin is kept around the photo: further out LaMa's guesses smear
+// (blotchy foliage, a bench turned into a floor slab). Modelled geometry takes over from there.
+// feather: how far each edge fades into the modelled room (px, may reach into the photo itself)
+export const WIDE = Object.freeze({ left: 60, right: 40, top: 40, bottom: 60, width: W + 100, height: H + 100,
+  feather: Object.freeze({ left: 80, right: 70, top: 60, bottom: 80 }) });
+/** photo px covered by the shell's fully opaque core, [x0, y0, x1, y1] */
+export const CORE = Object.freeze([-WIDE.left + WIDE.feather.left, -WIDE.top + WIDE.feather.top, W + WIDE.right - WIDE.feather.right, H + WIDE.bottom - WIDE.feather.bottom]);
 export const ROOM = Object.freeze({
   eye: [0, HC, 0],
   minX: -4.6, maxX: 3.4, front: -3.8, back: 3.0, height: 2.9,
   // the glass sliding door in the right wall, slid open
-  door: { x: 3.4, start: -3.4, end: -0.6, height: 2.3 },
+  // the opening starts at the front corner, so no wall sits inside the photo's feathered edge
+  door: { x: 3.4, start: -3.74, end: -0.6, height: 2.3 },
   shellDistance: 0.3,
 });
 
@@ -48,7 +56,8 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
   const timber = mat({ color: 0xb7afa0, map: boardTexture, roughness: .78 });
   // Wall planes are the dark backing behind narrow physical board joints.
   const wood = () => mat({color:0x473c31,roughness:.95});
-  const concrete = mat({ color: 0x8b867b, roughness: .82, metalness: 0 });
+  // tinted to the photo's floor where they meet (measured across the bottom seam)
+  const concrete = mat({ color: 0x978375, roughness: .78, metalness: 0 });
   concrete.onBeforeCompile = shader => {
     shader.vertexShader = 'varying vec3 vFloorPosition;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvFloorPosition = position;');
     shader.fragmentShader = 'varying vec3 vFloorPosition;\n' + shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
@@ -59,7 +68,18 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
   const darkWood = mat({ color: 0x867967, map: tex('assets/tex/oak.png', { repeat: [4, 1] }), roughness: 0.75 });
   const steel = mat({ color: 0x2b2d2f, roughness: 0.45, metalness: 0.75 });
   const glass = new THREE.MeshPhysicalMaterial({ color: 0xc8d6d2, roughness: 0.05, metalness: 0, transmission: 0, transparent: true, opacity: 0.22, depthWrite: false });
-  const grass = mat({ color: 0xa9c486, map: tex('assets/room/grass.jpg', { repeat: [40, 40] }), roughness: 1 });
+  const grass = mat({ color: 0xe3d6b8, map: tex('assets/room/grass.jpg', { repeat: [60, 60] }), roughness: 1 });
+  // A flat plane lit at the sun's grazing angle renders about 2-3x darker than the photo's upright,
+  // sunlit blades (measured: 79,53,22 vs 118,92,44 sRGB), so the albedo carries that difference.
+  grass.color.setRGB(1.75, 1.95, 1.5);
+  // large-scale patches of drier and greener grass, so the texture's tiling doesn't read as a grid
+  grass.onBeforeCompile = (shader) => {
+    shader.vertexShader = 'varying vec2 vGround;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvGround = (modelMatrix * vec4(position, 1.0)).xz;');
+    shader.fragmentShader = 'varying vec2 vGround;\nfloat gh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat gn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(gh(i), gh(i + vec2(1, 0)), f.x), mix(gh(i + vec2(0, 1)), gh(i + vec2(1, 1)), f.x), f.y); }\n'
+      + shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      float patchy = gn(vGround * 0.11) * 0.6 + gn(vGround * 0.37) * 0.4;
+      diffuseColor.rgb *= mix(vec3(0.86, 0.92, 0.8), vec3(1.1, 1.0, 0.86), patchy);`);
+  };
 
   const { minX, maxX, front, back, height, door } = ROOM;
   const width = maxX - minX, depth = back - front, midX = (minX + maxX) / 2, midZ = (front + back) / 2;
@@ -78,7 +98,8 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
   box(maxX + 2.7, 0.42, 0.22, darkWood, (maxX - 2.7) / 2, 2.62, front, 'header-beam');
   // ceiling with exposed rafters
   const ceiling = plane(width, depth, darkWood, 'ceiling'); ceiling.rotation.x = Math.PI / 2; ceiling.position.set(midX, height, midZ);
-  for (let z = front + 0.6; z < back; z += 1.2) box(width, 0.18, 0.09, darkWood, midX, height - 0.09, z, 'rafter');
+  // first rafter sits just beyond the photo's top edge, not inside its feathered rim
+  for (let z = front + 1.2; z < back; z += 1.2) box(width, 0.18, 0.09, darkWood, midX, height - 0.09, z, 'rafter');
 
   // right wall with the open sliding door
   const rightWall = new THREE.Group(); rightWall.name = 'right-wall'; root.add(rightWall);
@@ -101,22 +122,32 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
   box(0.04, 0.05, pw, steel, maxX - 0.09, 0.025, pz, 'panel-rail', parked);
 
 
-  /* ---- the outdoor view through the door: sky, and the farm's tree line ---- */
+  /* ---- the outdoor view through the door: sky, distant ridges and a tree line ----
+   * Procedural and non-repeating (no copied strip of the photo), in colours sampled from the
+   * photo's own sky, mountains, trees and meadow. */
   const sky = new THREE.Mesh(new THREE.SphereGeometry(90, 32, 16), new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { tBack: { value: tex('assets/room/backdrop.jpg') } },
     vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `precision highp float; uniform sampler2D tBack; varying vec3 vDir;
+    fragmentShader: `precision highp float; varying vec3 vDir;
+      float h1(float x){ return fract(sin(x * 127.1) * 43758.5453); }
+      float n1(float x){ float i = floor(x), f = fract(x); return mix(h1(i), h1(i + 1.0), f * f * (3.0 - 2.0 * f)); }
+      float fbm(float x){ float v = 0.0, a = 0.5; for (int k = 0; k < 5; k++){ v += a * n1(x); x = x * 2.03 + 11.7; a *= 0.5; } return v; }
       void main(){
         float el = asin(clamp(vDir.y, -1.0, 1.0)), az = atan(vDir.x, -vDir.z);
-        vec3 c = mix(vec3(0.93, 0.74, 0.60), vec3(0.47, 0.50, 0.62), smoothstep(0.05, 0.9, el));
-        c = mix(vec3(0.38, 0.30, 0.19), c, smoothstep(-0.02, 0.02, el));
-        // the photo's tree line and mountains, between 1.3 and 16 degrees above the horizon
-        float v = (el - 0.023) / (0.28 - 0.023);
-        float u = az / 1.57;
-        vec3 strip = texture2D(tBack, vec2(fract(u), clamp(v, 0.002, 0.998))).rgb;
-        float wgt = step(0.0, v) * (1.0 - smoothstep(0.82, 1.0, v)) + step(v, 0.0) * smoothstep(-0.25, 0.0, v);
-        c = mix(c, strip, wgt);
+        vec3 horizon = vec3(0.94, 0.78, 0.68), zenith = vec3(0.50, 0.52, 0.62);
+        vec3 c = mix(horizon, zenith, smoothstep(0.04, 0.9, el));
+        // far mountains (2-6 degrees), softened toward the sky by haze
+        float far = 0.032 + 0.075 * fbm(az * 2.6 + 3.1);
+        c = mix(c, mix(vec3(0.49, 0.455, 0.478), horizon, 0.35 + 0.4 * smoothstep(far - 0.03, far, el)), step(el, far));
+        // nearer hills
+        float hill = 0.016 + 0.03 * fbm(az * 5.3 + 17.0);
+        c = mix(c, vec3(0.43, 0.39, 0.37), step(el, hill) * 0.85);
+        // tree line: irregular crowns above the meadow, never a repeated pattern
+        float crowns = 0.004 + 0.016 * pow(fbm(az * 38.0 + 5.0), 1.6) + 0.005 * n1(az * 160.0);
+        vec3 tree = vec3(0.298, 0.227, 0.102) * (0.8 + 0.4 * n1(az * 70.0));
+        c = mix(c, tree, step(el, crowns));
+        // meadow below the horizon (mostly covered by the ground plane)
+        c = mix(vec3(0.482, 0.40, 0.247), c, smoothstep(-0.004, 0.002, el));
         gl_FragColor = vec4(c, 1.0);
       }`,
   }));
@@ -129,7 +160,10 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
   sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.02;
   Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 5, bottom: -5, near: 5, far: 40 });
   root.add(sun, sun.target);
-  root.add(new THREE.HemisphereLight(0xe1e6df, 0x706557, 1.25));
+  // warm-neutral sky and a bounce from the sunlit floor, matched to the photo's interior tones
+  root.add(new THREE.HemisphereLight(0xefe4d4, 0x857462, 1.25));
+  // bounce from the sunlit gravel and floor at the open front: the photo shows the front wall warmly lit
+  const bounce = new THREE.PointLight(0xffeedd, 3.2, 5.5, 2); bounce.position.set(-3.3, 1.4, -2.5); bounce.name = 'front-bounce'; root.add(bounce);
   const lamp = new THREE.PointLight(0xffd7aa, 12, 7, 2); lamp.position.set(.75, 2.15, 2.3); lamp.name = 'workshop-lamp'; root.add(lamp);
 
   /* ---- Poly Haven props (CC0) where the photo can't see ---- */
@@ -140,7 +174,7 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
     
     ['wooden_stool_01', [0.35, 0.014, 1.5], 0.4],
     ['wooden_crate_01', [-4.0, 0, 0.9], 0.2],
-    ['wooden_crate_01', [-3.95, 0.5, 0.95], -0.1],
+    ['wooden_crate_01', [-3.95, 0.337, 0.95], -0.1],   // on the lower crate's lid
     ['cardboard_box_01', [-0.9, 0, 2.6], 0.3],
     ['cardboard_box_01', [2.6, 0, 2.55], -0.5],
     ['jug_01', [-.42, 0.93, 2.55], 0.6],
@@ -159,7 +193,14 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
     }
   }
 
-  addRoomDetail({root, limits:ROOM, oak:timber, concrete, steel});
+  // ceiling boards: the same timber, a little lighter and less red, like the photo's roof underside
+  const ceilingTimber = timber.clone(); ceilingTimber.color.setRGB(1.05, 0.92, 0.74);
+  ceilingTimber.onBeforeCompile = (shader) => {   // keep the grain, lose most of the oak texture's orange
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15))), 0.55);`);
+  };
+  addRoomDetail({root, limits:ROOM, oak:timber, ceiling:ceilingTimber, concrete, steel});
+  addSeamContinuations({ root, timber });
 
   /* ---- the photo shell: the live photo inside its outpainted margin ----
    * Drawn very close to the eye (it only ever turns, so distance doesn't change what you see):
@@ -172,12 +213,13 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
     uLiveRect: { value: photoTexture?.rect ?? new THREE.Vector4(0, 0, 1, 1) }, uLiveFill: { value: photoTexture?.fill ?? new THREE.Vector2(1, 1) },
     uLiveOn: { value: 0 },
     uInner: { value: new THREE.Vector4(WIDE.left / WIDE.width, WIDE.bottom / WIDE.height, (WIDE.left + W) / WIDE.width, (WIDE.bottom + H) / WIDE.height) },
-    uPx: { value: new THREE.Vector2(WIDE.width, WIDE.height) }, uFeather: { value: WIDE.feather },
+    uPx: { value: new THREE.Vector2(WIDE.width, WIDE.height) }, uFeather: { value: new THREE.Vector4(WIDE.feather.left, WIDE.feather.right, WIDE.feather.top, WIDE.feather.bottom) },
   };
-  const shellFrag = (rim) => `precision highp float; uniform sampler2D tWide, tLive; uniform vec4 uInner, uLiveRect; uniform vec2 uPx, uLiveFill; uniform float uFeather, uLiveOn; varying vec2 vUv;
+  const shellFrag = (rim) => `precision highp float; uniform sampler2D tWide, tLive; uniform vec4 uInner, uLiveRect, uFeather; uniform vec2 uPx, uLiveFill; uniform float uLiveOn; varying vec2 vUv;
       void main(){
-        vec2 edge = min(vUv, 1.0 - vUv) * uPx;                          // distance to the shell's border, px
-        float a = smoothstep(0.0, uFeather, min(edge.x, edge.y));
+        vec2 px = vUv * uPx;                                             // canvas px, y up
+        float a = smoothstep(0.0, uFeather.x, px.x) * smoothstep(0.0, uFeather.y, uPx.x - px.x)
+                * smoothstep(0.0, uFeather.z, uPx.y - px.y) * smoothstep(0.0, uFeather.w, px.y);
         ${rim ? 'if (a >= 1.0) discard;' : ''}
         vec3 c = texture2D(tWide, vUv).rgb;
         vec2 q = (vUv - uInner.xy) / (uInner.zw - uInner.xy);             // photo uv
@@ -196,8 +238,9 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
   shell.name = 'photo-shell'; shell.renderOrder = 10; shell.frustumCulled = false; shell.userData.photo = true;
   shell.position.copy(centre); root.add(shell);
   // the opaque core: the shell inset by the feather, with matching uvs
-  const f = WIDE.feather, coreGeo = new THREE.PlaneGeometry(br.x - tl.x - 2 * f * pxW, tl.y - br.y - 2 * f * pxW);
-  { const uv = coreGeo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, (f + uv.getX(i) * (WIDE.width - 2 * f)) / WIDE.width, (f + uv.getY(i) * (WIDE.height - 2 * f)) / WIDE.height); }
+  const fe = WIDE.feather, coreGeo = new THREE.PlaneGeometry(br.x - tl.x - (fe.left + fe.right) * pxW, tl.y - br.y - (fe.top + fe.bottom) * pxW);
+  coreGeo.translate((fe.left - fe.right) / 2 * pxW, (fe.bottom - fe.top) / 2 * pxW, 0);
+  { const uv = coreGeo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, (fe.left + uv.getX(i) * (WIDE.width - fe.left - fe.right)) / WIDE.width, (fe.bottom + uv.getY(i) * (WIDE.height - fe.top - fe.bottom)) / WIDE.height); }
   const core = new THREE.Mesh(coreGeo, new THREE.ShaderMaterial({ uniforms: shellU, depthWrite: true, fog: false, vertexShader: shellVert, fragmentShader: shellFrag(false) }));
   core.name = 'photo-shell-core'; core.renderOrder = -10; core.frustumCulled = false; core.userData.photo = true;
   core.position.copy(centre); root.add(core);
@@ -223,7 +266,7 @@ export function createRoom({ scene, loader = null, gltf = null, photoTexture = n
   const room = {
     root, devices, focus, eye, shell, core, shellUniforms: shellU, sun, onChange: null,
     // photo px covered by the opaque core (inside the feathered rim)
-    coreBounds: [x0 + f, y0 + f, x1 - f, y1 - f],
+    coreBounds: CORE,
     setModelVisible(on) { if (on === room.modelVisible) return; room.modelVisible = on; for (const o of modelled()) o.visible = on; shell.visible = on; },
     modelVisible: true,
   };
@@ -258,15 +301,21 @@ export function photoInView(camera, coreBounds) {
   return { rect: [x0, y0, x1, y1], covers };
 }
 
-/** the view that frames the photo the way the main experience does */
+/**
+ * The view that frames the photo the way the main experience does: as much of the photo's height as
+ * fits, centred on the opaque core so no feathered edge shows. Narrow (portrait) screens see a slice
+ * of the photo, centred between the dogs and the monitor.
+ */
 export function homeView(aspect) {
-  const pitch = -Math.atan(((H / 2) - YH) / F);
-  const vfov = 2 * Math.atan((H / 2) / F);
-  // keep the horizontal view inside the photo plus its margin on very wide screens
-  const maxH = 2 * Math.atan(((W / 2) + WIDE.left - WIDE.feather) / F);
-  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
-  const fov = hfov > maxH ? 2 * Math.atan(Math.tan(maxH / 2) / aspect) : vfov;
-  // narrow (portrait) screens see a slice of the photo: centre it between the dogs and the monitor
-  const yaw = aspect < 1 ? -Math.atan((930 - CX) / F) : 0;
-  return { pitch, yaw, fov: THREE.MathUtils.radToDeg(fov) };
+  const top = Math.atan((YH - CORE[1]) / F), bottom = Math.atan((CORE[3] - YH) / F);
+  const pitch = (top - bottom) / 2;
+  const yaw = aspect < 1 ? -Math.atan((930 - CX) / F) : (Math.atan((CX - CORE[0]) / F) - Math.atan((CORE[2] - CX) / F)) / 2;
+  const cam = new THREE.PerspectiveCamera(50, aspect, 0.05, 10);
+  cam.position.set(...ROOM.eye); cam.rotation.set(pitch, yaw, 0, 'YXZ');
+  let fov = THREE.MathUtils.radToDeg(top + bottom);
+  for (; fov > 10; fov -= 0.25) {   // shrink until the whole view sits on the opaque core
+    cam.fov = fov; cam.updateProjectionMatrix(); cam.updateMatrixWorld(true);
+    if (photoInView(cam, CORE)?.covers) break;
+  }
+  return { pitch, yaw, fov };
 }
