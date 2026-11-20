@@ -95,9 +95,9 @@ def gravel(name):
     vor2 = nt.nodes.new('ShaderNodeTexVoronoi'); vor2.inputs['Scale'].default_value = 38; vor2.feature = 'DISTANCE_TO_EDGE'
     patch = nt.nodes.new('ShaderNodeTexNoise'); patch.inputs['Scale'].default_value = 0.35; patch.inputs['Detail'].default_value = 5
     for n in (vor, vor2, patch): nt.links.new(mp.outputs['Vector'], n.inputs['Vector'])
-    stones = _ramp(nt, [(0.0, (0.30, 0.25, 0.20)), (0.5, (0.52, 0.45, 0.37)), (1.0, (0.70, 0.64, 0.56))])
+    stones = _ramp(nt, [(0.0, (0.38, 0.30, 0.22)), (0.5, (0.62, 0.52, 0.40)), (1.0, (0.80, 0.72, 0.60))])
     nt.links.new(vor.outputs['Color'], stones.inputs['Fac'])
-    earth = (0.36, 0.26, 0.17)
+    earth = (0.45, 0.33, 0.21)
     edge = nt.nodes.new('ShaderNodeMapRange'); edge.inputs['From Max'].default_value = 0.12
     nt.links.new(vor2.outputs['Distance'], edge.inputs['Value'])
     mix = nt.nodes.new('ShaderNodeMix'); mix.data_type = 'RGBA'; mix.inputs['B'].default_value = (*earth, 1)
@@ -244,8 +244,8 @@ def all_materials():
         'bulb': emission('Warm bulb', (1.0, 0.75, 0.45), 30.0),
         'teal': plain('Board graphic teal', (0.05, 0.35, 0.33), rough=0.4),
         'cap_black': plain('Cap fabric', (0.02, 0.02, 0.025), rough=0.85, sheen=0.5),
-        'gravel': gravel('Gravel'),
-        'grass': add_haze(grass('Grass'), distance=1800.0),
+        'gravel': __import__('assets').ground_gravel(gravel('Gravel')),
+        'grass': add_haze(__import__('assets').ground_grass('Grass'), distance=1800.0),
         'water': water('Pond water'),
         'terrain': add_haze(terrain('Terrain'), distance=2500.0),
         'mountain': add_haze(mountain('Mountains'), color=(0.62, 0.52, 0.55), distance=16000.0),

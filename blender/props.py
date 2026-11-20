@@ -86,7 +86,7 @@ def light_area(name, loc, size, energy, color=(1, 0.85, 0.7), rot=(0, 0, 0)):
 
 
 # ---------------------------------------------------------------- the building
-ROOM = dict(minX=-5.0, maxX=4.2, back=-3.4, front=4.5, height=3.5, door=(0.6, 4.4), door_h=2.4)
+ROOM = dict(minX=-5.0, maxX=4.2, back=-3.4, front=4.5, height=3.5, door=(0.6, 4.4), door_h=2.4, window=(-1.3, 1.1, 2.1, 1.6))
 
 
 def workshop_shell(m):
@@ -96,8 +96,21 @@ def workshop_shell(m):
     # walls: dark backing + vertical boards facing the room
     box('Left wall', (0.1, D, H), (minX - 0.05, (back + front) / 2, H / 2), m['beam'], bevel=0)
     boards('Left wall boards', D, H, (minX + 0.012, (back + front) / 2, H / 2), math.pi / 2, m['boards'])
-    box('Back wall', (W, 0.1, H), ((minX + maxX) / 2, back - 0.05, H / 2), m['beam'], bevel=0)
-    boards('Back wall boards', W, H, ((minX + maxX) / 2, back + 0.012, H / 2), 0, m['boards'])
+    bw = box('Back wall', (W, 0.1, H), ((minX + maxX) / 2, back - 0.05, H / 2), m['beam'], bevel=0)
+    bb = boards('Back wall boards', W, H, ((minX + maxX) / 2, back + 0.012, H / 2), 0, m['boards'])
+    # a window above the rear cabinet, so the back of the room has daylight and a view out
+    wx, wz0, wz1, ww = r['window']
+    cut = box('Window cutter', (ww, 0.5, wz1 - wz0), (wx, back, (wz0 + wz1) / 2), None, bevel=0)
+    cut.hide_render = True; cut.hide_viewport = True
+    for o in (bw, bb):
+        bo = o.modifiers.new('window', 'BOOLEAN'); bo.object = cut; bo.operation = 'DIFFERENCE'; bo.solver = 'EXACT'
+    for name, size, loc in (('Window head', (ww + 0.1, 0.14, 0.06), (wx, back - 0.02, wz1 + 0.03)),
+                            ('Window sill', (ww + 0.16, 0.2, 0.04), (wx, back + 0.02, wz0 - 0.02)),
+                            ('Window jamb L', (0.06, 0.14, wz1 - wz0), (wx - ww / 2 - 0.03, back - 0.02, (wz0 + wz1) / 2)),
+                            ('Window jamb R', (0.06, 0.14, wz1 - wz0), (wx + ww / 2 + 0.03, back - 0.02, (wz0 + wz1) / 2)),
+                            ('Window mullion', (0.04, 0.05, wz1 - wz0), (wx, back - 0.04, (wz0 + wz1) / 2))):
+        box(name, size, loc, m['steel_black'], bevel=0.004)
+    box('Window glass', (ww, 0.006, wz1 - wz0), (wx, back - 0.04, (wz0 + wz1) / 2), m['glass'], bevel=0)
     # front wall: only the section left of the big opening (the whiteboard wall in the photo)
     fx0, fx1 = minX, -2.9
     box('Front wall', (fx1 - fx0, 0.12, H), ((fx0 + fx1) / 2, front, H / 2), m['beam'], bevel=0)
@@ -170,24 +183,7 @@ def desk_setup(m):
     bpy.ops.mesh.primitive_torus_add(major_radius=0.05, minor_radius=0.009, location=(0, 0, 0))
     h = bpy.context.object; h.name = 'Stanley handle'; h.parent = d; h.location = (-0.555, 0.1, t + 0.16)
     h.rotation_euler = (math.pi / 2, 0, 0); h.scale = (0.8, 1.4, 1); h.data.materials.append(m['stanley'])
-    # potted plant
-    cyl('Plant pot', 0.07, 0.11, (-0.3, 0.27, t + 0.055), m['ceramic'], r2=0.08, parent=d)
-    cyl('Soil', 0.074, 0.005, (-0.3, 0.27, t + 0.105), m['soil'], parent=d)
-    for i in range(14):
-        a = i / 14 * math.tau + rand.random() * 0.3; tilt = 0.4 + rand.random() * 0.5
-        lf = sphere('Leaf', 0.06, (-0.3 + math.cos(a) * 0.04, 0.27 + math.sin(a) * 0.04, t + 0.17 + rand.random() * 0.06), m['leaf'], scale=(0.35, 1.0, 0.08), parent=d, seg=12)
-        lf.rotation_euler = (tilt, 0, a + math.pi / 2)
-    # desk lamp: weighted base, two arms, shade with a warm bulb (a local pool of light)
-    lamp = empty('Desk lamp', (-0.78, 0.28, t), 0.4, d)
-    cyl('Lamp base', 0.07, 0.025, (0, 0, 0.0125), m['plastic_black'], parent=lamp)
-    tube_path('Lamp arm', [(0, 0, 0.02), (0.02, -0.05, 0.25), (0.05, -0.12, 0.44)], 0.008, m['steel_black'], parent=lamp)
-    tube_path('Lamp arm 2', [(0.05, -0.12, 0.44), (0.18, -0.2, 0.46), (0.32, -0.26, 0.42)], 0.008, m['steel_black'], parent=lamp)
-    shade = cyl('Lamp shade', 0.03, 0.12, (0.36, -0.28, 0.38), m['plastic_black'], r2=0.075, parent=lamp)
-    shade.rotation_euler = (math.radians(35), math.radians(-30), 0)
-    sphere('Bulb', 0.025, (0.38, -0.3, 0.35), m['bulb'], parent=lamp)
-    sl = bpy.data.lights.new('Lamp light', 'SPOT'); sl.energy = 15; sl.color = (1, 0.72, 0.42); sl.spot_size = math.radians(90); sl.spot_blend = 0.6; sl.shadow_soft_size = 0.03
-    so = bpy.data.objects.new('Lamp light', sl); so.parent = lamp; so.location = (0.38, -0.3, 0.34); so.rotation_euler = (math.radians(20), math.radians(-25), 0)
-    _link(so)
+    # the desk lamp and plant are Poly Haven models placed by assets.furnish()
     # tablet propped in its folding cover
     tab = empty('Tablet', (0.98, -0.08, t), math.radians(-8), d)
     box('Tablet cover back', (0.25, 0.006, 0.18), (0, 0.03, 0.085), m['plastic_black'], rot=(math.radians(-18), 0, 0), bevel=0.002, parent=tab)
@@ -317,6 +313,10 @@ POND = dict(cx=14.0, cy=26.0, rx=9.0, ry=13.0)
 def _height_land(x, y):
     d = max(0.0, y - 6.0)
     rise = 2.2 * (1 - math.exp(-d / 14.0)) + 0.012 * min(d, 300.0)
+    # the yard rises toward the garage on the left; on the right the land stays low around the pond
+    # so the water shows over the bench, as in the photo
+    right = min(1.0, max(0.0, (x - 1.0) / 8.0)) * min(1.0, max(0.0, (60.0 - y) / 25.0))
+    rise *= 1.0 - 0.85 * right
     hills = noise.noise(Vector((x * 0.008, y * 0.008, 0.3))) * 2.5 * min(1.0, d / 120)
     flat = min(1.0, max(0.0, (math.hypot(x + 0.4, y - 0.6) - 7.0) / 6.0))
     return (rise + hills) * flat - 0.02

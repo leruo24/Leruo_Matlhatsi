@@ -102,9 +102,12 @@ def tree(name, base, height, trunk_r, spread, seed, leaf_mat, bark_mat, cards=40
 
 
 def trees(m):
-    leaf, bark = leaf_material(), bark_material()
+    import assets as AS
+    bark = AS.bark_material()
+    oak = AS.leaf_material('eztree_oak_leaf.png', 'Leaves oak twig')
+    leaf = AS.leaf_material('eztree_ash_leaf.png', 'Leaves ash twig')
     # the big shade tree at the front right; its canopy reaches over the yard (photo top right)
-    wood, leaves, tips = tree('Shade tree', (7.7, 9.2, 0), 10.0, 0.36, 12.0, 11, leaf, bark, cards=16000, umbrella=0.35, lean=Vector((-0.6, -0.2, 0)), card=0.36)
+    wood, leaves, tips = tree('Shade tree', (7.7, 9.2, 0), 10.0, 0.36, 12.0, 11, oak, bark, cards=14000, umbrella=0.35, lean=Vector((-0.6, -0.2, 0)), card=0.6)
     # the hanging lamp from a low branch
     lamp = empty('Hanging lamp', (4.6, 6.2, 3.55), 0)
     cyl('Lamp cord', 0.004, 1.2, (0, 0, 0.6), m['wire_black'], parent=lamp)
@@ -113,15 +116,16 @@ def trees(m):
     sphere('Lamp bulb', 0.035, (0, 0, -0.08), m['bulb'], parent=lamp)
     pl = bpy.data.lights.new('Hanging lamp light', 'POINT'); pl.energy = 25; pl.color = (1, 0.7, 0.4); pl.shadow_soft_size = 0.05
     plo = bpy.data.objects.new('Hanging lamp light', pl); plo.parent = lamp; plo.location = (0, 0, -0.12); bpy.context.scene.collection.objects.link(plo)
-    # farm trees: acacia-like crowns across the fields, none in the yard, pond or on the driveway
+    # farm trees: acacia-like crowns across the fields, none in the yard, pond or on the driveway,
+    # and none whose long low-sun shadow would fall across the yard (the photo's yard is sunlit)
     rnd = random.Random(5); placed = []
-    spots = [(-14, 22), (-24, 40), (-6, 48), (9, 70), (-30, 75), (24, 90), (-12, 95), (-40, 55), (2, 140), (30, 150),
+    spots = [(-26, 18), (-32, 44), (-10, 62), (9, 70), (-30, 75), (24, 90), (-12, 95), (-40, 55), (2, 140), (30, 150),
              (-55, 120), (46, 70), (60, 110), (-70, 160), (-20, 180), (15, 210), (75, 190), (-95, 220), (40, 260), (-45, 300),
              (52, 33), (36, 45), (-34, 28), (-48, 34)]
     for i, (x, y) in enumerate(spots):
         h = rnd.uniform(5.5, 9.0)
         tree(f'Farm tree {i}', (x, y, _height(x, y)), h, h * 0.035, h * rnd.uniform(1.0, 1.5), 100 + i, leaf, bark,
-             cards=int(5000 + 2500 * rnd.random()), umbrella=rnd.uniform(0.45, 0.85), card=0.55)
+             cards=int(5000 + 2500 * rnd.random()), umbrella=rnd.uniform(0.45, 0.85), card=0.85)
 
 
 # ---------------------------------------------------------------- farm structures

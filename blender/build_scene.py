@@ -20,6 +20,7 @@ import props as P      # noqa: E402
 import nature as N     # noqa: E402
 import vehicles as V   # noqa: E402
 import animals as A    # noqa: E402
+import assets as AS    # noqa: E402
 
 EYE = Vector((0.0, 0.0, 1.6))
 # the approved photo's camera: 1670 x 942 px, focal length 1000 px, horizon at row 367
@@ -80,7 +81,7 @@ def world_light(scene):
         if hasattr(sky, attr):
             setattr(sky, attr, val)
     if hasattr(sky, 'sun_intensity'): sky.sun_intensity = 0.6
-    bg.inputs['Strength'].default_value = 0.1
+    bg.inputs['Strength'].default_value = 0.3
     # a band of warm, sunlit clouds low in the sky (procedural, never a repeated image)
     tc = nt.nodes.new('ShaderNodeTexCoord')
     sep = nt.nodes.new('ShaderNodeSeparateXYZ'); nt.links.new(tc.outputs['Generated'], sep.inputs['Vector'])
@@ -104,10 +105,13 @@ def world_light(scene):
     nt.links.new(mixc.outputs['Result'], bg.inputs['Color'])
     nt.links.new(bg.outputs['Background'], out.inputs['Surface'])
     # a sun lamp carries the crisp shadows
-    sun = bpy.data.lights.new('Sun', 'SUN'); sun.energy = 5.5; sun.angle = math.radians(0.8)
+    sun = bpy.data.lights.new('Sun', 'SUN'); sun.energy = 8.0; sun.angle = math.radians(0.8)
     sun.color = (1.0, 0.78, 0.55)
     so = bpy.data.objects.new('Sun', sun)
-    d = Vector((math.sin(az) * math.cos(el), math.cos(az) * math.cos(el), math.sin(el)))  # direction to the sun
+    # the shadow-casting lamp sits higher than the visible sun (16 vs 9.7 deg): at the true angle every
+    # tree throws a 50 m shadow and the yard, sunlit in the photo, would be in shade
+    el_lamp = math.radians(16.0)
+    d = Vector((math.sin(az) * math.cos(el_lamp), math.cos(az) * math.cos(el_lamp), math.sin(el_lamp)))  # direction to the sun
     so.rotation_euler = (-d).to_track_quat('-Z', 'Y').to_euler()
     scene.collection.objects.link(so)
     return d
@@ -122,9 +126,11 @@ def build():
     P.desk_setup(mats)
     P.esp32_bench(mats)
     P.wall_items(mats)
+    AS.furnish(P.ROOM, bpy.data.objects['Desk'])
     P.outdoors(mats, sun_dir)
     extra = N.extra_materials()
     N.trees(mats)
+    AS.grass_blades()
     N.buildings(mats, extra)
     N.skyline(mats, extra)
     V.vehicles(mats)
