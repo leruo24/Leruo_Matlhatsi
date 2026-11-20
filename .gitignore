@@ -3,3 +3,5 @@
 blender/*.blend
 blender/*.blend1
 blender/renders/
+__pycache__/
+node_modules/
