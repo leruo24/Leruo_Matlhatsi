@@ -1,0 +1,5 @@
+
+# generated Blender scene and renders (rebuild with blender/build_scene.py)
+blender/*.blend
+blender/*.blend1
+blender/renders/
