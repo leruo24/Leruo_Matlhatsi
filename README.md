@@ -73,10 +73,26 @@ How it's built (`js/pano-view.js`, `js/look-around.js`):
 - **One eye, turning only.** The 360° image is rendered in Blender from the same eye as the photo-matched camera. The page shows it on a sphere around the camera. The camera only turns, so anything placed at its real position in the scene lines up with the render exactly.
 - **Loading.** A 2048 × 1024 preview appears first. Then the sharp version loads: 8192 × 4096 in four 2048 × 4096 quarters on desktops, or 4096 × 2048 in two halves on touch devices and GPUs limited to 4096 px textures.
 - **The PC.** The monitor's lock screen (live time and date) is drawn on a flat panel at the screen's real position, exported from the Blender file (`MONITOR_QUAD`). Part of the screen is hidden behind the chair. A mask rendered in Blender (`assets/workshop-3d/monitor-mask.png`, from `blender/render_monitor_mask.py`) cuts the panel so the chair stays in front. Select the monitor, or press Enter computer, to turn and zoom to the screen and open LeruOS.
-- **The drone** uses the same autopilot, flight zone and two-stick remote as the main experience. Its photo-space position becomes a direction from the eye, and it flies 9 m out over the yard. Pause scenery and reduced motion stop it.
+- **Depth.** The panorama also writes depth. `assets/workshop-3d/depth.png` comes from `blender/render_depth.py`: a Cycles render from the same eye, with every surface replaced by a shader that writes its distance (16 bits, logarithmic between 0.2 m and 30 km). The sky sphere sets each pixel's depth from it. Live objects (the drone, the dogs, the ball) are then hidden by nearer walls, furniture and tree trunks. Leaf cards and grass are left out of the map because they're mostly holes, so the drone is not hidden by foliage.
+- **Walking dogs.** The three dogs are no longer in the render; they walk about live (`js/dogs.js`).
+  - Each is a set of sprite frames rendered in Blender (`blender/dog_sprites.py`): 8 headings × an 8-frame walk cycle (a four-beat walk), plus a 4-frame idle with a wagging tail.
+  - They are the scene's skin-modifier dogs rebuilt standing. Every frame moves the skeleton, skins the body to it, and carries each fur strand with the triangle it grows from.
+  - On the page, each dog stands on the floor facing the eye. The frame comes from the dog's heading relative to the line of sight and from how far it has walked.
+  - Each dog has one depth, just in front of it, so the desk, chair and walls hide it and other dogs overlap correctly. Its brightness follows the floor under it in the panorama, so it darkens out of the sun.
+  - They find their way on a 10 cm floor grid (`assets/workshop-3d/nav.json`, from `blender/nav_grid.py`, which ray-casts down over the floor and yard). The grid is grown by the dog's radius, and A* finds the paths, shortened wherever the way is clear.
+  - They wander the workshop and the yard in front of it, stop, wag, and keep a little room between each other.
+- **Things to do.**
+  - Select a dog to call it over: it trots up in front of you, turns to face you and barks ("Woof!"; sound is off if it's switched off on the main page).
+  - **Throw ball** (or B, or double-click a spot on the floor) throws a tennis ball. The dogs race for it, and the first one there carries it back to you.
+- **The drone** uses the same autopilot and two-stick remote as the main experience, but in the 360 view the remote can fly it all the way round the workshop, 12 m out and between 3° and 31° up, at 2.2 times the main page's speed. While you fly it, the view turns to keep it in sight, and the walls and roof hide it when it goes behind them (you can see it through the back window). The autopilot keeps to the sky in front. Pause scenery and reduced motion stop it, and the dogs as well.
 - **Unchanged:** dragging, the arrow keys and on-screen pad, Home to re-centre, `?perf` and `?debug`. Without WebGL the page pans the 2048-px panorama as a still image.
-- **Rendering cost.** One sphere, one screen panel and one drone sprite. Frames are only drawn while the view moves or the drone is on screen; otherwise the page wakes every 30 s to keep the clock current.
-- **Rebuilding the images.** Render with `python blender/render.py pano blender/renders/pano8k_<i>.png 8192 16 <i>/8` for i = 0–7. Each strip is a narrow band of latitude, because a full 8192-wide frame ran out of memory on the 7 GB build machine. Then `python3 blender/make_pano_assets.py blender/renders/pano8k_{0..7}.png` makes the files in `assets/workshop-3d/`.
+- **Rendering cost.** One sphere, one screen panel, one drone sprite, three dog sprites and the ball. The dogs are always doing something, so frames are drawn continuously unless scenery is paused, reduced motion is on, the tab is hidden or the PC is open. Then the page only wakes every 30 s to keep the clock current.
+- **Rebuilding the files** (`blender/`):
+  - The 360 render: `NODOGS=1 python render.py pano renders/pano8k_<i>.png 8192 16 <i>/16` for i = 0–15. Each strip is a narrow band of latitude, because a full 8192-wide frame ran out of memory on the 7 GB build machine. Then run `python3 make_pano_assets.py renders/pano8k_{0..15}.png`.
+  - The monitor mask: `python render_monitor_mask.py ../assets/workshop-3d/monitor-mask.png`.
+  - The depth map: `python render_depth.py ../assets/workshop-3d/depth.png 4096 40`.
+  - The floor grid: `python nav_grid.py ../assets/workshop-3d/nav.json`.
+  - The dogs: `python dog_sprites.py <dir> 320 24`, then `python3 make_dog_atlases.py <dir>`.
 
 Checked on 22 November 2026 in headless Chrome with **software** WebGL (SwiftShader, 2 CPU cores, no GPU):
 - The 8K tiles loaded on desktop and the 4K halves on a 390 × 844 touch viewport.

@@ -1,4 +1,5 @@
 import { advanceRemote } from './remote-input.js';
+import { constrainFlight, constrainWide } from './drone-control.js';
 const panel = document.querySelector('#drone-panel');
 const position = document.querySelector('#flight-stick'), bank = document.querySelector('#bank-stick');
 const x = document.querySelector('#drone-x'), y = document.querySelector('#drone-y'), angle = document.querySelector('#drone-angle');
@@ -21,7 +22,9 @@ function tick(now) {
   if (panel.hidden || document.hidden) { stop(); return; }
   const a = axes(), dt = previous ? (now - previous) / 1000 : 0; previous = now;
   if (a.x || a.y || a.bank) {
-    const next = advanceRemote({x:+x.value,y:335-Number(y.value),angle:Number(angle.value)*Math.PI/180},a,dt);
+    // data-zone="wide" (the 360 view): the whole sky, flown faster
+    const wide = panel.dataset.zone === 'wide';
+    const next = advanceRemote({x:+x.value,y:335-Number(y.value),angle:Number(angle.value)*Math.PI/180},a,dt,wide?constrainWide:constrainFlight,wide?2.2:1);
     x.value=next.x; y.value=335-next.y; angle.value=next.angle*180/Math.PI;
     x.dispatchEvent(new Event('input', {bubbles:true}));
   }

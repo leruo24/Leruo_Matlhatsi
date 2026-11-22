@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { dirToUv, photoDir, homeView, MONITOR_QUAD, PANO } from '../js/pano-view.js';
-import { FLIGHT_ZONE } from '../js/drone-control.js';
+import { dirToUv, photoDir, droneDir, homeView, MONITOR_QUAD, PANO, AUTOPILOT_ZONE, decodeDepth } from '../js/pano-view.js';
+import { constrainWide, WIDE_ZONE } from '../js/drone-control.js';
 import { existsSync } from 'node:fs';
 
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} vs ${b}`);
@@ -50,15 +50,26 @@ test('the monitor is in front, faces the eye and is fully visible in the home vi
   }
 });
 
-test('the drone flight zone is in view at home on a landscape screen', () => {
-  const cam = homeCamera(16 / 9);
-  for (const x of [FLIGHT_ZONE.left, FLIGHT_ZONE.right]) for (const y of [FLIGHT_ZONE.top, FLIGHT_ZONE.bottom]) {
-    assert.ok(onScreen(cam, photoDir(x, y).multiplyScalar(9).toArray()), `drone at ${x},${y}`);
+test('the autopilot keeps the drone in the home view; the remote can take it all the way round', () => {
+  const cam = homeCamera(1670 / 942);
+  for (const x of [AUTOPILOT_ZONE.left, AUTOPILOT_ZONE.right]) for (const y of [AUTOPILOT_ZONE.top, AUTOPILOT_ZONE.bottom]) {
+    assert.ok(onScreen(cam, droneDir(x, y).multiplyScalar(12).toArray()), `drone at ${x},${y}`);
   }
+  const back = droneDir(WIDE_ZONE.right, 200); assert.ok(back.z > 0.99 * Math.cos(Math.asin(back.y)), 'right edge of the zone is straight behind');
+  const low = droneDir(835, WIDE_ZONE.bottom), high = droneDir(835, WIDE_ZONE.top);
+  near(THREE.MathUtils.radToDeg(Math.asin(low.y)), 50 / 1000 * 180 / Math.PI, 1e-6); assert.ok(high.y > low.y);
+  assert.deepEqual(constrainWide(99999, -99999, 9), { x: WIDE_ZONE.right, y: WIDE_ZONE.top, angle: Math.PI / 4 });
+});
+
+test('depth decoding: 16 bits, logarithmic between 0.2 m and 30 km, white is sky', () => {
+  near(decodeDepth(0, 0), 0.2, 1e-9);
+  assert.equal(decodeDepth(255, 255), Infinity);
+  const t = Math.log(3 / 0.2) / Math.log(150000), q = Math.round(t * 65535);
+  near(decodeDepth(q >> 8, q & 255), 3, 3 * 1e-4);
 });
 
 test('every panorama file the viewer asks for is in the repository', () => {
-  for (const f of [PANO.low, ...PANO.mid, ...PANO.high, 'monitor-mask.png']) {
+  for (const f of [PANO.low, ...PANO.mid, ...PANO.high, 'monitor-mask.png', 'depth.png', 'nav.json', 'dogs.json']) {
     assert.ok(existsSync(new URL('../assets/workshop-3d/' + f, import.meta.url)), f);
   }
 });

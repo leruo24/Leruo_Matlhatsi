@@ -43,6 +43,18 @@ Not used:
 The approved photo isn't physically consistent. The desk only reads as 0.76 m high if the camera is about 1.6 m up, the dogs and the console come out oversized, and the gravel yard sits above the horizon line. So this scene keeps the photo's arrangement and camera angle but uses real-world sizes, with a yard that rises gently.
 
 ## Status
+Fourth pass (22 November 2026): the dogs walk.
+- `dog_sprites.py` renders each dog as sprite frames for the 360 page: 8 headings × an 8-frame walk cycle (a four-beat walk) and a 4-frame idle with a wagging tail, 320 px, 24 samples.
+  - All three dogs are rebuilt standing, from the golden dog's skeleton with different proportions, ears and tails. The retriever is no longer lying down and the terrier no longer sits.
+  - The skin-modifier body is baked once at rest, because its topology changes when the skeleton moves. It is then skinned to the skeleton's segments (each vertex follows its two nearest). Every fur strand is carried with the triangle it grows from.
+  - Rendered with an orthographic camera looking 25° down, soft workshop light, the scene's AgX settings and a shadow catcher for the contact shadow. That took about 50 minutes on 2 CPU cores.
+- `render.py` with `NODOGS=1` leaves the dogs out of the 360 render. Only the four strips that showed them (8–11 of 16) were re-rendered.
+- `render_depth.py` writes the distance map the page uses for occlusion, and `nav_grid.py` writes the floor grid the dogs walk on.
+- Limits:
+  - The dogs are still the procedural skin-modifier dogs and still look soft-toy-like up close.
+  - The walk is one gait, played faster when they run for the ball.
+  - Their light is a fixed soft key, only dimmed toward the floor's brightness on the page, so they don't cast the scene's hard sun shadows.
+
 Third pass (22 November 2026):
 - The Land Cruiser is rebuilt from a box model to a detailed procedural model, matched to the photo's truck. The snorkel is gone, because the photo shows none.
 - The garage has corrugated cladding, LED battens and a concrete slab, and its open front now faces the camera. The farmhouse and barn faced away from the eye because of an angle bug; that's fixed, and the farmhouse's lit windows now show and reflect in the pond.

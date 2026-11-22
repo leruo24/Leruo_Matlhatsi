@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createPanoView, homeView, PANO, PANO_DIR } from './pano-view.js';
+import { createDogs } from './dogs.js';
 import { createRenderLoop } from './render-loop.js';
 import { spring, FrameBudget } from './motion.js';
 import { limitYaw, dragYaw, limitPitch, dragPitch, MAX_PITCH } from './yaw.js';
@@ -16,7 +17,27 @@ let ratio = maxRatio, readout = '', paused = false;
 // look state: yaw/pitch are offsets from the home view, which frames the scene like the main experience's photo
 const yaw = { x: 0, v: 0 }, pitch = { x: 0, v: 0 };
 let yawTarget = 0, pitchTarget = 0, drag = null, transition = null, zoom = null;
-let renderer, scene, camera, pano, home = { pitch: 0, yaw: 0, fov: 50 };
+let renderer, scene, camera, pano, dogs, home = { pitch: 0, yaw: 0, fov: 50 };
+// barks only (the main experience's full soundscape is tuned to the photo): the same CC0 recordings,
+// loaded on the first click, panned to where the dog is; off if sound is switched off on the main page
+const sound = {
+  ctx: null, buf: {},
+  start() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    try { if (localStorage.getItem('lm-sound') === 'off') return; } catch {}
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    this.ctx = new AC();
+    for (const n of ['bark1', 'bark2', 'bark3']) fetch(`assets/audio/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a)).then((b) => { this.buf[n] = b; }).catch(() => {});
+  },
+  dog(i, x) {
+    const b = this.buf[['bark1', 'bark2', 'bark3'][i]]; if (!this.ctx || !b) return;
+    const s = this.ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = [1.0, 0.92, 1.12][i];
+    const g = this.ctx.createGain(); g.gain.value = [0.5, 0.55, 0.45][i];
+    const p = this.ctx.createStereoPanner(); p.pan.value = Math.max(-0.9, Math.min(0.9, (x - 835) / 920));
+    s.connect(g).connect(p).connect(this.ctx.destination); s.start();
+  },
+};
+canvas.addEventListener('pointerdown', () => sound.start(), { once: true });
 
 const loop = createRenderLoop(draw, { enabled: () => !document.hidden && !screen.open });
 const wake = () => loop.wake();
@@ -71,15 +92,48 @@ function draw(dt, elapsed) {
       camera.fov = THREE.MathUtils.lerp(transition.f0, transition.f1, e); camera.updateProjectionMatrix();
       if (t === 1) { const done = transition.done; transition = null; done?.(); }
     } else camera.quaternion.copy(lookRotation(yaw.x, pitch.x));
+    if (!transition && !drag && !zoom) followDrone();
     renderer.info.reset();
     pano.update(animating() ? dt : 0, reduced.matches);
+    dogs.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
     renderer.render(scene, camera);
+    drawBubbles();
     reportPerf(elapsed);
   } else canvas.style.backgroundPosition = `${50 - yaw.x / Math.PI * 50}% ${50 + pitch.x / MAX_PITCH * 50}%`;
   const nextReadout = `Turn ${Math.round(yaw.x * 180 / Math.PI)}° · Tilt ${Math.round(pitch.x * 180 / Math.PI)}°`;
   if (nextReadout !== readout) { $('#readout').textContent = nextReadout; readout = nextReadout; }
   const settling = !!transition || Math.abs(yaw.x - yawTarget) > .0001 || Math.abs(yaw.v) > .0001 || Math.abs(pitch.x - pitchTarget) > .0001 || Math.abs(pitch.v) > .0001;
-  return settling || (animating() && !!renderer && droneInView());
+  // the dogs are always doing something (walking, or standing with the tail going)
+  return settling || (animating() && !!renderer && (dogs.ready || droneInView()));
+}
+
+// while you fly the drone, the view turns to keep it in sight
+function followDrone() {
+  if ($('#drone-panel').hidden || !pano.flight.manual) return;
+  const p = pano.drone.position, len = p.length();
+  const az = Math.atan2(-p.x, -p.z), el = Math.asin(p.y / len);
+  const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect);
+  const now = home.yaw + yaw.x, off = Math.atan2(Math.sin(az - now), Math.cos(az - now));
+  if (Math.abs(off) > hfov * 0.3) yawTarget = limitYaw(yaw.x + off - Math.sign(off) * hfov * 0.25);
+  const pnow = home.pitch + pitch.x, poff = el - pnow, vhalf = THREE.MathUtils.degToRad(camera.fov / 2);
+  if (Math.abs(poff) > vhalf * 0.6) pitchTarget = limitPitch(pitch.x + poff - Math.sign(poff) * vhalf * 0.5);
+}
+
+// "Woof!" over a dog that barks
+const bubbles = new Map(), _b = new THREE.Vector3();
+function drawBubbles() {
+  const live = new Set();
+  for (const b of dogs.bubbles()) {
+    live.add(b.name);
+    let el = bubbles.get(b.name);
+    if (!el) { el = Object.assign(document.createElement('div'), { className: 'woof', textContent: 'Woof!' }); el.setAttribute('aria-hidden', 'true'); document.body.append(el); bubbles.set(b.name, el); }
+    _b.copy(b.at).add(new THREE.Vector3(0, b.size * 0.42, 0)).project(camera);
+    const vis = _b.z < 1 && Math.abs(_b.x) < 1.1 && Math.abs(_b.y) < 1.1;
+    el.style.display = vis ? '' : 'none';
+    el.style.transform = `translate(${(_b.x + 1) / 2 * innerWidth}px, ${(1 - _b.y) / 2 * innerHeight}px) translate(-50%, -100%)`;
+    el.style.opacity = String(Math.min(1, b.life * 2));
+  }
+  for (const [name, el] of bubbles) if (!live.has(name)) { el.remove(); bubbles.delete(name); }
 }
 
 const turn = (v) => { if (transition || zoom) return; yawTarget = limitYaw(v); wake(); };
@@ -97,11 +151,12 @@ try {
   camera = new THREE.PerspectiveCamera(50, 1, .05, 200);
   const manager = new THREE.LoadingManager(() => { status.textContent = coarse ? 'Ready.' : 'Ready · arrow keys look around, Home re-centres.'; wake(); });
   const loader = new THREE.TextureLoader(manager);
-  pano = createPanoView({ scene, loader, renderer, onChange: wake });
+  pano = createPanoView({ scene, loader, renderer, camera, onChange: wake });
+  dogs = createDogs({ scene, camera, renderer, onChange: wake, sound });
   resize();
-  $('#drone-btn').hidden = false; $('#pause').hidden = false;
+  $('#drone-btn').hidden = false; $('#pause').hidden = false; $('#ball').hidden = false;
   setInterval(wake, 30000);   // keeps the monitor's clock current while nothing moves
-  if (params.has('debug')) window.__room = { THREE, pano, renderer, scene, camera };
+  if (params.has('debug')) window.__room = { THREE, pano, dogs, renderer, scene, camera };
 } catch (error) {
   console.warn('3D room unavailable', error);
   renderer?.dispose(); renderer = null; pano = null;
@@ -115,20 +170,36 @@ canvas.addEventListener('pointerdown', (e) => { if (transition || zoom) return; 
 canvas.addEventListener('pointermove', (e) => {
   if (drag?.id === e.pointerId) { turn(dragYaw(drag.yaw, e.clientX - drag.x, innerWidth)); tilt(dragPitch(drag.pitch, e.clientY - drag.y, innerHeight)); return; }
   if (!pano || transition || zoom || e.pointerType !== 'mouse') return;
-  canvas.style.cursor = hitDevice(e) ? 'pointer' : '';
+  const hit = hitDevice(e);
+  canvas.style.cursor = hit ? 'pointer' : '';
+  canvas.title = hit?.startsWith('dog:') ? 'Call the dog' : hit ? 'Use the computer' : '';
 });
+function rayAt(e) { const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera); return ray; }
 function hitDevice(e) {
-  const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera);
+  const ray = rayAt(e);
+  const dog = dogs?.ready ? dogs.pick(ray) : -1;
+  if (dog >= 0) return `dog:${dog}`;
   return ray.intersectObjects(pano.devices)[0]?.object.userData.device;
 }
+// a floor point under the pointer (Blender floor coordinates), for throwing the ball there
+function floorAt(e) {
+  const ray = rayAt(e).ray;
+  if (ray.direction.y > -0.02) return null;
+  const t = -1.6 / ray.direction.y, x = ray.direction.x * t, y = -ray.direction.z * t;
+  return Math.hypot(x, y) < 14 ? [x, y] : null;
+}
+const NAMES = ['golden', 'retriever', 'terrier'];
 canvas.addEventListener('pointerup', (e) => {
   if (!drag || transition || zoom || !pano || Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) return;
-  const kind = hitDevice(e); if (kind) openDevice(kind);
+  const kind = hitDevice(e);
+  if (kind?.startsWith('dog:')) { const i = Number(kind.slice(4)); dogs.greet(i); status.textContent = `The ${NAMES[i] === 'golden' ? 'golden dog' : NAMES[i]} is coming over.`; wake(); return; }
+  if (kind) openDevice(kind);
 });
+canvas.addEventListener('dblclick', (e) => { const p = floorAt(e); if (p && throwBall(p)) e.preventDefault(); });
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(ev, () => { drag = null; });
 addEventListener('keydown', (e) => {
   if (!$('#drone-panel').hidden || transition || screen.open || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
-  const k = { ArrowLeft: () => turn(yawTarget + .15), ArrowRight: () => turn(yawTarget - .15), ArrowUp: () => tilt(pitchTarget + .15), ArrowDown: () => tilt(pitchTarget - .15), Home: centre }[e.key];
+  const k = { ArrowLeft: () => turn(yawTarget + .15), ArrowRight: () => turn(yawTarget - .15), ArrowUp: () => tilt(pitchTarget + .15), ArrowDown: () => tilt(pitchTarget - .15), Home: centre, b: () => throwBall(), B: () => throwBall() }[e.key];
   if (k) { e.preventDefault(); k(); }
 });
 $('#left').onclick = () => turn(yawTarget + Math.PI / 4);
@@ -157,9 +228,23 @@ screen.addEventListener('close', () => {
   rotateTo(lookRotation(yaw.x, pitch.x), home.fov, () => { zoom = null; });
 });
 
+/* ---- the dogs: fetch ---- */
+function throwBall(target) {
+  if (!dogs?.ready || transition || zoom) return false;
+  try { sound.start(); } catch {}
+  const ok = dogs.throwBall(target);
+  status.textContent = ok ? 'Ball thrown. The first dog to reach it brings it back.' : 'Nowhere clear to throw it there.';
+  wake(); return ok;
+}
+$('#ball').onclick = () => throwBall();
+
 /* ---- scenery pause and the drone ---- */
 $('#pause').onclick = () => { paused = !paused; $('#pause').setAttribute('aria-pressed', String(paused)); $('#pause').textContent = paused ? 'Resume scenery' : 'Pause scenery'; wake(); };
 const panel = $('#drone-panel'), droneBtn = $('#drone-btn');
+// the 360 view lets the drone go all the way round (see drone-control.js WIDE_ZONE)
+panel.dataset.zone = 'wide';
+$('#drone-x').min = String(835 - 3141); $('#drone-x').max = String(835 + 3141);
+$('#drone-y').min = String(335 - 317); $('#drone-y').max = String(335 + 183);
 function syncFlight() {
   if (!pano) return;
   const f = pano.flight;
