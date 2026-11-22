@@ -1,7 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { createRoom, homeView, photoInView as photoRegion } from './room.js';
-import { createLivePhoto, PHOTO } from './photo-layer.js';
+import { createPanoView, homeView, PANO, PANO_DIR } from './pano-view.js';
 import { createRenderLoop } from './render-loop.js';
 import { spring, FrameBudget } from './motion.js';
 import { limitYaw, dragYaw, limitPitch, dragPitch, MAX_PITCH } from './yaw.js';
@@ -13,16 +11,16 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const coarse = matchMedia('(pointer: coarse)').matches;
 const maxRatio = Math.min(devicePixelRatio, coarse ? 1.25 : 1.5);
 const budget = new FrameBudget(maxRatio);
-let ratio = maxRatio, readout = '', paused = false, photoInView = true;
+let ratio = maxRatio, readout = '', paused = false;
 
-// look state: yaw/pitch are offsets from the home view, which frames the photo like the main experience
+// look state: yaw/pitch are offsets from the home view, which frames the scene like the main experience's photo
 const yaw = { x: 0, v: 0 }, pitch = { x: 0, v: 0 };
 let yawTarget = 0, pitchTarget = 0, drag = null, transition = null, zoom = null;
-let renderer, scene, camera, room, live, home = { pitch: 0, yaw: 0, fov: 50 };
+let renderer, scene, camera, pano, home = { pitch: 0, yaw: 0, fov: 50 };
 
 const loop = createRenderLoop(draw, { enabled: () => !document.hidden && !screen.open });
 const wake = () => loop.wake();
-const animating = () => !!live && !paused && !reduced.matches;
+const animating = () => !!pano && !paused && !reduced.matches;
 
 /* ---- performance readout (?perf): measured, not promised ---- */
 const perf = params.has('perf') ? Object.assign(document.createElement('pre'), { id: 'perf' }) : null;
@@ -46,20 +44,16 @@ function resize() {
   renderer.setSize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
   home = homeView(camera.aspect);
-  live?.resize(innerWidth * ratio, innerHeight * ratio);
   if (!zoom) camera.fov = home.fov;
   camera.updateProjectionMatrix(); wake();
 }
 
-// which part of the photo is on screen right now (image px), and at what resolution
-const _d = new THREE.Vector3();
-let coreCovers = false;
-function visiblePhotoRect() {
-  const v = photoRegion(camera, room.coreBounds);
-  coreCovers = !!v?.covers;
-  if (!v) return null;
-  const scale = Math.min(1.5, (innerHeight * ratio / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / PHOTO.F);
-  return [...v.rect, scale];
+// the drone only needs frames while it's on screen
+const frustum = new THREE.Frustum(), _m = new THREE.Matrix4();
+function droneInView() {
+  camera.updateMatrixWorld();
+  frustum.setFromProjectionMatrix(_m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  return frustum.containsPoint(pano.drone.position);
 }
 
 function lookRotation(y, p) { return new THREE.Quaternion().setFromEuler(new THREE.Euler(home.pitch + p, home.yaw + y, 0, 'YXZ')); }
@@ -69,7 +63,7 @@ function draw(dt, elapsed) {
   else { spring(yaw, yawTarget, 10, dt); spring(pitch, pitchTarget, 10, dt); }
   if (renderer) {
     const next = budget.sample(elapsed);
-    if (Math.abs(next - ratio) > .001) { ratio = next; renderer.setPixelRatio(ratio); renderer.setSize(innerWidth, innerHeight); live?.resize(innerWidth * ratio, innerHeight * ratio); }
+    if (Math.abs(next - ratio) > .001) { ratio = next; renderer.setPixelRatio(ratio); renderer.setSize(innerWidth, innerHeight); }
     if (transition) {
       transition.time += Math.min(elapsed, 0.25);   // real time, so a slow device still finishes in about a second
       const t = reduced.matches ? 1 : Math.min(1, transition.time / .9), e = t * t * (3 - 2 * t);
@@ -78,22 +72,14 @@ function draw(dt, elapsed) {
       if (t === 1) { const done = transition.done; transition = null; done?.(); }
     } else camera.quaternion.copy(lookRotation(yaw.x, pitch.x));
     renderer.info.reset();
-    if (live) {
-      camera.updateMatrixWorld();
-      const r = window.__room?.flags.nolive ? null : visiblePhotoRect();
-      photoInView = !!r;
-      if (r) live.update(animating() ? dt : 0, reduced.matches);
-      room.shellUniforms.uLiveOn.value = r && live.render(r[0], r[1], r[2], r[3], r[4]) ? 1 : 0;
-      // when the photo's opaque core fills the view, the modelled room behind it isn't drawn at all
-      room.setModelVisible(!(r && coreCovers));
-    }
+    pano.update(animating() ? dt : 0, reduced.matches);
     renderer.render(scene, camera);
     reportPerf(elapsed);
   } else canvas.style.backgroundPosition = `${50 - yaw.x / Math.PI * 50}% ${50 + pitch.x / MAX_PITCH * 50}%`;
   const nextReadout = `Turn ${Math.round(yaw.x * 180 / Math.PI)}° · Tilt ${Math.round(pitch.x * 180 / Math.PI)}°`;
   if (nextReadout !== readout) { $('#readout').textContent = nextReadout; readout = nextReadout; }
   const settling = !!transition || Math.abs(yaw.x - yawTarget) > .0001 || Math.abs(yaw.v) > .0001 || Math.abs(pitch.x - pitchTarget) > .0001 || Math.abs(pitch.v) > .0001;
-  return settling || (animating() && photoInView);
+  return settling || (animating() && !!renderer && droneInView());
 }
 
 const turn = (v) => { if (transition || zoom) return; yawTarget = limitYaw(v); wake(); };
@@ -102,30 +88,25 @@ const centre = () => { if (transition || zoom) return; yawTarget = 0; pitchTarge
 
 try {
   if (params.has('nowebgl')) throw new Error('WebGL disabled for testing');
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('debug') });
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('debug') });
   renderer.setPixelRatio(maxRatio);
-  // no tone curve: surfaces sampled from the photo keep the photo's colours under matched light
+  // the panorama is already display-ready (Blender's AgX view): no tone curve, no colour conversion
   renderer.toneMapping = THREE.NoToneMapping;
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
   renderer.info.autoReset = false;
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xd9b89c, 45, 110);
   camera = new THREE.PerspectiveCamera(50, 1, .05, 200);
-  const manager = new THREE.LoadingManager(() => { renderer.shadowMap.needsUpdate = true; status.textContent = coarse ? 'Ready.' : 'Ready · arrow keys look around, Home re-centres.'; wake(); });
+  const manager = new THREE.LoadingManager(() => { status.textContent = coarse ? 'Ready.' : 'Ready · arrow keys look around, Home re-centres.'; wake(); });
   const loader = new THREE.TextureLoader(manager);
-  live = createLivePhoto({ renderer, loader });
-  room = createRoom({ scene, loader, gltf: new GLTFLoader(manager), photoTexture: live, maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
-  room.onChange = () => { renderer.shadowMap.needsUpdate = true; wake(); };
-  camera.position.copy(room.eye);
-  renderer.shadowMap.needsUpdate = true;
+  pano = createPanoView({ scene, loader, renderer, onChange: wake });
   resize();
   $('#drone-btn').hidden = false; $('#pause').hidden = false;
-  if (params.has('debug')) window.__room = { THREE, room, live, renderer, scene, camera, flags: {} };
+  setInterval(wake, 30000);   // keeps the monitor's clock current while nothing moves
+  if (params.has('debug')) window.__room = { THREE, pano, renderer, scene, camera };
 } catch (error) {
   console.warn('3D room unavailable', error);
-  renderer?.dispose(); renderer = null; live = null;
-  canvas.style.background = 'url(assets/panorama/workshop-open-door.png) center / auto 150% no-repeat';
-  status.textContent = 'Still panorama fallback: image pan only. The 3D room needs WebGL.';
+  renderer?.dispose(); renderer = null; pano = null;
+  canvas.style.background = `#111811 url(${PANO_DIR + PANO.low}) center / auto 160% repeat-x`;
+  status.textContent = 'Still panorama fallback: image pan only. The live 360° view needs WebGL.';
   wake();
 }
 
@@ -133,15 +114,15 @@ try {
 canvas.addEventListener('pointerdown', (e) => { if (transition || zoom) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw: yawTarget, pitch: pitchTarget }; canvas.setPointerCapture(e.pointerId); canvas.focus(); });
 canvas.addEventListener('pointermove', (e) => {
   if (drag?.id === e.pointerId) { turn(dragYaw(drag.yaw, e.clientX - drag.x, innerWidth)); tilt(dragPitch(drag.pitch, e.clientY - drag.y, innerHeight)); return; }
-  if (!room || transition || zoom || e.pointerType !== 'mouse') return;
+  if (!pano || transition || zoom || e.pointerType !== 'mouse') return;
   canvas.style.cursor = hitDevice(e) ? 'pointer' : '';
 });
 function hitDevice(e) {
   const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera);
-  return ray.intersectObjects(room.devices)[0]?.object.userData.device;
+  return ray.intersectObjects(pano.devices)[0]?.object.userData.device;
 }
 canvas.addEventListener('pointerup', (e) => {
-  if (!drag || transition || zoom || !room || Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) return;
+  if (!drag || transition || zoom || !pano || Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) return;
   const kind = hitDevice(e); if (kind) openDevice(kind);
 });
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(ev, () => { drag = null; });
@@ -161,9 +142,9 @@ function rotateTo(q1, f1, done) { transition = { q0: camera.quaternion.clone(), 
 function openDevice(kind) {
   if (transition || screen.open) return;
   const show = () => { device.title = 'Leruo’s PC'; screen.dataset.kind = kind; device.src = 'os/index.html?embedded=1&crt=0'; screen.showModal(); loop.stop(); };
-  if (!room) { show(); return; }
+  if (!pano) { show(); return; }
   // a camera looks down -Z: Matrix4.lookAt builds that orientation (Object3D.lookAt would face away)
-  const f = room.focus[kind], aim = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(f.position, f.point, camera.up));
+  const f = pano.focus[kind], aim = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(f.position, f.point, camera.up));
   zoom = kind;
   rotateTo(aim, f.fov, show);
 }
@@ -172,7 +153,7 @@ $('#pc').onclick = () => openDevice('pc');
 $('#exit').onclick = () => screen.close();
 screen.addEventListener('close', () => {
   device.src = 'about:blank';
-  if (!room) { wake(); return; }
+  if (!pano) { wake(); return; }
   rotateTo(lookRotation(yaw.x, pitch.x), home.fov, () => { zoom = null; });
 });
 
@@ -180,8 +161,8 @@ screen.addEventListener('close', () => {
 $('#pause').onclick = () => { paused = !paused; $('#pause').setAttribute('aria-pressed', String(paused)); $('#pause').textContent = paused ? 'Resume scenery' : 'Pause scenery'; wake(); };
 const panel = $('#drone-panel'), droneBtn = $('#drone-btn');
 function syncFlight() {
-  if (!live) return;
-  const f = live.flight;
+  if (!pano) return;
+  const f = pano.flight;
   $('#drone-x').value = f.tx; $('#drone-y').value = 335 - f.ty; $('#drone-angle').value = f.angle * 180 / Math.PI;
   $('#drone-auto').setAttribute('aria-pressed', String(!f.manual));
   $('#drone-status').textContent = f.manual ? 'Manual flight · release the sticks to hover.' : 'Autopilot · move either stick to take control.';
@@ -189,15 +170,15 @@ function syncFlight() {
 const closeFlight = () => { panel.hidden = true; droneBtn.setAttribute('aria-expanded', 'false'); };
 droneBtn.onclick = () => {
   if (!panel.hidden) { closeFlight(); return; }
-  live?.pilot.take(); panel.hidden = false; droneBtn.setAttribute('aria-expanded', 'true'); syncFlight(); $('#flight-stick').focus();
+  pano?.pilot.take(); panel.hidden = false; droneBtn.setAttribute('aria-expanded', 'true'); syncFlight(); $('#flight-stick').focus();
   if (yawTarget || pitchTarget) centre();   // the drone flies over the farm, in front of you
 };
 $('#drone-close').onclick = () => { closeFlight(); droneBtn.focus(); };
 for (const id of ['#drone-x', '#drone-y', '#drone-angle']) $(id).addEventListener('input', () => {
-  live?.pilot.set(Number($('#drone-x').value), 335 - Number($('#drone-y').value), Number($('#drone-angle').value)); syncFlight(); wake();
+  pano?.pilot.set(Number($('#drone-x').value), 335 - Number($('#drone-y').value), Number($('#drone-angle').value)); syncFlight(); wake();
 });
-$('#drone-reset').onclick = () => { live?.pilot.reset(); syncFlight(); wake(); };
-$('#drone-auto').onclick = () => { live?.pilot.auto(); syncFlight(); wake(); };
+$('#drone-reset').onclick = () => { pano?.pilot.reset(); syncFlight(); wake(); };
+$('#drone-auto').onclick = () => { pano?.pilot.auto(); syncFlight(); wake(); };
 
 addEventListener('resize', resize);
 reduced.addEventListener?.('change', wake);

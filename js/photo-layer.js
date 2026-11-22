@@ -4,7 +4,8 @@ import { constrainFlight, FLIGHT_ZONE } from "./drone-control.js";
 import { spring, blend } from "./motion.js";
 
 /*
- * Shared by the main photo workshop (world.js) and the 3D preview room (room.js):
+ * Shared by the main photo workshop (world.js), the old 3D preview room (room.js, no longer loaded)
+ * and the 360 view (pano-view.js, lock screen only):
  * the photo's camera, its animated shader, the drone material and the dog animator.
  */
 export const PHOTO = Object.freeze({ W: 1670, H: 942, F: 1000, CX: 835, YH: 367, HC: 1.3, PAR: 0.017, FOCUS_D: 0.3 });
@@ -249,6 +250,21 @@ export const MONITOR = [[847, 392], [1143, 396], [1143, 554], [847, 541]]; // TL
 export const TABLET = [[1114, 553], [1203, 549], [1205, 636], [1112, 640]];
 export const KEEP_ALPHA = { blending: THREE.CustomBlending, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor };
 
+/** The monitor's lock screen (time, date, "Select to sign in") over a crop of the workshop photo. */
+export function drawLockScreen(screenCanvas, wallpaper) {
+    const g = screenCanvas.getContext("2d"), w = screenCanvas.width, h = screenCanvas.height;
+    if (wallpaper.complete && wallpaper.naturalWidth) { g.filter = "brightness(0.82) saturate(1.05)"; g.drawImage(wallpaper, 470, 92, 420, 420 / (w / h), -12, -12, w + 24, h + 24); g.filter = "none"; }
+    else { g.fillStyle = "#24382c"; g.fillRect(0, 0, w, h); }
+    const shade = g.createLinearGradient(0, 0, 0, h);
+    shade.addColorStop(0, "rgba(0,0,0,.35)"); shade.addColorStop(0.45, "rgba(0,0,0,0)"); shade.addColorStop(1, "rgba(0,0,0,.4)");
+    g.fillStyle = shade; g.fillRect(0, 0, w, h);
+    const now = new Date(), pad = (n) => String(n).padStart(2, "0");
+    g.textAlign = "center"; g.fillStyle = "#fff"; g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = 12;
+    g.font = "300 118px 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"; g.fillText(`${pad(now.getHours())}:${pad(now.getMinutes())}`, w / 2, h * 0.33);
+    g.font = "400 26px 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"; g.fillText(now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }), w / 2, h * 0.33 + 44);
+    g.font = "400 17px 'Segoe UI', Arial, sans-serif"; g.globalAlpha = 0.85; g.fillText("Select to sign in", w / 2, h - 34); g.globalAlpha = 1; g.shadowBlur = 0;
+}
+
 export function createLivePhoto({ renderer, loader }) {
   const { W, H } = PHOTO;
   const raw = (t) => { t.colorSpace = THREE.NoColorSpace; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t; };
@@ -286,20 +302,7 @@ export function createLivePhoto({ renderer, loader }) {
   })));
   const wallpaper = new Image(); wallpaper.src = "assets/workshop.jpg";
   let lastMinute = -1;
-  function drawScreen() {
-    const g = screenCanvas.getContext("2d"), w = screenCanvas.width, h = screenCanvas.height;
-    if (wallpaper.complete && wallpaper.naturalWidth) { g.filter = "brightness(0.82) saturate(1.05)"; g.drawImage(wallpaper, 470, 92, 420, 420 / (w / h), -12, -12, w + 24, h + 24); g.filter = "none"; }
-    else { g.fillStyle = "#24382c"; g.fillRect(0, 0, w, h); }
-    const shade = g.createLinearGradient(0, 0, 0, h);
-    shade.addColorStop(0, "rgba(0,0,0,.35)"); shade.addColorStop(0.45, "rgba(0,0,0,0)"); shade.addColorStop(1, "rgba(0,0,0,.4)");
-    g.fillStyle = shade; g.fillRect(0, 0, w, h);
-    const now = new Date(), pad = (n) => String(n).padStart(2, "0");
-    g.textAlign = "center"; g.fillStyle = "#fff"; g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = 12;
-    g.font = "300 118px 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"; g.fillText(`${pad(now.getHours())}:${pad(now.getMinutes())}`, w / 2, h * 0.33);
-    g.font = "400 26px 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"; g.fillText(now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }), w / 2, h * 0.33 + 44);
-    g.font = "400 17px 'Segoe UI', Arial, sans-serif"; g.globalAlpha = 0.85; g.fillText("Select to sign in", w / 2, h - 34); g.globalAlpha = 1; g.shadowBlur = 0;
-    screenTex.needsUpdate = true;
-  }
+  function drawScreen() { drawLockScreen(screenCanvas, wallpaper); screenTex.needsUpdate = true; }
   wallpaper.onload = () => { lastMinute = -1; };
 
   // depth on the CPU for the farm's sprinkler heads

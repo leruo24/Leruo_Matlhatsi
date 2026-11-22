@@ -65,52 +65,33 @@ The intro headline is `intro.headline` in `os/content.js`, and the intro images 
 
 ## 3D preview room (`look-around.html`)
 
-A preview of the workshop as a room you can turn around in. It's linked from the main experience as "3D preview" and labelled "in production" until it looks as good as the photo.
+A preview of the workshop that you can turn all the way round in. It's linked from the main experience as "3D preview" and labelled "in production".
 
-How it's built (`js/room.js`, `js/look-around.js`, shared code in `js/photo-layer.js`):
-- **The eye stays where the photo was taken** (1.3 m up) and only turns. The photo is mapped onto a shell from that exact point, so it's pixel-exact at every angle and objects can't drift between views.
-- **The photo is live.** It uses the same shader as the main experience: pond, trees, grass, clouds, dogs (blinks, ears, tail, head tilt), grazing cows, working sprinklers, the lit monitor, and the drone. The drone has the same sky controller.
-- **A thin generated margin** (LaMa: 60 px left, 40 px right, 40 px above, 60 px below) gives the photo's edges room to fade. Further out the generated pixels smeared, so modelled geometry takes over there (see "Seam pass" below).
-- **Everything the photo never saw is modelled:**
-  - Side, back and front walls, with planks sampled from the photo's wall.
-  - Ceiling and rafters, and a concrete floor tinted to the photo's floor.
-  - The open glass sliding door in the right wall, with a meadow, sky and the farm's tree line outside.
-  - Poly Haven props: steel shelving, a table, a stool, crates, boxes, a jug and a lantern.
-  - Each edge fades into the modelled room over 60–80 px.
-- **Light is matched to the photo:** a low warm sun from the front left (from the sun's position in the photo), a warm sky/bounce light and a workshop lamp. There's no tone curve, so textures sampled from the photo keep its colours.
-- **The PC:** select the monitor or Enter computer. The view turns and zooms to the screen without moving, then opens LeruOS. The tablet remains decorative; Field Notes has been removed.
-- **Rendering cost:**
-  - Only the part of the photo that's on screen is rendered, at screen resolution.
-  - While the photo fills the view, the modelled room isn't drawn.
-  - Pixel ratio adapts to sustained load.
-  - Reduced-motion and "Pause scenery" stop the animation.
-  - Without WebGL, a still image is shown.
+Since 22 November 2026 the page shows a 360° render of the Blender scene in `blender/`, instead of the photo stitched onto a modelled three.js room. That approach left a visible seam where the photo met the model. Now the whole view comes from one scene, with one light and one camera height. The look comes from the render, not from the approved photo: it is CG, and the dogs in particular still read as soft toys (see `blender/README.md`).
 
-### Measuring performance
+How it's built (`js/pano-view.js`, `js/look-around.js`):
+- **One eye, turning only.** The 360° image is rendered in Blender from the same eye as the photo-matched camera. The page shows it on a sphere around the camera. The camera only turns, so anything placed at its real position in the scene lines up with the render exactly.
+- **Loading.** A 2048 × 1024 preview appears first. Then the sharp version loads: 8192 × 4096 in four 2048 × 4096 quarters on desktops, or 4096 × 2048 in two halves on touch devices and GPUs limited to 4096 px textures.
+- **The PC.** The monitor's lock screen (live time and date) is drawn on a flat panel at the screen's real position, exported from the Blender file (`MONITOR_QUAD`). Part of the screen is hidden behind the chair. A mask rendered in Blender (`assets/workshop-3d/monitor-mask.png`, from `blender/render_monitor_mask.py`) cuts the panel so the chair stays in front. Select the monitor, or press Enter computer, to turn and zoom to the screen and open LeruOS.
+- **The drone** uses the same autopilot, flight zone and two-stick remote as the main experience. Its photo-space position becomes a direction from the eye, and it flies 9 m out over the yard. Pause scenery and reduced motion stop it.
+- **Unchanged:** dragging, the arrow keys and on-screen pad, Home to re-centre, `?perf` and `?debug`. Without WebGL the page pans the 2048-px panorama as a still image.
+- **Rendering cost.** One sphere, one screen panel and one drone sprite. Frames are only drawn while the view moves or the drone is on screen; otherwise the page wakes every 30 s to keep the clock current.
+- **Rebuilding the images.** Render with `python blender/render.py pano blender/renders/pano8k_<i>.png 8192 16 <i>/8` for i = 0–7. Each strip is a narrow band of latitude, because a full 8192-wide frame ran out of memory on the 7 GB build machine. Then `python3 blender/make_pano_assets.py blender/renders/pano8k_{0..7}.png` makes the files in `assets/workshop-3d/`.
 
-Add `?perf` to the URL (e.g. `look-around.html?perf`) to show frame rate, frame time, 95th-percentile frame time, draw calls, triangles and pixel ratio, measured live. Please check it on your own devices; numbers from my test machine (below) don't predict real ones.
+Checked on 22 November 2026 in headless Chrome with **software** WebGL (SwiftShader, 2 CPU cores, no GPU):
+- The 8K tiles loaded on desktop and the 4K halves on a 390 × 844 touch viewport.
+- Turning left, right and to the back works.
+- Hovering the monitor shows a pointer, and clicking it opens LeruOS. Back to look-around returns.
+- The drone remote flies the drone.
+- `?nowebgl` shows the still fallback.
+- There were no console errors and no failed requests.
+- `?perf` at 1600 × 900: 3 draw calls and 9,028 triangles, 12.7–16.9 fps with the pixel ratio adapting down to 0.6–0.9. That is software rendering; real-GPU numbers are unmeasured.
 
-Last measured in headless Chrome with **software** WebGL (SwiftShader on 2 CPU cores, no GPU). Absolute numbers are far below a real GPU; only the comparison means something:
-
-| View | Main experience | 3D preview room |
-| --- | --- | --- |
-| Desktop 1440×810, home view | 3.4 fps | 3.5 fps (10 draw calls) |
-| Phone 390×844 @3×, home view | 29.4 fps | 30.5 fps |
-| Desktop, looking left or right (photo plus room) | n/a | 1.6–2.0 fps (20–31 draw calls) |
-| Desktop, looking at the back wall (room only) | n/a | 0.4 fps (64 draw calls, 53k triangles) |
-
-The back of the room is the heaviest view in software rendering. Real-GPU numbers are still unmeasured.
-
-### What still doesn't match the photo (honest gaps)
-
-- **No 3D models of the photo's subjects.** I couldn't reach free photoreal models of the dogs, cows, Land Cruiser, sports cars, trees, drone, gaming chair, monitor, console or tablet from here. Poly Haven, Sketchfab and similar sites are blocked from my build machine; only workshop props were reachable, through a mirror. Those subjects stay part of the live photo. That's correct from the fixed eye, but you can't walk around them.
-- **The thin generated margin** is slightly softer than the photo next to it.
-- **The seams are still visible.** See "Seam pass" below for what was measured, what was fixed and what's left.
-- **Simple outdoor view.** Procedural ridges, a tree line and a pond in the photo's colours. It doesn't repeat, but it's plainer than the photo.
-- **The floor is a flat plane** with low-amplitude variation. The walls and ceiling are individual boards.
+The old room modules (`js/room.js`, `js/room-seam.js`, `js/room-detail.js` and their tests) are still in the repository, but the page no longer loads them. The notes further down about the seam, room revisions and measured frame rates describe that earlier version.
 
 ### Asset sources and licences
 
+- `assets/workshop-3d/`: rendered from the Blender scene in `blender/`. The models and textures in that scene, with their sources and licences, are listed in `blender/README.md`.
 - `assets/models/*.glb`: Poly Haven models, CC0, from the `ezEngine/store-sample` mirror. Converted to GLB and decimated with glTF-Transform. Sources: `steel_frame_shelves_01` (scaled 0.1, the mirror's copy is in decimetres), `wooden_stool_01`, `wooden_crate_01`, `cardboard_box_01`, `jug_01`, `Lantern_01`.
 - `assets/room/photo-wide.jpg`: the workshop photo plus a thin LaMa-outpainted margin (cropped from the earlier wide version).
 - `assets/room/grass.jpg`: patch-synthesised from the photo's meadow.

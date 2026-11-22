@@ -3,7 +3,8 @@ Render a view of blender/workshop.blend.
     python blender/render.py front  out.png [width] [samples]
     python blender/render.py pano   out.png [width] [samples] [tile i/n]
 'front' uses the camera matched to the approved photo; 'pano' is the 360-degree view from the
-same eye. Long renders can be split into horizontal tiles ("tile 0/4") and stitched afterwards.
+same eye. Long renders can be split into horizontal strips ("tile 0/4", top first), each rendered
+as a narrow band of latitude, and stitched with make_pano_assets.py.
 """
 import os, sys, time
 import bpy
@@ -22,14 +23,20 @@ s.render.resolution_y = round(width * 942 / 1670) if view == 'front' else width 
 s.render.resolution_percentage = 100
 s.cycles.samples = samples
 s.cycles.use_adaptive_sampling = True
+s.cycles.tile_size = 1024   # smaller tiles keep peak memory down on the 7 GB build machine
 s.cycles.max_bounces = 6; s.cycles.diffuse_bounces = 3; s.cycles.glossy_bounces = 3; s.cycles.transmission_bounces = 6
 s.render.film_transparent = False
 s.render.image_settings.file_format = 'PNG'
 if tile:
+    # each strip is its own render: the camera's latitude range is narrowed to the strip, so memory
+    # scales with the strip (a full 8192-wide frame with a render border ran out of memory)
+    import math
     i, n = map(int, tile.split('/'))
-    s.render.use_border = True; s.render.use_crop_to_border = False
-    s.render.border_min_x, s.render.border_max_x = 0, 1
-    s.render.border_min_y, s.render.border_max_y = 1 - (i + 1) / n, 1 - i / n
+    cam = s.camera.data
+    top = math.pi / 2 - math.pi * i / n
+    cam.latitude_max, cam.latitude_min = top, top - math.pi / n
+    cam.longitude_min, cam.longitude_max = -math.pi, math.pi
+    s.render.resolution_y = (width // 2) // n
 s.render.filepath = out
 t = time.time()
 bpy.ops.render.render(write_still=True)
