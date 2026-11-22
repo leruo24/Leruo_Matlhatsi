@@ -1,4 +1,5 @@
 """Procedural Cycles materials for the workshop: no photo textures, so nothing stretches or repeats."""
+import math
 import bpy
 
 
@@ -188,6 +189,31 @@ def add_haze(m, color=(0.86, 0.70, 0.60), distance=5000.0, strength=0.11):
     return m
 
 
+def corrugated(name, color, along='xy', pitch=0.076, rough=0.42, metal=0.75):
+    """Corrugated sheeting: a sine profile in the bump, ribs running vertically on walls (along='xy')
+    or down the slope of a gable roof (along='y')."""
+    m, nt, b = _new(name); _set(b, color=color, rough=rough, metal=metal)
+    tc = nt.nodes.new('ShaderNodeTexCoord'); sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+    nt.links.new(tc.outputs['Object'], sep.inputs[0])
+    if along == 'xy':
+        add = nt.nodes.new('ShaderNodeMath'); add.operation = 'ADD'
+        nt.links.new(sep.outputs['X'], add.inputs[0]); nt.links.new(sep.outputs['Y'], add.inputs[1]); src = add.outputs[0]
+    else:
+        src = sep.outputs['Y']
+    mul = nt.nodes.new('ShaderNodeMath'); mul.operation = 'MULTIPLY'; mul.inputs[1].default_value = 2 * math.pi / pitch
+    nt.links.new(src, mul.inputs[0])
+    sn = nt.nodes.new('ShaderNodeMath'); sn.operation = 'SINE'; nt.links.new(mul.outputs[0], sn.inputs[0])
+    _bump(nt, b, sn.outputs[0], strength=0.6, distance=0.01)
+    # light weathering streaks
+    n = nt.nodes.new('ShaderNodeTexNoise'); n.inputs['Scale'].default_value = 3.0; n.inputs['Detail'].default_value = 8
+    mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (6.0, 6.0, 0.4)
+    nt.links.new(tc.outputs['Object'], mp.inputs['Vector']); nt.links.new(mp.outputs['Vector'], n.inputs['Vector'])
+    mx = nt.nodes.new('ShaderNodeMix'); mx.data_type = 'RGBA'; mx.inputs['A'].default_value = (*color, 1)
+    mx.inputs['B'].default_value = (color[0] * 0.75, color[1] * 0.73, color[2] * 0.7, 1)
+    nt.links.new(n.outputs['Fac'], mx.inputs['Factor']); nt.links.new(mx.outputs['Result'], b.inputs['Base Color'])
+    return m
+
+
 def emission(name, color, strength):
     m = bpy.data.materials.new(name); m.use_nodes = True
     nt = m.node_tree; nt.nodes.clear()
@@ -249,5 +275,5 @@ def all_materials():
         'water': water('Pond water'),
         'terrain': add_haze(terrain('Terrain'), distance=2500.0),
         'mountain': add_haze(mountain('Mountains'), color=(0.62, 0.52, 0.55), distance=16000.0),
-        'corrugated': plain('Roof sheeting', (0.35, 0.36, 0.37), rough=0.4, metal=0.8),
+        'corrugated': corrugated('Roof sheeting', (0.35, 0.36, 0.37), along='y'),
     }

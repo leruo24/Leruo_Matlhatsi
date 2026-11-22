@@ -13,7 +13,7 @@ Build and render with Blender's Python module (`pip install bpy==5.3.0`, Python 
 - `materials.py`: procedural Cycles materials (concrete, straight-grain timber, gravel, water, distance haze). The ground uses photo textures from `assets.py`.
 - `props.py`: the building, desk setup, ESP32 bench, whiteboard wall, terrain, pond and mountains.
 - `nature.py`: procedural trees with leaf cards, fences, the garage, barn and tank, the farmhouse, and the distant skyline.
-- `vehicles.py`: the Land Cruiser 79 double cab, the orange sports car and the Mustang. They're modelled from real dimensions, with no badges or number plates.
+- `vehicles.py`: the Land Cruiser 79 double cab (separate body panels with 4 mm shut lines, a hollow cab with real glass and seats, black flares, steel bumper, round headlamps, chassis, axles, springs, mud-terrain tyres with tread blocks and multi-spoke wheels), plus the orange mid-engined car and the dark fastback in the garage. All are built from published dimensions, with no badges or number plates.
 - `assets.py`: the free third-party assets: Poly Haven props placed around the room, photo leaf and bark materials for the trees, textured grass and gravel, and grass blades (hair curves) near the workshop.
 - `animals.py`: the three dogs (Skin-modifier bodies with hair-curve fur in their coat colours) and the cows.
 
@@ -43,6 +43,13 @@ Not used:
 The approved photo isn't physically consistent. The desk only reads as 0.76 m high if the camera is about 1.6 m up, the dogs and the console come out oversized, and the gravel yard sits above the horizon line. So this scene keeps the photo's arrangement and camera angle but uses real-world sizes, with a yard that rises gently.
 
 ## Status
+Third pass (22 November 2026):
+- The Land Cruiser is rebuilt from a box model to a detailed procedural model, matched to the photo's truck. The snorkel is gone, because the photo shows none.
+- The garage has corrugated cladding, LED battens and a concrete slab, and its open front now faces the camera. The farmhouse and barn faced away from the eye because of an angle bug; that's fixed, and the farmhouse's lit windows now show and reflect in the pond.
+- The garage and truck have moved so the left of the frame reads like the photo: the garage with both cars, then the truck.
+- The sports cars have arches, glass, tread tyres and lamps. They are still simple shapes.
+- The dog fur is thinner, about four times denser, clumped and patchy. The standing dog's legs are slimmer. The dogs still read as soft toys: their skin-modifier bodies aren't anatomical sculpts, and no free, licence-verified dog model was reachable (download.blender.org is blocked as well).
+
 Second pass (20 November 2026):
 - Poly Haven props at the desk (lamp, plant) and in the rear of the room (cabinet, shelving with crates, boxes, cans, a jug and a lantern, a barrel, a bucket, a stool and a crowbar), plus a plastic chair under the shade tree.
 - A window in the back wall.

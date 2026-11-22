@@ -44,11 +44,14 @@ def hair_material(name, melanin, redness, roughness=0.35):
     h.parametrization = 'MELANIN'
     h.inputs['Melanin'].default_value = melanin; h.inputs['Melanin Redness'].default_value = redness
     h.inputs['Roughness'].default_value = roughness; h.inputs['Radial Roughness'].default_value = 0.4
+    # strand-to-strand variation, as in a real coat
+    for k, v in (('Random Color', 0.18), ('Random Roughness', 0.25)):
+        if k in h.inputs: h.inputs[k].default_value = v
     nt.links.new(h.outputs['BSDF'], out.inputs['Surface'])
     return m
 
 
-def fur(obj, mat, length, count=60000, group=None, flow=(-1.0, 0.0, -0.35), seed=1, short_below=None, **_):
+def fur(obj, mat, length, count=60000, group=None, flow=(-1.0, 0.0, -0.35), seed=1, short_below=None, clump=0.45, **_):
     """Fur as native hair curves: strands sampled over the body by area, lying back along the
     body (flow, in the body's local space) and drooping slightly. Shorter on the face and legs."""
     import numpy as np
@@ -75,15 +78,31 @@ def fur(obj, mat, length, count=60000, group=None, flow=(-1.0, 0.0, -0.35), seed
         L = np.where(P[:, 2] < short_below, L * 0.45, L)
     head_x = co[:, 0].max() - 0.12 * (co[:, 0].max() - co[:, 0].min())
     L = np.where(P[:, 0] > head_x, L * 0.5, L)   # face: short hair
+    # patchy length (a coat is never uniform) and a few longer guard hairs
+    from mathutils import noise as mnoise, kdtree
+    Ln = np.array([mnoise.noise(Vector(p) * 18.0) for p in P])
+    L = L * (1 + 0.35 * Ln) * np.where(rng.random(count) < 0.08, 1.45, 1.0)
+    tips = P + D * L[:, None]
+    # clumping: strands near each other share tip direction, so the coat parts into locks
+    nc = max(50, count // 40)
+    ci = rng.choice(count, nc, replace=False)
+    kd = kdtree.KDTree(nc)
+    for j, i in enumerate(ci): kd.insert(P[i], j)
+    kd.balance()
+    near = np.array([kd.find(p)[1] for p in P])
+    ctip = tips[ci[near]]
+    pull = clump * rng.uniform(0.6, 1.0, count)
     pts = np.zeros((count, 4, 3))
     for k in range(4):
         t = k / 3
-        pts[:, k] = P - N * 0.002 + D * (L * t)[:, None] + np.array([0, 0, -1.0]) * (0.25 * L * t * t)[:, None]
+        own = P - N * 0.002 + D * (L * t)[:, None] + np.array([0, 0, -1.0]) * (0.25 * L * t * t)[:, None]
+        tgt = own + (ctip - tips) * (t ** 1.5)
+        pts[:, k] = own * (1 - pull[:, None] * t) + tgt * (pull[:, None] * t)
     hc = bpy.data.hair_curves.new(obj.name + ' fur')
     hc.add_curves([4] * count)
     hc.position_data.foreach_set('vector', pts.reshape(-1).astype(np.float32))
     rad = hc.attributes.new('radius', 'FLOAT', 'POINT')
-    rad.data.foreach_set('value', np.tile(np.array([0.00045, 0.00035, 0.00022, 0.00006], np.float32), count))
+    rad.data.foreach_set('value', np.tile(np.array([0.00026, 0.0002, 0.00012, 0.00003], np.float32), count))
     hc.materials.append(mat)
     o = bpy.data.objects.new(obj.name + ' fur', hc); bpy.context.scene.collection.objects.link(o)
     o.parent = obj
@@ -108,15 +127,15 @@ def standing_dog(loc, rot):
     E = [('hip', 'spine'), ('spine', 'chest'), ('chest', 'withers'), ('withers', 'neck'), ('neck', 'head'), ('head', 'muzzle'), ('muzzle', 'nosetip'),
          ('hip', 'tail0'), ('tail0', 'tail1'), ('tail1', 'tail2'), ('tail2', 'tail3')]
     for s, tag in ((1, 'l'), (-1, 'r')):
-        J.update({f'fs{tag}': ((0.21, s * 0.08, 0.45), 0.06), f'fe{tag}': ((0.21, s * 0.08, 0.28), 0.045), f'fw{tag}': ((0.22, s * 0.08, 0.07), 0.03), f'fp{tag}': ((0.26, s * 0.08, 0.025), (0.04, 0.035)),
-                  f'hs{tag}': ((-0.29, s * 0.08, 0.44), 0.075), f'hk{tag}': ((-0.22, s * 0.085, 0.29), 0.055), f'hh{tag}': ((-0.35, s * 0.08, 0.13), 0.034), f'hp{tag}': ((-0.31, s * 0.08, 0.025), (0.04, 0.035)),
+        J.update({f'fs{tag}': ((0.21, s * 0.075, 0.45), 0.05), f'fe{tag}': ((0.21, s * 0.075, 0.28), 0.033), f'fw{tag}': ((0.22, s * 0.075, 0.07), 0.022), f'fp{tag}': ((0.255, s * 0.075, 0.022), (0.034, 0.03)),
+                  f'hs{tag}': ((-0.29, s * 0.075, 0.44), 0.07), f'hk{tag}': ((-0.22, s * 0.08, 0.29), 0.042), f'hh{tag}': ((-0.35, s * 0.075, 0.13), 0.025), f'hp{tag}': ((-0.31, s * 0.075, 0.022), (0.034, 0.03)),
                   f'ea{tag}': ((0.43, s * 0.05, 0.85), 0.032), f'et{tag}': ((0.42, s * 0.065, 0.94), 0.007)})
         E += [('chest', f'fs{tag}'), (f'fs{tag}', f'fe{tag}'), (f'fe{tag}', f'fw{tag}'), (f'fw{tag}', f'fp{tag}'),
               ('hip', f'hs{tag}'), (f'hs{tag}', f'hk{tag}'), (f'hk{tag}', f'hh{tag}'), (f'hh{tag}', f'hp{tag}'),
               ('head', f'ea{tag}'), (f'ea{tag}', f'et{tag}')]
     body = skin_body('Golden dog', J, E)
     body.data.materials.append(M.plain('Golden skin', (0.45, 0.28, 0.12), rough=0.8))
-    fur(body, hair_material('Golden short coat', 0.42, 0.78), 0.03, count=90000, short_below=0.3, seed=1)
+    fur(body, hair_material('Golden short coat', 0.42, 0.78), 0.034, count=420000, short_below=0.3, seed=1, clump=0.55)
     g = empty('Golden dog (standing)', loc, rot); body.parent = g
     eyes_and_nose(g, Vector((0.45, 0, 0.78)), Vector((0.07, 0, 0.01)), 0.035, nose=(0.024, Vector((0.635, 0, 0.75))))
     return g
@@ -140,7 +159,7 @@ def lying_dog(loc, rot):
               ('head', f'ea{tag}'), (f'ea{tag}', f'et{tag}')]
     body = skin_body('Retriever', J, E, scale=1.05)
     body.data.materials.append(M.plain('Retriever skin', (0.5, 0.33, 0.15), rough=0.8))
-    fur(body, hair_material('Retriever coat', 0.3, 0.72), 0.06, count=110000, short_below=0.08, seed=2)
+    fur(body, hair_material('Retriever coat', 0.3, 0.72), 0.06, count=480000, short_below=0.08, seed=2, clump=0.5)
     g = empty('Golden retriever (lying)', loc, rot); body.parent = g
     eyes_and_nose(g, Vector((0.43, 0, 0.47)), Vector((0.07, 0, 0.01)), 0.04, r_eye=0.013, nose=(0.026, Vector((0.6, 0, 0.42))))
     return g
@@ -169,8 +188,8 @@ def terrier(loc, rot):
         is_tan = (p.z > 0.33 and p.x < 0.19) or (p.z > 0.4)
         is_tan = is_tan and not (p.x > 0.15 and abs(p.y) < 0.02)   # white blaze down the muzzle
         (tan if is_tan else white).add([v.index], 1.0, 'REPLACE')
-    fur(body, hair_material('Terrier white coat', 0.03, 0.4), 0.014, count=45000, group='white', short_below=0.06, seed=3)
-    fur(body, hair_material('Terrier tan coat', 0.45, 0.85), 0.012, count=15000, group='tan', seed=4)
+    fur(body, hair_material('Terrier white coat', 0.03, 0.4), 0.016, count=200000, group='white', short_below=0.06, seed=3, clump=0.3)
+    fur(body, hair_material('Terrier tan coat', 0.45, 0.85), 0.014, count=70000, group='tan', seed=4, clump=0.3)
     g = empty('Terrier (sitting)', loc, rot); body.parent = g
     eyes_and_nose(g, Vector((0.12, 0, 0.38)), Vector((0.05, 0, 0.005)), 0.026, r_eye=0.009, nose=(0.015, Vector((0.25, 0, 0.36))))
     return g

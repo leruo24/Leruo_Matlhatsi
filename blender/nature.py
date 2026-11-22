@@ -5,6 +5,7 @@ from mathutils import Vector, Matrix, noise
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 from props import _mesh_obj, box, cyl, empty, _height, light_area  # noqa: E402
+import materials as M  # noqa: E402
 
 
 # ---------------------------------------------------------------- materials local to nature
@@ -171,13 +172,19 @@ def gable_building(name, loc, rot, w, d, h, roof_h, wall_mat, roof_mat, door=Non
 
 
 def buildings(m, extra):
-    face = lambda x, y: math.atan2(x, -y) if False else math.atan2(-x, y) + math.pi   # turn the front (-Y) toward the eye
+    face = lambda x, y: math.atan2(-x, y)   # turns a building's front (local -Y) toward the eye at the origin
     # garage at the far left with an open roller door (cars added by vehicles.py)
-    gx, gy = -19.0, 32.0
-    gar = gable_building('Garage', (gx, gy, _height(gx, gy)), face(gx, gy) * 0.6, 7.0, 6.5, 3.0, 0.8, extra['cladding'], m['corrugated'],
+    gx, gy = -18.0, 35.0
+    gar = gable_building('Garage', (gx, gy, _height(gx, gy)), face(gx, gy) - 0.3, 7.0, 6.5, 3.0, 0.8, extra['cladding'], m['corrugated'],
                          open_front=(5.8, 2.5), inner=extra['dark_interior'])
     box('Garage ceiling', (6.7, 6.2, 0.05), (0, 0, 2.98), extra['dark_interior'], bevel=0, parent=gar)
-    lo = light_area('Garage light', (0, 0, 2.6), 3.0, 220, color=(1, 0.86, 0.7)); lo.parent = gar
+    lo = light_area('Garage light', (0, 0, 2.6), 3.0, 260, color=(1, 0.9, 0.78)); lo.parent = gar
+    # LED batten strips on the ceiling, as in the photo, and a concrete floor
+    strip = M.emission('LED batten', (1, 0.93, 0.82), 25.0)
+    for x in (-2.0, 0.0, 2.0):
+        for y in (-1.8, 0.4, 2.2):
+            box('LED batten', (1.2, 0.06, 0.03), (x, y, 2.95), strip, bevel=0, parent=gar)
+    box('Garage slab', (6.7, 6.2, 0.04), (0, 0, 0.06), m['concrete'], bevel=0, parent=gar)
     # barn and water tank in the middle distance
     bx, by = 4.0, 118.0
     gable_building('Barn', (bx, by, _height(bx, by)), face(bx, by), 7.0, 5.0, 3.0, 1.3, extra['barn_wood'], m['corrugated'],
@@ -220,7 +227,7 @@ def skyline(m, extra):
 def extra_materials():
     import materials as M
     return {
-        'cladding': M.plain('Garage cladding', (0.62, 0.62, 0.60), rough=0.45, metal=0.5),
+        'cladding': M.corrugated('Garage cladding', (0.6, 0.61, 0.6)),
         'dark_interior': M.plain('Dark interior', (0.05, 0.045, 0.04), rough=0.9),
         'barn_wood': M.wood('Barn timber', (0.45, 0.30, 0.18), (0.25, 0.15, 0.08), scale=1.0),
         'tank_green': M.plain('Tank green', (0.10, 0.30, 0.20), rough=0.4),
