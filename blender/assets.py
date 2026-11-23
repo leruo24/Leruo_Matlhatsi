@@ -207,19 +207,12 @@ def furnish(room, desk):
     # x maps to world x = shelf_x - x)
     sx, sy = 2.15, back + 0.38
     place('wooden_bucket_01', (sx + 0.55, sy, 0.66), rot_z=0.4, floor=0.66)
-    place('cardboard_box_01', (sx - 0.75, sy, 0.66), rot_z=1.57, floor=0.66)
     place('wooden_crate_01', (sx - 0.62, sy, 1.09), rot_z=1.57, floor=1.09)
-    place('can_rusted', (sx + 0.35, sy + 0.05, 1.32), rot_z=0.2, floor=1.32)
     place('jug_01', (sx + 0.7, sy - 0.05, 1.32), rot_z=-0.6, floor=1.32)
     place('lantern_01', (sx - 0.4, sy, 1.75), rot_z=0.9, floor=1.75)
-    place('can_rusted', (sx - 0.85, sy + 0.08, 1.75), rot_z=1.3, floor=1.75)
-    place('cardboard_box_01', (sx + 0.5, sy, 2.3), rot_z=1.5, floor=2.3)
-    # left wall, rear: barrel, crates, bucket, a crowbar leaning on the boards
-    place('barrel_03', (minX + 0.45, back + 0.5, 0), rot_z=0.8, floor=0.0)
+    # left wall, rear: two stacked crates (the window seat and floor lamp are in farm_office.py)
     place('wooden_crate_02', (minX + 0.35, back + 1.75, 0), rot_z=0.0, floor=0.0)
     place('wooden_crate_01', (minX + 0.4, back + 1.6, 0.47), rot_z=0.25, floor=0.475)
-    place('wooden_bucket_01', (minX + 0.95, back + 0.6, 0), rot_z=1.0, floor=0.0)
-    place('crowbar_01', (minX + 0.13, back + 2.7, 0.3), rot_z=math.pi / 2, tilt=(0.0, math.radians(-14)), floor=0.0)
     # a stool at the ESP32 bench
     place('wooden_stool_01', (1.55, 0.95, 0), rot_z=0.3, floor=0.0)
     # a plastic chair under the shade tree, turned toward the pond
@@ -243,7 +236,12 @@ def grass_blades(count=650000, radius=55.0, seed=3):
     gravel = (x > -32) & (x < 4.0) & (y > 4.4) & (y < 34) & ~((x > 0) & (y > 22))
     pond = ((x - POND['cx']) / POND['rx']) ** 2 + ((y - POND['cy']) / POND['ry']) ** 2 < 1.12
     room = (x > ROOM['minX'] - 0.4) & (x < ROOM['maxX'] + 0.4) & (y > ROOM['back'] - 0.4) & (y < ROOM['front'] + 0.6)
-    keep = ~(gravel | pond | room)
+    from farm_office import FIELDS, COOP
+    field = np.zeros_like(x, dtype=bool)
+    for x0, x1, y0, y1, _ in FIELDS:
+        field |= (x > x0) & (x < x1) & (y > y0) & (y < y1)
+    coop = np.hypot(x - COOP[0], y - COOP[1]) < 2.8
+    keep = ~(gravel | pond | room | field | coop)
     x, y = x[keep][:count], y[keep][:count]
     count = len(x)
     z = np.array([_height(float(px), float(py)) for px, py in zip(x, y)])

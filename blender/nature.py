@@ -123,8 +123,11 @@ def trees(m):
     spots = [(-26, 18), (-32, 44), (-10, 62), (9, 70), (-30, 75), (24, 90), (-12, 95), (-40, 55), (2, 140), (30, 150),
              (-55, 120), (46, 70), (60, 110), (-70, 160), (-20, 180), (15, 210), (75, 190), (-95, 220), (40, 260), (-45, 300),
              (52, 33), (36, 45), (-34, 28), (-48, 34)]
+    from farm_office import in_field
+    spots += [(x, -118) for x in range(-66, 32, 9)] + [(-134, y) for y in range(-40, 20, 10)]
     for i, (x, y) in enumerate(spots):
         h = rnd.uniform(5.5, 9.0)
+        if in_field(x, y, 2.0): continue
         tree(f'Farm tree {i}', (x, y, _height(x, y)), h, h * 0.035, h * rnd.uniform(1.0, 1.5), 100 + i, leaf, bark,
              cards=int(5000 + 2500 * rnd.random()), umbrella=rnd.uniform(0.45, 0.85), card=0.85)
 
@@ -187,9 +190,9 @@ def buildings(m, extra):
     box('Garage slab', (6.7, 6.2, 0.04), (0, 0, 0.06), m['concrete'], bevel=0, parent=gar)
     # barn and water tank in the middle distance
     bx, by = 4.0, 118.0
-    gable_building('Barn', (bx, by, _height(bx, by)), face(bx, by), 7.0, 5.0, 3.0, 1.3, extra['barn_wood'], m['corrugated'],
-                   door=(1.4, 2.2, extra['dark_interior']), windows=((2.2, 1.8, 0.8, 0.6, extra['dark_interior']),))
-    tank = empty('Water tank', (bx + 7.0, by + 2.0, _height(bx + 7.0, by + 2.0)), 0)
+    gable_building('Barn', (bx, by, _height(bx, by)), face(bx, by), 14.0, 10.0, 5.0, 2.6, extra['barn_wood'], m['corrugated'],
+                   door=(3.2, 3.8, extra['dark_interior']), windows=((4.6, 3.0, 1.4, 1.0, extra['dark_interior']), (-4.6, 3.0, 1.4, 1.0, extra['dark_interior'])))
+    tank = empty('Water tank', (bx - 12.0, by + 2.0, _height(bx - 12.0, by + 2.0)), 0)
     for sx in (-1, 1):
         for sy in (-1, 1):
             box('Stand leg', (0.12, 0.12, 3.0), (sx * 1.0, sy * 1.0, 1.5), m['steel'], bevel=0.005, parent=tank)

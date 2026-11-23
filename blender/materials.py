@@ -183,6 +183,7 @@ def add_haze(m, color=(0.86, 0.70, 0.60), distance=5000.0, strength=0.11):
     inv = nt.nodes.new('ShaderNodeMath'); inv.operation = 'SUBTRACT'; inv.inputs[0].default_value = 1.0
     nt.links.new(lp.outputs['Ray Length'], div.inputs[0]); nt.links.new(div.outputs['Value'], ex.inputs[0]); nt.links.new(ex.outputs['Value'], inv.inputs[1])
     em = nt.nodes.new('ShaderNodeEmission'); em.inputs['Color'].default_value = (*color, 1); em.inputs['Strength'].default_value = strength
+    em.name = 'Haze'; em['base_strength'] = strength
     mix = nt.nodes.new('ShaderNodeMixShader')
     nt.links.new(inv.outputs['Value'], mix.inputs['Fac']); nt.links.new(surf, mix.inputs[1]); nt.links.new(em.outputs['Emission'], mix.inputs[2])
     nt.links.new(mix.outputs['Shader'], out.inputs['Surface'])
@@ -234,6 +235,7 @@ def emission(name, color, strength):
     nt = m.node_tree; nt.nodes.clear()
     out = nt.nodes.new('ShaderNodeOutputMaterial'); e = nt.nodes.new('ShaderNodeEmission')
     e.inputs['Color'].default_value = (*color, 1); e.inputs['Strength'].default_value = strength
+    e.name = 'Glow'; e['base_strength'] = strength
     nt.links.new(e.outputs['Emission'], out.inputs['Surface'])
     return m
 
@@ -251,11 +253,11 @@ def image(name, path, rough=0.5, alpha=True):
 
 def all_materials():
     return {
-        'concrete': concrete('Concrete floor'),
+        'concrete': concrete('Concrete floor', base=(0.50, 0.48, 0.45), var=0.08, rough=0.3),
         'concrete_out': concrete('Concrete apron', base=(0.47, 0.42, 0.36), rough=0.6),
-        'boards': wood('Wall boards', (0.50, 0.27, 0.11), (0.24, 0.12, 0.05), scale=2.0),
-        'beam': wood('Dark beams', (0.24, 0.16, 0.10), (0.10, 0.06, 0.04), scale=2.0),
-        'ceiling': wood('Ceiling boards', (0.45, 0.33, 0.22), (0.26, 0.18, 0.11), scale=2.0),
+        'boards': wood('Wall boards (painted)', (0.80, 0.79, 0.75), (0.72, 0.71, 0.67), scale=2.0, rough=0.62),
+        'beam': wood('Oak beams', (0.44, 0.31, 0.19), (0.25, 0.16, 0.09), scale=2.0),
+        'ceiling': wood('Ceiling boards (limed)', (0.80, 0.75, 0.66), (0.66, 0.59, 0.49), scale=2.0, rough=0.6),
         'desk': wood('Desk timber', (0.42, 0.21, 0.08), (0.15, 0.07, 0.025), scale=3.0, rough=0.45, coat=0.25, stretch=(12, 1, 1)),
         'bench': wood('Bench timber', (0.50, 0.27, 0.12), (0.22, 0.11, 0.04), scale=3.0, rough=0.45, coat=0.2, stretch=(12, 1, 1)),
         'steel_black': plain('Black steel', (0.02, 0.02, 0.02), rough=0.4, metal=0.9),

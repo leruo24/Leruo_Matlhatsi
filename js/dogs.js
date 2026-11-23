@@ -134,14 +134,15 @@ function ballMaterial() {
   });
 }
 
-export function createDogs({ scene, camera, renderer, onChange = () => {}, sound = null }) {
+export function createDogs({ scene, camera, renderer, onChange = () => {}, sound = null, time = 'day' }) {
   const group = new THREE.Group(); scene.add(group);
   const state = { ready: false, dogs: [], nav: null, ball: null, light: null, control: -1, axes: [0, 0] };
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
-  // floor brightness from the low-res panorama, so a dog walking out of the sun dims a little
+  // floor brightness from the low-res panorama of the current time of day, so a dog walking out of
+  // the sun (or out of the lamplight at night) dims
   const lightCanvas = document.createElement('canvas'); lightCanvas.width = 512; lightCanvas.height = 256;
-  const lightImg = new Image(); lightImg.src = DIR + 'pano-2k.jpg';
+  const lightImg = new Image(); lightImg.src = DIR + time + '/pano-2k.jpg';
   lightImg.onload = () => {
     const g = lightCanvas.getContext('2d', { willReadFrequently: true }); g.drawImage(lightImg, 0, 0, 512, 256);
     state.light = g.getImageData(0, 0, 512, 256).data;
@@ -368,11 +369,12 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
     toThree(d.x - d.x / len * 0.3, d.y - d.y / len * 0.3, gz + 0.3 * m.size, _v).project(camera);
     mesh.material.uniforms.uDepth.value = Math.min(1, Math.max(0, _v.z * 0.5 + 0.5));
     const lum = state.refLum ? lumAt(d.x, d.y) / state.refLum : 1;
-    mesh.material.uniforms.uTint.value = Math.max(0.62, Math.min(1.05, Math.pow(lum, 0.5)));
+    mesh.material.uniforms.uTint.value = Math.max(0.3, Math.min(1.05, Math.pow(lum, 0.5)));
     mesh.visible = true;
   }
 
   return {
+    setTime(t) { lightImg.src = DIR + t + '/pano-2k.jpg'; },
     group, ball, state,
     get ready() { return state.ready; },
     /** advance and place everything; returns true while anything is moving */

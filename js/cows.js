@@ -21,7 +21,7 @@ export function penHeight(pen, x, y) {
 
 export function createCows({ scene, camera, onChange = () => {} }) {
   const group = new THREE.Group(); scene.add(group);
-  const state = { ready: false, cows: [], pen: null };
+  const state = { ready: false, cows: [], pen: null, k: 0.95 };
   const rand = (a, b) => a + Math.random() * (b - a);
   Promise.all([fetch(DIR + 'cows.json').then((r) => r.json()), fetch(DIR + 'pen.json').then((r) => r.json())]).then(([meta, pen]) => {
     state.pen = pen;
@@ -80,11 +80,14 @@ export function createCows({ scene, camera, onChange = () => {} }) {
     const len = Math.hypot(c.x, c.y);
     toThree(c.x - c.x / len * 1.2, c.y - c.y / len * 1.2, gz + 0.8, _v).project(camera);
     mesh.material.uniforms.uDepth.value = Math.min(1, Math.max(0, _v.z * 0.5 + 0.5));
+    mesh.material.uniforms.uTint.value = state.k;
     mesh.visible = true;
   }
   return {
     group, state,
     get ready() { return state.ready; },
+    /** brightness for the time of day (the sprites are lit for daylight) */
+    setLight(k) { state.k = k; },
     update(dt, reduced, depthReady) {
       if (!state.ready) return false;
       const step = Math.min(dt, 0.1);

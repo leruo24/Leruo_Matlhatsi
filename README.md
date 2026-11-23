@@ -69,6 +69,35 @@ A preview of the workshop that you can turn all the way round in. It's linked fr
 
 Since 22 November 2026 the page shows a 360° render of the Blender scene in `blender/`, instead of the photo stitched onto a modelled three.js room. That approach left a visible seam where the photo met the model. Now the whole view comes from one scene, with one light and one camera height. The look comes from the render, not from the approved photo: it is CG, and the dogs in particular still read as soft toys (see `blender/README.md`).
 
+**Pass 6 (23 November 2026): a modern farm office, the farm around it, and the time of day.**
+- **The intro is back in front of it.** `look-around.html` opens with the main experience's intro (`js/vr-intro.js`, reusing `js/office.js` and the same images): click to enter, the black-and-white office with the headset, Put on headset, the lean-in, dark, then the workshop comes into focus inside the lenses. Skip intro or Esc crossfades; reduced motion skips the animation; `?nointro` skips it all. The office murmur crossfades to the farm's ambience (the main page's `js/sound.js`), and Sound off on the main page still mutes it.
+- **Header.** Only a "3D look around" label and the time chip are left at the top.
+- **Time of day.** There are four renders of the same scene: sunrise, afternoon, sunset and night (`blender/timeofday.py`, in `assets/workshop-3d/<time>/`). The page picks the one that matches the viewer's clock: sunrise 05:00–07:59, afternoon 08:00–16:29, sunset 16:30–19:29, night otherwise. It re-checks every minute. The chip at the top cycles through them and back to "your time", and `?time=sunrise|day|sunset|night` pins one. At night the room's pendants, floor lamp and desk lamp are on, the farmhouse and the city are lit, there are stars and a moon, and the live drone, birds, hens and cows are lit to match.
+- **The room.** It is now a clean, modern farm-style office:
+  - painted white board walls, a limed timber ceiling and oak beams;
+  - big black-framed picture windows in the back and left walls, so you see the farm all round;
+  - black enamel pendants over the desk and bench, and a jute rug;
+  - three framed photos of Leruo (his own photos from `assets/`), books, a window seat with cushions, a tripod floor lamp and a large corner plant.
+  - The rusty barrel, cans, crowbar and cardboard boxes are gone.
+- **The ESP32 bench** is now plainly an ESP32 build. It has a DevKit (shielded module, antenna, pin headers, LEDs) on a breadboard with a DHT22 and a glowing OLED readout, and a second board in a printed case wired to soil probes in a seedling tray. A relay drives a little pump in a jar, and there are a USB lead and power bank, a magnifier lamp, a DevKit pinout card and a folded "ESP32 · soil + climate node" card. These are plain text and shapes, with no logos. Selecting the bench opens a short note on what's on it.
+- **The farm.** You can see more of it now:
+  - crop fields (maize, wheat, young rows, ploughed ground) on four sides;
+  - a classic windpump with a round concrete dam;
+  - a barn twice the size, with galvanised silos;
+  - an implement shed behind the office, two tractors and a chicken coop in the yard;
+  - mountain ranges all the way round, nearer and taller than before, with rock and veld shading and haze that changes with the time of day;
+  - a generic city skyline 3–4 km out, front right, in a low gap in the range. Its windows light up at night.
+- **Hens and birds.** Six hens peck around the coop and trot about (`js/chickens.js`, sprites from `blender/chicken_sprites.py`). They walk on the same floor grid as the dogs, which now covers the rising yard. A small flock of birds wheels over the farm, except at night.
+- **The drone** is a small 3D quadcopter (body, arms, motors, spinning props with blur discs, a camera gimbal, and navigation lights at night and dawn) instead of a flat picture. It is lit by a sun and sky light that match each render.
+- **The tablet** stands upright on the desk, and its view on the page is portrait on every screen, so it is easy to use on a phone.
+- **Checked** on 24 November 2026 in headless Chrome with software WebGL (SwiftShader, no GPU), at 1400 × 800 and on a 390 × 844 touch viewport:
+  - The intro plays through to the 3D view.
+  - All four time sets load at 8K, and the chip switches between them.
+  - The hens walk by the coop, the bench note opens, and the 3D drone and birds draw.
+  - On the phone the tablet opens portrait (374 × 565).
+  - There were no page errors or failed requests, and the 40 unit tests pass.
+  - Not yet checked on a real GPU or a real phone. Each time set is about 2.4–2.9 MB at 8K, and only one set loads per visit.
+
 How it's built (`js/pano-view.js`, `js/look-around.js`):
 - **One eye, turning only.** The 360° image is rendered in Blender from the same eye as the photo-matched camera. The page shows it on a sphere around the camera. The camera only turns, so anything placed at its real position in the scene lines up with the render exactly.
 - **Loading.** A 2048 × 1024 preview appears first. Then the sharp version loads: 8192 × 4096 in four 2048 × 4096 quarters on desktops, or 4096 × 2048 in two halves on touch devices and GPUs limited to 4096 px textures.
@@ -94,11 +123,12 @@ How it's built (`js/pano-view.js`, `js/look-around.js`):
 - **Unchanged:** dragging, the arrow keys and on-screen pad, Home to re-centre, `?perf` and `?debug`. Without WebGL the page pans the 2048-px panorama as a still image.
 - **Rendering cost.** One sphere, one screen panel, one drone sprite, three dog sprites and the ball. The dogs are always doing something, so frames are drawn continuously unless scenery is paused, reduced motion is on, the tab is hidden or the PC is open. Then the page only wakes every 30 s to keep the clock current.
 - **Rebuilding the files** (`blender/`):
-  - The 360 render: `NODOGS=1 NOCOWS=1 python render.py pano renders/pano8k_<i>.png 8192 16 <i>/16` for i = 0–15. Each strip is a narrow band of latitude, because a full 8192-wide frame ran out of memory on the 7 GB build machine. Then run `python3 make_pano_assets.py renders/pano8k_{0..15}.png`.
+  - The scene: `python build_scene.py` (the bench's printed textures come from `python3 gen_textures.py`).
+  - The 360 renders, one per time of day: `TIME=<time> NODOGS=1 NOCOWS=1 python render.py pano renders/<time>_<i>.png 8192 6 <i>/16` for i = 0–15. Each strip is a narrow band of latitude, because a full 8192-wide frame ran out of memory on the 7 GB build machine. Then run `TIME=<time> python3 make_pano_assets.py renders/<time>_{0..15}.png`. On the build machine (2 CPU cores) a time of day took about 28 minutes at 6 samples (denoised).
   - The screens and their masks: `python export_screens.py ../assets/workshop-3d`.
   - The depth map: `python render_depth.py ../assets/workshop-3d/depth.png 4096 40`.
-  - The floor grid and the cow pen heights: `python nav_grid.py ../assets/workshop-3d/nav.json`.
-  - The dogs: `python dog_sprites.py <dir> 320 24`. The cows: `python cow_sprites.py <dir> 160 24`. Then run `python3 make_dog_atlases.py <dir>` for each folder.
+  - The floor grid (workshop, yard and coop) and the cow pen heights: `python nav_grid.py ../assets/workshop-3d/nav.json`.
+  - The dogs: `python dog_sprites.py <dir> 320 24`. The cows: `python cow_sprites.py <dir> 160 24`. The hens: `python chicken_sprites.py <dir> 128 16`. Then run `python3 make_dog_atlases.py <dir>` for each folder.
 
 Checked on 22 November 2026 in headless Chrome with **software** WebGL (SwiftShader, 2 CPU cores, no GPU):
 - The 8K tiles loaded on desktop and the 4K halves on a 390 × 844 touch viewport.

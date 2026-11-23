@@ -21,6 +21,7 @@ import nature as N     # noqa: E402
 import vehicles as V   # noqa: E402
 import animals as A    # noqa: E402
 import assets as AS    # noqa: E402
+import farm_office as F  # noqa: E402
 
 EYE = Vector((0.0, 0.0, 1.6))
 # the approved photo's camera: 1670 x 942 px, focal length 1000 px, horizon at row 367
@@ -67,8 +68,8 @@ def world_light(scene):
     w = bpy.data.worlds.new('World'); scene.world = w; w.use_nodes = True
     nt = w.node_tree; nt.nodes.clear()
     out = nt.nodes.new('ShaderNodeOutputWorld')
-    bg = nt.nodes.new('ShaderNodeBackground')
-    sky = nt.nodes.new('ShaderNodeTexSky')
+    bg = nt.nodes.new('ShaderNodeBackground'); bg.name = 'SkyBG'
+    sky = nt.nodes.new('ShaderNodeTexSky'); sky.name = 'Sky'
     for t in ('MULTIPLE_SCATTERING', 'NISHITA', 'SINGLE_SCATTERING', 'HOSEK_WILKIE'):
         try:
             sky.sky_type = t; break
@@ -93,17 +94,51 @@ def world_light(scene):
     nt.links.new(tc.outputs['Generated'], sc.inputs['Vector'])
     cl = nt.nodes.new('ShaderNodeTexNoise'); cl.inputs['Scale'].default_value = 3.5; cl.inputs['Detail'].default_value = 9; cl.inputs['Roughness'].default_value = 0.62
     nt.links.new(sc.outputs['Vector'], cl.inputs['Vector'])
-    cov = nt.nodes.new('ShaderNodeMapRange'); cov.inputs['From Min'].default_value = 0.5; cov.inputs['From Max'].default_value = 0.72
+    cov = nt.nodes.new('ShaderNodeMapRange'); cov.name = 'CloudCover'; cov.inputs['From Min'].default_value = 0.5; cov.inputs['From Max'].default_value = 0.72
     nt.links.new(cl.outputs['Fac'], cov.inputs['Value'])
     m1 = nt.nodes.new('ShaderNodeMath'); m1.operation = 'MULTIPLY'; nt.links.new(cov.outputs['Result'], m1.inputs[0]); nt.links.new(band.outputs['Result'], m1.inputs[1])
     m2 = nt.nodes.new('ShaderNodeMath'); m2.operation = 'MULTIPLY'; nt.links.new(m1.outputs['Value'], m2.inputs[0]); nt.links.new(fade.outputs['Result'], m2.inputs[1])
-    tone = nt.nodes.new('ShaderNodeValToRGB')
+    tone = nt.nodes.new('ShaderNodeValToRGB'); tone.name = 'CloudTone'
     tone.color_ramp.elements[0].color = (0.55, 0.30, 0.30, 1); tone.color_ramp.elements[1].color = (1.6, 0.85, 0.5, 1)
     nt.links.new(cl.outputs['Fac'], tone.inputs['Fac'])
     mixc = nt.nodes.new('ShaderNodeMix'); mixc.data_type = 'RGBA'
     nt.links.new(m2.outputs['Value'], mixc.inputs['Factor']); nt.links.new(sky.outputs['Color'], mixc.inputs['A']); nt.links.new(tone.outputs['Color'], mixc.inputs['B'])
     nt.links.new(mixc.outputs['Result'], bg.inputs['Color'])
-    nt.links.new(bg.outputs['Background'], out.inputs['Surface'])
+    # night sky (timeofday.py blends to it): deep blue gradient, stars, a faint glow over the city
+    nbg = nt.nodes.new('ShaderNodeBackground'); nbg.name = 'NightBG'; nbg.inputs['Strength'].default_value = 1.0
+    zr = nt.nodes.new('ShaderNodeMapRange'); zr.inputs['From Min'].default_value = 0.0; zr.inputs['From Max'].default_value = 0.6
+    nt.links.new(sep.outputs['Z'], zr.inputs['Value'])
+    grad = nt.nodes.new('ShaderNodeValToRGB')
+    grad.color_ramp.elements[0].color = (0.020, 0.028, 0.055, 1); grad.color_ramp.elements[1].color = (0.002, 0.003, 0.009, 1)
+    nt.links.new(zr.outputs['Result'], grad.inputs['Fac'])
+    vor = nt.nodes.new('ShaderNodeTexVoronoi'); vor.inputs['Scale'].default_value = 420.0
+    nt.links.new(tc.outputs['Generated'], vor.inputs['Vector'])
+    st = nt.nodes.new('ShaderNodeMapRange'); st.inputs['From Min'].default_value = 0.09; st.inputs['From Max'].default_value = 0.0
+    nt.links.new(vor.outputs['Distance'], st.inputs['Value'])
+    vs = nt.nodes.new('ShaderNodeSeparateColor'); nt.links.new(vor.outputs['Color'], vs.inputs['Color'])
+    keep = nt.nodes.new('ShaderNodeMath'); keep.operation = 'GREATER_THAN'; keep.inputs[1].default_value = 0.8
+    nt.links.new(vs.outputs[0], keep.inputs[0])
+    up = nt.nodes.new('ShaderNodeMapRange'); up.inputs['From Min'].default_value = 0.03; up.inputs['From Max'].default_value = 0.15
+    nt.links.new(sep.outputs['Z'], up.inputs['Value'])
+    s1 = nt.nodes.new('ShaderNodeMath'); s1.operation = 'MULTIPLY'; nt.links.new(st.outputs['Result'], s1.inputs[0]); nt.links.new(keep.outputs[0], s1.inputs[1])
+    s2 = nt.nodes.new('ShaderNodeMath'); s2.operation = 'MULTIPLY'; nt.links.new(s1.outputs[0], s2.inputs[0]); nt.links.new(up.outputs['Result'], s2.inputs[1])
+    s3 = nt.nodes.new('ShaderNodeMath'); s3.operation = 'MULTIPLY'; s3.inputs[1].default_value = 0.35; nt.links.new(s2.outputs[0], s3.inputs[0])
+    glow = nt.nodes.new('ShaderNodeMapRange'); glow.inputs['From Min'].default_value = 0.12; glow.inputs['From Max'].default_value = 0.0
+    glow.inputs['To Max'].default_value = 0.018
+    nt.links.new(sep.outputs['Z'], glow.inputs['Value'])
+    gm = nt.nodes.new('ShaderNodeMix'); gm.data_type = 'RGBA'; gm.blend_type = 'ADD'; gm.inputs['B'].default_value = (1.0, 0.55, 0.3, 1)
+    nt.links.new(glow.outputs['Result'], gm.inputs['Factor']); nt.links.new(grad.outputs['Color'], gm.inputs['A'])
+    sm = nt.nodes.new('ShaderNodeMix'); sm.data_type = 'RGBA'; sm.blend_type = 'ADD'; sm.inputs['B'].default_value = (0.9, 0.93, 1.0, 1)
+    nt.links.new(s3.outputs[0], sm.inputs['Factor']); nt.links.new(gm.outputs['Result'], sm.inputs['A'])
+    nt.links.new(sm.outputs['Result'], nbg.inputs['Color'])
+    nmix = nt.nodes.new('ShaderNodeMixShader'); nmix.name = 'NightMix'; nmix.inputs['Fac'].default_value = 0.0
+    nt.links.new(bg.outputs['Background'], nmix.inputs[1]); nt.links.new(nbg.outputs['Background'], nmix.inputs[2])
+    nt.links.new(nmix.outputs['Shader'], out.inputs['Surface'])
+    # the moon (only rendered at night)
+    import materials as Mt
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=260.0, segments=32, ring_count=16)
+    moon = bpy.context.object; moon.name = 'Moon'; moon.hide_render = True
+    moon.data.materials.append(Mt.emission('Moon glow', (0.85, 0.88, 0.95), 2.0))
     # a sun lamp carries the crisp shadows
     sun = bpy.data.lights.new('Sun', 'SUN'); sun.energy = 8.0; sun.angle = math.radians(0.8)
     sun.color = (1.0, 0.78, 0.55)
@@ -125,14 +160,18 @@ def build():
     P.workshop_shell(mats)
     P.desk_setup(mats)
     P.esp32_bench(mats)
+    F.esp32_kit(mats)
     P.wall_items(mats)
     AS.furnish(P.ROOM, bpy.data.objects['Desk'])
+    F.interior(mats)
     P.outdoors(mats, sun_dir)
     extra = N.extra_materials()
     N.trees(mats)
     AS.grass_blades()
     N.buildings(mats, extra)
-    N.skyline(mats, extra)
+    F.farm(mats, extra)
+    F.mountains(mats)
+    F.city(mats, extra)
     V.vehicles(mats)
     A.animals()
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'workshop.blend'))

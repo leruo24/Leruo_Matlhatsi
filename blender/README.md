@@ -11,11 +11,15 @@ Build and render with Blender's Python module (`pip install bpy==5.3.0`, Python 
 ## Files
 - `build_scene.py`: scene setup, the two cameras, and the sun and sky. The sun is from the photo's sun position.
 - `materials.py`: procedural Cycles materials (concrete, straight-grain timber, gravel, water, distance haze). The ground uses photo textures from `assets.py`.
-- `props.py`: the building, desk setup, ESP32 bench, whiteboard wall, terrain, pond and mountains.
-- `nature.py`: procedural trees with leaf cards, fences, the garage, barn and tank, the farmhouse, and the distant skyline.
+- `props.py`: the building (with `picture_window()`), desk setup, ESP32 bench, whiteboard wall, terrain and pond.
+- `nature.py`: procedural trees with leaf cards, fences, the garage, barn and tank, and the farmhouse (the old skyline function is no longer called).
 - `vehicles.py`: the Land Cruiser 79 double cab (separate body panels with 4 mm shut lines, a hollow cab with real glass and seats, black flares, steel bumper, round headlamps, chassis, axles, springs, mud-terrain tyres with tread blocks and multi-spoke wheels), plus the orange mid-engined car and the dark fastback in the garage. All are built from published dimensions, with no badges or number plates.
 - `assets.py`: the free third-party assets: Poly Haven props placed around the room, photo leaf and bark materials for the trees, textured grass and gravel, and grass blades (hair curves) near the workshop.
 - `animals.py`: the three dogs (Skin-modifier bodies with hair-curve fur in their coat colours) and the cows.
+- `farm_office.py` (pass 6): the modern farm office (pendants, rug, framed photos, books, window seat, floor lamp, corner plant), the ESP32 kit on the bench, the farm (crop fields, windpump and dam, silos, implement shed, chicken coop, tractors), the mountain ranges and the city.
+- `timeofday.py`: the four lighting presets (sunrise, day, sunset, night). `render.py` applies one when `TIME=<name>` is set. Interior lights and glowing materials named `Int ...` are switched per preset.
+- `gen_textures.py` (system Python + Pillow): the bench's printed label card, OLED readout and DevKit pinout card, in `assets/gen/`. They are plain text and shapes, with no logos.
+- `chicken_sprites.py`: the hens as sprite frames (8 headings × a walk with a head bob, plus a pecking loop).
 
 ## Assets and licences
 Supplied or made here:
@@ -43,6 +47,19 @@ Not used:
 The approved photo isn't physically consistent. The desk only reads as 0.76 m high if the camera is about 1.6 m up, the dogs and the console come out oversized, and the gravel yard sits above the horizon line. So this scene keeps the photo's arrangement and camera angle but uses real-world sizes, with a yard that rises gently.
 
 ## Status
+Sixth pass (23 November 2026): a modern farm office, the farm around it, and four times of day.
+- **Room.** It now has white painted board walls, a limed ceiling and oak beams. Big black-framed picture windows are cut into the back and left walls (`picture_window()` in `props.py`). There are pendants, a jute rug, framed photos of Leruo (his own, from `../assets/`), books, a window seat and a floor lamp. The barrel, bucket, crowbar, rusty cans and cardboard boxes are removed. The tablet now stands in portrait.
+- **ESP32 bench.** The old single board, breadboard and jumpers are replaced by the kit in `farm_office.esp32_kit()`. The multimeter and solder spool moved along the bench to make room.
+- **Farm.** It has crop fields (as ground shading with row bump, assigned by face), a windpump and dam, a barn twice the size with silos, an implement shed, a chicken coop and two tractors. Farm trees that fell inside a field are dropped, and a windbreak runs behind the back field. The grass blades keep out of the fields and the coop.
+- **Mountains and city.** These replace the old flat ridges and the hidden 22 km skyline. There are two ridged ranges right round the horizon (near: 5.4 km, up to ~1.1 km high; far: 10.5 km, up to ~2.3 km), with slope-based rock and veld shading. A generic skyline stands 3–4 km out at about 19° right of ahead, in a low gap in the near range, with lit windows at night. Haze colour and strength follow the time of day.
+- **Times of day.** Sunrise has the sun low on the right (east) and a pink sky. Day has a high sun front-left and a blue sky, with the lamps off. Sunset is the original golden look. Night has a starry sky, a moon, every lamp on, and lit farmhouse and city windows.
+- **Renders.** Each time of day is 16 strips at 8192 px and 6 samples, denoised: 100-110 s a strip and about 28 minutes a time of day on 2 cores. `make_pano_assets.py` writes them to `../assets/workshop-3d/<TIME>/`.
+- **Nav grid.** It now spans x −11..9 and y −3.6..17, so it covers the coop. Outside, it accepts open ground up to 1.5 m high (the yard rises), and it blocks the glass front wall explicitly.
+- **Limits.**
+  - The crops are shading, not plants, so they read as fields from the office but go flat close up.
+  - The hens are small skin-modifier sprites, readable at the coop's distance but not up close.
+  - The city is generic boxes, small and hazy by day.
+
 Fifth pass (23 November 2026):
 - **Front wall.** The front is a steel-framed glass wall (`thin_glass`) with a corner post, so the office has four walls and corners.
 - **Desk.** The laptop is open, with a separate screen object. The tablet is an old 10-inch Android-style tablet in a folio cover, also with a separate screen object.

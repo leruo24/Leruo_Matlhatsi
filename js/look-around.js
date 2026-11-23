@@ -1,7 +1,9 @@
 import * as THREE from 'three';
-import { createPanoView, homeView, PANO, PANO_DIR } from './pano-view.js';
+import { createPanoView, homeView, PANO, PANO_DIR, TIMES, LIGHT, timeOfDay } from './pano-view.js';
 import { createDogs } from './dogs.js';
 import { createCows } from './cows.js';
+import { createChickens } from './chickens.js';
+import { createIntro } from './vr-intro.js';
 import { createRenderLoop } from './render-loop.js';
 import { spring, FrameBudget } from './motion.js';
 import { limitYaw, dragYaw, limitPitch, dragPitch, MAX_PITCH } from './yaw.js';
@@ -18,7 +20,7 @@ let ratio = maxRatio, readout = '', paused = false;
 // look state: yaw/pitch are offsets from the home view, which frames the scene like the main experience's photo
 const yaw = { x: 0, v: 0 }, pitch = { x: 0, v: 0 };
 let yawTarget = 0, pitchTarget = 0, drag = null, transition = null, zoom = null;
-let renderer, scene, camera, pano, dogs, cows, home = { pitch: 0, yaw: 0, fov: 50 };
+let renderer, scene, camera, pano, dogs, cows, chickens, home = { pitch: 0, yaw: 0, fov: 50 };
 // barks only (the main experience's full soundscape is tuned to the photo): the same CC0 recordings,
 // loaded on the first click, panned to where the dog is; off if sound is switched off on the main page
 const sound = {
@@ -98,6 +100,7 @@ function draw(dt, elapsed) {
     pano.update(animating() ? dt : 0, reduced.matches);
     dogs.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
     cows.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
+    chickens.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
     placeDogCard();
     renderer.render(scene, camera);
     drawBubbles();
@@ -155,6 +158,26 @@ const turn = (v) => { if (transition || zoom) return; yawTarget = limitYaw(v); w
 const tilt = (v) => { if (transition || zoom) return; pitchTarget = limitPitch(v); wake(); };
 const centre = () => { if (transition || zoom) return; yawTarget = 0; pitchTarget = 0; wake(); };
 
+/* ---- time of day: the render that matches your clock (sunrise, day, sunset, night) ---- */
+// ?time=sunrise|day|sunset|night pins one; the chip at the top cycles through them, then back to auto
+let timeMode = TIMES.includes(params.get('time')) ? params.get('time') : 'auto';
+const TIME_LABEL = { sunrise: 'Sunrise', day: 'Afternoon', sunset: 'Sunset', night: 'Night' };
+function currentTime() { return timeMode === 'auto' ? timeOfDay() : timeMode; }
+function applyTime() {
+  const t = currentTime();
+  if (pano) { pano.setTime(t); dogs?.setTime(t); cows?.setLight(LIGHT[t].sprite); chickens?.setLight(LIGHT[t].sprite); }
+  const chip = $('#time-chip');
+  chip.textContent = `${TIME_LABEL[t]}${timeMode === 'auto' ? ' · your time' : ''}`;
+  chip.title = timeMode === 'auto' ? 'Matches the time where you are. Select to try another time of day.' : 'Select for the next time of day.';
+  document.body.dataset.time = t; wake();
+}
+$('#time-chip').onclick = () => {
+  const order = ['auto', ...TIMES];
+  timeMode = order[(order.indexOf(timeMode) + 1) % order.length];
+  applyTime(); say(timeMode === 'auto' ? `Back to your time: ${TIME_LABEL[currentTime()].toLowerCase()}.` : `${TIME_LABEL[timeMode]} on the farm.`);
+};
+setInterval(() => { if (timeMode === 'auto' && pano && pano.time !== timeOfDay()) applyTime(); }, 60000);
+
 try {
   if (params.has('nowebgl')) throw new Error('WebGL disabled for testing');
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('debug') });
@@ -166,17 +189,20 @@ try {
   camera = new THREE.PerspectiveCamera(50, 1, .05, 200);
   const manager = new THREE.LoadingManager(() => { say(coarse ? 'Ready. Drag to look around.' : 'Ready · drag or use the arrow keys to look around. Home re-centres.'); wake(); });
   const loader = new THREE.TextureLoader(manager);
-  pano = createPanoView({ scene, loader, renderer, camera, onChange: wake });
-  dogs = createDogs({ scene, camera, renderer, onChange: wake, sound });
+  pano = createPanoView({ scene, loader, renderer, camera, onChange: wake, time: currentTime() });
+  dogs = createDogs({ scene, camera, renderer, onChange: wake, sound, time: currentTime() });
   cows = createCows({ scene, camera, onChange: wake });
+  chickens = createChickens({ scene, camera, onChange: wake });
+  applyTime();
   resize();
   for (const id of ['#drone-btn', '#pause', '#ball', '#dog-btn']) $(id).hidden = false;
   setInterval(wake, 30000);   // keeps the monitor's clock current while nothing moves
-  if (params.has('debug')) window.__room = { THREE, pano, dogs, cows, renderer, scene, camera };
+  if (params.has('debug')) window.__room = { THREE, pano, dogs, cows, chickens, renderer, scene, camera };
 } catch (error) {
   console.warn('3D room unavailable', error);
   renderer?.dispose(); renderer = null; pano = null;
-  canvas.style.background = `#111811 url(${PANO_DIR + PANO.low}) center / auto 160% repeat-x`;
+  canvas.style.background = `#111811 url(${PANO_DIR + currentTime() + '/' + PANO.low}) center / auto 160% repeat-x`;
+  $('#time-chip').hidden = true;
   say('Still panorama fallback: image pan only. The live 360° view needs WebGL.', 0);
   wake();
 }
@@ -188,7 +214,9 @@ canvas.addEventListener('pointermove', (e) => {
   if (!pano || transition || zoom || e.pointerType !== 'mouse') return;
   const hit = hitDevice(e);
   canvas.style.cursor = hit ? 'pointer' : '';
-  canvas.title = hit?.startsWith('dog:') ? 'Call or walk this dog' : hit === 'tablet' ? 'Open the tablet' : hit === 'laptop' ? 'Open the laptop' : hit ? 'Use the computer' : '';
+  const bench = !hit && onBench(e);
+  if (bench) canvas.style.cursor = 'pointer';
+  canvas.title = hit?.startsWith('dog:') ? 'Call or walk this dog' : hit === 'tablet' ? 'Open the tablet' : hit === 'laptop' ? 'Open the laptop' : hit ? 'Use the computer' : bench ? 'The ESP32 bench' : '';
 });
 function rayAt(e) { const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera); return ray; }
 function hitDevice(e) {
@@ -212,11 +240,22 @@ canvas.addEventListener('pointerup', (e) => {
   if (kind?.startsWith('dog:')) { openDogCard(Number(kind.slice(4))); return; }
   closeDogCard();
   if (kind) openDevice(kind);
+  else if (onBench(e)) openBenchCard();
 });
+// the ESP32 bench: select it for a note on what's being built there
+const BENCH = new THREE.Vector3(1.25, 0.95 - 1.6, -1.62);   // Blender (1.25, 1.62, 0.95), relative to the eye
+function onBench(e) {
+  const d = rayAt(e).ray.direction;
+  return d.angleTo(BENCH.clone().normalize()) < 0.17;
+}
+function openBenchCard() {
+  const c = $('#bench-card'); c.hidden = false; $('#bench-close').focus({ preventScroll: true });
+}
+$('#bench-close').onclick = () => { $('#bench-card').hidden = true; };
 canvas.addEventListener('dblclick', (e) => { const p = floorAt(e); if (p && throwBall(p)) e.preventDefault(); });
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(ev, () => { drag = null; });
 addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { if (!dogCard.hidden) closeDogCard(); else if (!dogPanel.hidden) closeDogPanel(); else if (!helpCard.hidden) toggleHelp(false); }
+  if (e.key === 'Escape') { if (!$('#bench-card').hidden) $('#bench-card').hidden = true; else if (!dogCard.hidden) closeDogCard(); else if (!dogPanel.hidden) closeDogPanel(); else if (!helpCard.hidden) toggleHelp(false); }
   if (!$('#drone-panel').hidden || !dogPanel.hidden || transition || screen.open || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
   const k = { ArrowLeft: () => turn(yawTarget + .15), ArrowRight: () => turn(yawTarget - .15), ArrowUp: () => tilt(pitchTarget + .15), ArrowDown: () => tilt(pitchTarget - .15), Home: centre, b: () => throwBall(), B: () => throwBall() }[e.key];
   if (k) { e.preventDefault(); k(); }
@@ -375,6 +414,9 @@ function toggleHelp(open = helpCard.hidden) { helpCard.hidden = !open; $('#help-
 $('#help-btn').onclick = () => toggleHelp();
 $('#help-close').onclick = () => { toggleHelp(false); $('#help-btn').focus(); };
 if (coarse) document.body.classList.add('touch');
+
+// the intro: the office, the headset, then this view
+createIntro({ view: canvas, skip: params.has('nointro'), onDone: () => { canvas.focus({ preventScroll: true }); wake(); } });
 
 addEventListener('resize', resize);
 reduced.addEventListener?.('change', wake);

@@ -3,7 +3,7 @@ Render a view of blender/workshop.blend.
     python blender/render.py front  out.png [width] [samples]
     python blender/render.py pano   out.png [width] [samples] [tile i/n]
 'front' uses the camera matched to the approved photo; 'pano' is the 360-degree view from the
-same eye. With NODOGS=1 in the environment the three dogs are left out, and with NOCOWS=1 the
+same eye. TIME=sunrise|day|sunset|night applies a time-of-day preset (timeofday.py). With NODOGS=1 in the environment the three dogs are left out, and with NOCOWS=1 the
 cows: the 360 page draws them live, walking. Long renders can be split into horizontal strips ("tile 0/4", top first), each rendered
 as a narrow band of latitude, and stitched with make_pano_assets.py.
 """
@@ -28,6 +28,10 @@ if os.environ.get('NODOGS') == '1':
 if os.environ.get('NOCOWS') == '1':      # the cows graze live on the page too
     for o in list(bpy.data.objects):
         if o.name.endswith('(cow)'): hide(o)
+if os.environ.get('TIME'):            # sunrise | day | sunset | night (timeofday.py)
+    sys.path.insert(0, HERE)
+    import timeofday
+    timeofday.apply(os.environ['TIME'])
 s.render.resolution_x = width
 s.render.resolution_y = round(width * 942 / 1670) if view == 'front' else width // 2
 s.render.resolution_percentage = 100

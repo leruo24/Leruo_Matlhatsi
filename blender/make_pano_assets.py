@@ -1,7 +1,7 @@
 """
 Turn the rendered 360 strips into the files the look-around page loads.
-    python3 blender/make_pano_assets.py blender/renders/pano8k_{0..7}.png
-Writes assets/workshop-3d/: pano-8k-0..3.jpg (2048x4096 quarters of the 8192x4096 panorama),
+    TIME=day python3 blender/make_pano_assets.py blender/renders/day_{0..15}.png
+Writes assets/workshop-3d/<TIME>/: pano-8k-0..3.jpg (2048x4096 quarters of the 8192x4096 panorama),
 pano-4k-0..1.jpg (2048x2048 halves of a 4096x2048 copy, for phones) and pano-2k.jpg (2048x1024,
 shown first and used as the still fallback). Needs Pillow.
 """
@@ -9,7 +9,7 @@ import os, sys
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(os.path.dirname(HERE), 'assets', 'workshop-3d')
+OUT = os.path.join(os.path.dirname(HERE), 'assets', 'workshop-3d', os.environ.get('TIME', ''))
 strips = [Image.open(p).convert('RGB') for p in sys.argv[1:]]   # top strip first
 W = strips[0].width
 H = sum(s.height for s in strips)

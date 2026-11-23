@@ -3,7 +3,8 @@ Pack the dog sprite frames from dog_sprites.py into one atlas per dog for the 36
     python3 blender/make_dog_atlases.py <sprite dir>
 Writes assets/workshop-3d/dog-<name>.webp (rows = 8 headings, columns = walk frames then idle
 frames), a half-size dog-<name>-half.webp for phones, and dogs.json with the layout. Cow sprites
-from cow_sprites.py (cow-<coat>) go to cow-<coat>.webp and cows.json the same way. Needs Pillow.
+from cow_sprites.py (cow-<coat>) go to cow-<coat>.webp and cows.json the same way, and chickens
+(chicken_sprites.py) to chicken-<coat>.webp and chickens.json. Needs Pillow.
 """
 import json, os, sys
 from PIL import Image
@@ -12,10 +13,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(os.path.dirname(HERE), 'assets', 'workshop-3d')
 src = sys.argv[1]
 import glob
-groups = {'dogs': {}, 'cows': {}}
+groups = {'dogs': {}, 'cows': {}, 'chickens': {}}
 for mp in sorted(glob.glob(os.path.join(src, '*.json'))):
     name = os.path.splitext(os.path.basename(mp))[0]
-    cow = name.startswith('cow-')
+    cow = name.startswith(('cow-', 'chicken-'))
     m = json.load(open(mp))
     cols = m['walk'] + m['idle']; rows = m['headings']
     cell = Image.open(os.path.join(src, f'{name}_walk_0_0.png')).width
@@ -30,7 +31,7 @@ for mp in sorted(glob.glob(os.path.join(src, '*.json'))):
     if not cow:
         atlas.resize((atlas.width // 2, atlas.height // 2), Image.LANCZOS).save(os.path.join(OUT, f'{base}-half.webp'), quality=78, method=4)
         entry['half'] = f'{base}-half.webp'
-    groups['cows' if cow else 'dogs'][name] = entry
+    groups['chickens' if name.startswith('chicken-') else 'cows' if cow else 'dogs'][name] = entry
     print(name, atlas.size, os.path.getsize(os.path.join(OUT, f'{base}.webp')) // 1024, 'KB')
 for g, meta in groups.items():
     if meta: json.dump(meta, open(os.path.join(OUT, f'{g}.json'), 'w'), indent=1)

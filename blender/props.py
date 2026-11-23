@@ -86,7 +86,35 @@ def light_area(name, loc, size, energy, color=(1, 0.85, 0.7), rot=(0, 0, 0)):
 
 
 # ---------------------------------------------------------------- the building
-ROOM = dict(minX=-5.0, maxX=4.2, back=-3.4, front=4.5, height=3.5, door=(0.6, 4.4), door_h=2.4, window=(-1.3, 1.1, 2.1, 1.6))
+ROOM = dict(minX=-5.0, maxX=4.2, back=-3.4, front=4.5, height=3.5, door=(0.6, 4.4), door_h=2.4,
+            window=(-1.3, 0.95, 2.62, 3.2), window_left=(0.25, 0.95, 2.62, 3.1))
+
+
+def picture_window(name, walls, axis, plane, c, width, z0, z1, m, panes=3):
+    """Cut an opening through the given wall objects and fit a thin black steel frame with mullions
+    and clear glass. axis 'y': the wall runs along x at y=plane; 'x': along y at x=plane."""
+    h = z1 - z0; zc = (z0 + z1) / 2
+    def at(u, off):          # u along the wall, off out of the wall plane (positive = into the room)
+        return (u, plane + off, 0) if axis == 'y' else (plane + off, u, 0)
+    def sz(along, thick, height):
+        return (along, thick, height) if axis == 'y' else (thick, along, height)
+    sign = 1 if (axis == 'y' and plane < 0) or (axis == 'x' and plane < 0) else -1
+    loc = lambda u, off, z: (*at(u, sign * off)[:2], z)
+    cut = box(name + ' cutter', sz(width, 0.6, h), loc(c, 0, zc), None, bevel=0)
+    cut.hide_render = True; cut.hide_viewport = True
+    for o in walls:
+        bo = o.modifiers.new('window', 'BOOLEAN'); bo.object = cut; bo.operation = 'DIFFERENCE'; bo.solver = 'EXACT'
+    fm = m['steel_black']
+    box(name + ' head', sz(width + 0.06, 0.16, 0.05), loc(c, 0.0, z1 + 0.025), fm, bevel=0.003)
+    box(name + ' sill', sz(width + 0.14, 0.24, 0.04), loc(c, 0.05, z0 - 0.02), m['beam'], bevel=0.006)
+    for k in range(panes + 1):
+        u = c - width / 2 + width * k / panes
+        box(name + ' mullion', sz(0.045, 0.06, h), loc(u, 0.0, zc), fm, bevel=0.003)
+    box(name + ' transom', sz(width, 0.05, 0.035), loc(c, 0.0, z0 + h * 0.72), fm, bevel=0.003)
+    for k in range(panes):
+        u = c - width / 2 + width * (k + 0.5) / panes
+        box(name + ' glass', sz(width / panes - 0.04, 0.006, h - 0.02), loc(u, -0.01, zc), m['thin_glass'], bevel=0)
+
 
 
 def workshop_shell(m):
@@ -94,23 +122,17 @@ def workshop_shell(m):
     W, D = maxX - minX, front - back
     box('Floor slab', (W + 0.4, D + 0.2, 0.15), ((minX + maxX) / 2, (back + front) / 2 + 0.1, -0.075), m['concrete'], bevel=0.01)
     # walls: dark backing + vertical boards facing the room
-    box('Left wall', (0.1, D, H), (minX - 0.05, (back + front) / 2, H / 2), m['beam'], bevel=0)
-    boards('Left wall boards', D, H, (minX + 0.012, (back + front) / 2, H / 2), math.pi / 2, m['boards'])
+    lwall = box('Left wall', (0.1, D, H), (minX - 0.05, (back + front) / 2, H / 2), m['beam'], bevel=0)
+    lboards = boards('Left wall boards', D, H, (minX + 0.012, (back + front) / 2, H / 2), math.pi / 2, m['boards'])
     bw = box('Back wall', (W, 0.1, H), ((minX + maxX) / 2, back - 0.05, H / 2), m['beam'], bevel=0)
     bb = boards('Back wall boards', W, H, ((minX + maxX) / 2, back + 0.012, H / 2), 0, m['boards'])
-    # a window above the rear cabinet, so the back of the room has daylight and a view out
+    # big black-framed picture windows in the back and left walls, so the farm, the mountains and
+    # the sky show all the way round the room (a modern farm office rather than a closed shed)
     wx, wz0, wz1, ww = r['window']
-    cut = box('Window cutter', (ww, 0.5, wz1 - wz0), (wx, back, (wz0 + wz1) / 2), None, bevel=0)
-    cut.hide_render = True; cut.hide_viewport = True
-    for o in (bw, bb):
-        bo = o.modifiers.new('window', 'BOOLEAN'); bo.object = cut; bo.operation = 'DIFFERENCE'; bo.solver = 'EXACT'
-    for name, size, loc in (('Window head', (ww + 0.1, 0.14, 0.06), (wx, back - 0.02, wz1 + 0.03)),
-                            ('Window sill', (ww + 0.16, 0.2, 0.04), (wx, back + 0.02, wz0 - 0.02)),
-                            ('Window jamb L', (0.06, 0.14, wz1 - wz0), (wx - ww / 2 - 0.03, back - 0.02, (wz0 + wz1) / 2)),
-                            ('Window jamb R', (0.06, 0.14, wz1 - wz0), (wx + ww / 2 + 0.03, back - 0.02, (wz0 + wz1) / 2)),
-                            ('Window mullion', (0.04, 0.05, wz1 - wz0), (wx, back - 0.04, (wz0 + wz1) / 2))):
-        box(name, size, loc, m['steel_black'], bevel=0.004)
-    box('Window glass', (ww, 0.006, wz1 - wz0), (wx, back - 0.04, (wz0 + wz1) / 2), m['glass'], bevel=0)
+    picture_window('Back window', (bw, bb), 'y', back, wx, ww, wz0, wz1, m, panes=3)
+    lw = (lwall, lboards)
+    lx, lz0, lz1, lww = r['window_left']
+    picture_window('Left window', lw, 'x', minX, lx, lww, lz0, lz1, m, panes=3)
     # front wall: only the section left of the big opening (the whiteboard wall in the photo)
     fx0, fx1 = minX, -2.9
     box('Front wall', (fx1 - fx0, 0.12, H), ((fx0 + fx1) / 2, front, H / 2), m['beam'], bevel=0)
@@ -208,14 +230,15 @@ def desk_setup(m):
     # tablet propped in its folding cover
     # an old 10-inch Android tablet (thick black bezel, silver rim, front camera) propped in a
     # folio cover; the site draws its screen
-    tab = empty('Tablet', (0.98, -0.08, t), math.radians(-8), d)
-    tilt = empty('Tablet tilt', (0, 0.02, 0.004), 0, tab); tilt.rotation_euler = (math.radians(-22), 0, 0)
-    box('Tablet cover back', (0.27, 0.006, 0.19), (0, 0.012, 0.095), m['folio'], bevel=0.003, parent=tilt)
-    box('Tablet rim', (0.258, 0.0105, 0.176), (0, 0.004, 0.092), m['alu'], bevel=0.004, parent=tilt)
-    box('Tablet front', (0.254, 0.002, 0.172), (0, -0.0015, 0.092), m['bezel_gloss'], bevel=0.003, parent=tilt)
-    box('Tablet screen', (0.217, 0.001, 0.136), (0, -0.0028, 0.092), m['screen'], bevel=0, parent=tilt)
-    cyl('Tablet camera', 0.0025, 0.001, (0, -0.003, 0.172), m['plastic_black'], rot=(math.pi / 2, 0, 0), parent=tilt)
-    box('Cover fold', (0.27, 0.11, 0.006), (0, 0.085, 0.003), m['folio'], bevel=0.002, parent=tab)
+    tab = empty('Tablet', (0.98, -0.1, t), math.radians(-8), d)
+    tilt = empty('Tablet tilt', (0, 0.03, 0.004), 0, tab); tilt.rotation_euler = (math.radians(-20), 0, 0)
+    # portrait, like the page's tablet view (phones hold it upright)
+    box('Tablet cover back', (0.19, 0.006, 0.27), (0, 0.012, 0.135), m['folio'], bevel=0.003, parent=tilt)
+    box('Tablet rim', (0.176, 0.0105, 0.258), (0, 0.004, 0.131), m['alu'], bevel=0.004, parent=tilt)
+    box('Tablet front', (0.172, 0.002, 0.254), (0, -0.0015, 0.131), m['bezel_gloss'], bevel=0.003, parent=tilt)
+    box('Tablet screen', (0.136, 0.001, 0.217), (0, -0.0028, 0.131), m['screen'], bevel=0, parent=tilt)
+    cyl('Tablet camera', 0.0025, 0.001, (0, -0.003, 0.25), m['plastic_black'], rot=(math.pi / 2, 0, 0), parent=tilt)
+    box('Cover fold', (0.19, 0.14, 0.006), (0, 0.105, 0.003), m['folio'], bevel=0.002, parent=tab)
     # Xbox Series S standing, vent circle toward the room, and a white controller
     xb = empty('Xbox', (1.18, 0.18, t), math.radians(-6), d)
     box('Xbox body', (0.151, 0.065, 0.275), (0, 0, 0.1375), m['plastic_white'], bevel=0.006, parent=xb)
@@ -267,23 +290,18 @@ def esp32_bench(m):
     box('Bench rail', (L - 0.12, 0.03, 0.08), (cx, b['y0'] + 0.06, t - 0.09), m['bench'], bevel=0.003)
     box('Bench shelf', (L - 0.14, D - 0.12, 0.025), (cx, cy, 0.18), m['bench'], bevel=0.003)
     box('ESD mat', (1.2, 0.52, 0.004), (1.25, cy - 0.02, t + 0.002), m['mat'], bevel=0.001)
-    # the unfinished ESP32 project: board, breadboard, jumper wires, multimeter, iron, solder
-    box('Breadboard', (0.165, 0.055, 0.01), (1.05, 1.62, t + 0.009), m['plastic_white'], bevel=0.001)
-    box('ESP32 board', (0.055, 0.028, 0.0016), (0.9, 1.47, t + 0.006), m['pcb'], bevel=0)
-    box('ESP32 module', (0.025, 0.018, 0.003), (0.91, 1.47, t + 0.0085), m['steel'], bevel=0.0005)
-    for i, (col, dx) in enumerate((('wire_red', 0.0), ('wire_black', 0.02), ('yellow', 0.04))):
-        tube_path(f'Jumper {i}', [(1.0 + dx, 1.62, t + 0.014), (0.98 + dx, 1.56, t + 0.05), (0.92 + dx * 0.3, 1.49, t + 0.01)], 0.0012, m[col])
-    mm = empty('Multimeter', (1.5, 1.6, t + 0.004), math.radians(12))
+    # the ESP32 build itself (boards, sensors, relay, seedlings) is farm_office.esp32_kit()
+    mm = empty('Multimeter', (2.32, 1.5, t + 0.004), math.radians(-18))
     box('Meter body', (0.09, 0.17, 0.035), (0, 0, 0.0175), m['yellow'], bevel=0.008, parent=mm)
     box('Meter face', (0.07, 0.15, 0.004), (0, 0, 0.036), m['plastic_black'], bevel=0.002, parent=mm)
     box('Meter display', (0.055, 0.035, 0.001), (0, 0.045, 0.0385), m['screen'], bevel=0, parent=mm)
-    tube_path('Probe lead red', [(1.48, 1.52, t + 0.02), (1.42, 1.42, t + 0.006), (1.30, 1.40, t + 0.006)], 0.0018, m['wire_red'])
-    tube_path('Probe lead black', [(1.52, 1.52, t + 0.02), (1.58, 1.42, t + 0.006), (1.66, 1.38, t + 0.006)], 0.0018, m['wire_black'])
+    tube_path('Probe lead red', [(2.3, 1.42, t + 0.02), (2.22, 1.36, t + 0.006), (2.08, 1.36, t + 0.006)], 0.0018, m['wire_red'])
+    tube_path('Probe lead black', [(2.34, 1.42, t + 0.02), (2.4, 1.34, t + 0.006), (2.5, 1.33, t + 0.006)], 0.0018, m['wire_black'])
     box('Iron stand', (0.15, 0.1, 0.03), (1.72, 1.86, t + 0.015), m['plastic_black'], bevel=0.004)
     box('Sponge', (0.06, 0.05, 0.012), (1.69, 1.86, t + 0.036), m['yellow'], bevel=0.002)
     iron = cyl('Iron handle', 0.012, 0.16, (1.76, 1.84, t + 0.12), m['plastic_black'], rot=(math.radians(-35), math.radians(20), 0))
     cyl('Iron tip', 0.004, 0.09, (1.79, 1.89, t + 0.05), m['steel'], rot=(math.radians(-35), math.radians(20), 0))
-    cyl('Solder spool', 0.04, 0.04, (1.38, 1.88, t + 0.02), m['steel'], rot=(math.pi / 2, 0, 0))
+    cyl('Solder spool', 0.04, 0.04, (2.47, 1.75, t + 0.02), m['steel'], rot=(math.pi / 2, 0, 0))
     box('Parts organiser', (0.22, 0.13, 0.045), (1.85, 1.42, t + 0.0225), m['clear'], bevel=0.003)
     cyl('Pen cup', 0.04, 0.1, (2.25, 1.9, t + 0.05), m['ceramic'])
     for i in range(4):
@@ -398,27 +416,4 @@ def outdoors(m, sun_dir):
     vs = [bm.verts.new((p['cx'] + math.cos(a) * p['rx'] * 1.15, p['cy'] + math.sin(a) * p['ry'] * 1.15, level)) for a in [k / 48 * math.tau for k in range(48)]]
     bm.faces.new(vs)
     _mesh_obj('Pond', bm, m['water'])
-    # distant mountains at the photo's scale: the main massif left of centre rising 13-16 degrees,
-    # lower ground to the right where the city sits, a hazier range behind
-    for name, dist, peak, span in (('Near ridge', 6500, 2900, 1.0), ('Far range', 13000, 4200, 0.8)):
-        bm = bmesh.new(); cols, rows = 260, 22
-        grid = []
-        for j in range(rows + 1):
-            row = []
-            for i in range(cols + 1):
-                a = (i / cols - 0.5) * math.radians(176)
-                r = dist + j * (dist * 0.05)
-                x, y = math.sin(a) * r, math.cos(a) * r
-                az = math.degrees(a)
-                envelope = math.exp(-((az + 6) / 22) ** 2) * 0.85 + 0.25 + 0.2 * math.exp(-((az - 32) / 15) ** 2)
-                envelope *= 0.55 if 6 < az < 24 else 1.0     # a lower saddle behind the city
-                ridge = (noise.noise(Vector((i * 0.03, dist * 0.001, 0))) * 0.5 + 0.5)
-                ridge = 0.55 * ridge + 0.45 * (noise.noise(Vector((i * 0.13, 3.1, dist * 0.001))) * 0.5 + 0.5)
-                h = peak * span * envelope * ridge * math.sin(math.pi * j / rows) ** 0.7
-                row.append(bm.verts.new((x, y, h)))
-            grid.append(row)
-        for j in range(rows):
-            for i in range(cols):
-                bm.faces.new((grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]))
-        o = _mesh_obj(name, bm, m['mountain'])
-        for p in o.data.polygons: p.use_smooth = True
+    # the mountains are built by farm_office.mountains()

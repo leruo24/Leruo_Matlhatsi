@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { dirToUv, photoDir, droneDir, homeView, PANO, AUTOPILOT_ZONE, decodeDepth, SCREEN_DEVICES } from '../js/pano-view.js';
+import { dirToUv, photoDir, droneDir, homeView, PANO, AUTOPILOT_ZONE, decodeDepth, SCREEN_DEVICES, TIMES, LIGHT, timeOfDay } from '../js/pano-view.js';
 import { constrainWide, WIDE_ZONE } from '../js/drone-control.js';
 import { existsSync, readFileSync } from 'node:fs';
 const SCREENS = JSON.parse(readFileSync(new URL('../assets/workshop-3d/screens.json', import.meta.url), 'utf8'));
@@ -52,9 +52,11 @@ test('monitor, laptop and tablet: in front of the eye, facing it, fully in the h
     }
     assert.ok(sc.rect[0] < sc.rect[2] && sc.rect[1] < sc.rect[3]);
   }
-  // sizes as modelled: a 1.10 m monitor, a ~13-inch laptop, a 10-inch tablet
+  // sizes as modelled: a 1.10 m monitor, a ~13-inch laptop, a 10-inch tablet standing upright
   const w = (k) => new THREE.Vector3(...SCREENS[k].quad[0]).distanceTo(new THREE.Vector3(...SCREENS[k].quad[1]));
-  assert.ok(Math.abs(w('monitor') - 1.10) < 0.01 && Math.abs(w('laptop') - 0.288) < 0.01 && Math.abs(w('tablet') - 0.217) < 0.01);
+  const h = (k) => new THREE.Vector3(...SCREENS[k].quad[0]).distanceTo(new THREE.Vector3(...SCREENS[k].quad[3]));
+  assert.ok(Math.abs(w('monitor') - 1.10) < 0.01 && Math.abs(w('laptop') - 0.288) < 0.01);
+  assert.ok(Math.abs(w('tablet') - 0.136) < 0.01 && Math.abs(h('tablet') - 0.217) < 0.01, 'tablet is portrait');
 });
 
 test('the autopilot keeps the drone in the home view; the remote can take it all the way round', () => {
@@ -75,8 +77,20 @@ test('depth decoding: 16 bits, logarithmic between 0.2 m and 30 km, white is sky
   near(decodeDepth(q >> 8, q & 255), 3, 3 * 1e-4);
 });
 
-test('every panorama file the viewer asks for is in the repository', () => {
-  for (const f of [PANO.low, ...PANO.mid, ...PANO.high, 'depth.png', 'nav.json', 'dogs.json', 'cows.json', 'pen.json', ...Object.values(SCREENS).map((s) => s.mask)]) {
+test('every panorama file the viewer asks for is in the repository, for each time of day', () => {
+  for (const t of TIMES) for (const f of [PANO.low, ...PANO.mid, ...PANO.high]) {
+    assert.ok(existsSync(new URL(`../assets/workshop-3d/${t}/${f}`, import.meta.url)), `${t}/${f}`);
+  }
+  for (const f of ['depth.png', 'nav.json', 'dogs.json', 'cows.json', 'chickens.json', 'pen.json', ...Object.values(SCREENS).map((s) => s.mask)]) {
     assert.ok(existsSync(new URL('../assets/workshop-3d/' + f, import.meta.url)), f);
   }
+});
+
+test('time of day follows the local clock', () => {
+  const at = (h, m = 0) => timeOfDay(new Date(2026, 10, 23, h, m));
+  assert.equal(at(4, 59), 'night'); assert.equal(at(5), 'sunrise'); assert.equal(at(7, 59), 'sunrise');
+  assert.equal(at(8), 'day'); assert.equal(at(13), 'day'); assert.equal(at(16, 29), 'day');
+  assert.equal(at(16, 30), 'sunset'); assert.equal(at(19, 29), 'sunset'); assert.equal(at(19, 30), 'night'); assert.equal(at(0), 'night');
+  assert.deepEqual(Object.keys(LIGHT).sort(), [...TIMES].sort());
+  assert.ok(LIGHT.night.sprite < LIGHT.day.sprite && !LIGHT.night.birds);
 });
