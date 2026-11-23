@@ -5,7 +5,7 @@ dogs, the drone, the monitor) behind the furniture, walls and trees in the rende
 Rendered by Cycles from the panorama eye with the same mapping as the 360 render, every surface
 replaced by an emission shader that writes its distance. The dogs are left out (the page draws
 them live), and so are the trees' leaf cards and the grass blades: they're cut-outs, mostly
-holes. Output: an RGB PNG covering latitude -90 deg to `top`, distance d (m) stored as
+holes. Window glass is left out too, so things outside stay visible through it. Output: an RGB PNG covering latitude -90 deg to `top`, distance d (m) stored as
 t = log(d / 0.2) / log(30000 / 0.2) in 16 bits: red = high byte, green = low byte. 1.0 is sky.
 """
 import math, os, sys
@@ -24,8 +24,8 @@ def hide(o):
     for c in o.children: hide(c)
 for n in ('Golden dog (standing)', 'Golden retriever (lying)', 'Terrier (sitting)'): hide(bpy.data.objects[n])
 for o in s.objects:
-    if o.type == 'CURVES' or any(sl.material and sl.material.name.startswith('Leaves') for sl in o.material_slots):
-        o.hide_render = True
+    if o.type == 'CURVES' or any(sl.material and sl.material.name.startswith(('Leaves', 'Glass', 'Window glass', 'Car glass')) for sl in o.material_slots):
+        o.hide_render = True   # cut-outs and glass: things behind them stay visible
 for o in s.objects:            # lamps would add light to the emission values
     if o.type == 'LIGHT': o.hide_render = True
 

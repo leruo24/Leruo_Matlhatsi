@@ -2,7 +2,8 @@
 Pack the dog sprite frames from dog_sprites.py into one atlas per dog for the 360 page.
     python3 blender/make_dog_atlases.py <sprite dir>
 Writes assets/workshop-3d/dog-<name>.webp (rows = 8 headings, columns = walk frames then idle
-frames), a half-size dog-<name>-half.webp for phones, and dogs.json with the layout. Needs Pillow.
+frames), a half-size dog-<name>-half.webp for phones, and dogs.json with the layout. Cow sprites
+from cow_sprites.py (cow-<coat>) go to cow-<coat>.webp and cows.json the same way. Needs Pillow.
 """
 import json, os, sys
 from PIL import Image
@@ -10,11 +11,11 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(os.path.dirname(HERE), 'assets', 'workshop-3d')
 src = sys.argv[1]
-meta_all = {}
-for name in ('golden', 'retriever', 'terrier'):
-    mp = os.path.join(src, f'{name}.json')
-    if not os.path.exists(mp):
-        continue
+import glob
+groups = {'dogs': {}, 'cows': {}}
+for mp in sorted(glob.glob(os.path.join(src, '*.json'))):
+    name = os.path.splitext(os.path.basename(mp))[0]
+    cow = name.startswith('cow-')
     m = json.load(open(mp))
     cols = m['walk'] + m['idle']; rows = m['headings']
     cell = Image.open(os.path.join(src, f'{name}_walk_0_0.png')).width
@@ -23,8 +24,13 @@ for name in ('golden', 'retriever', 'terrier'):
         for f in range(cols):
             kind, fi = ('walk', f) if f < m['walk'] else ('idle', f - m['walk'])
             atlas.paste(Image.open(os.path.join(src, f'{name}_{kind}_{h}_{fi}.png')).convert('RGBA'), (f * cell, h * cell))
-    atlas.save(os.path.join(OUT, f'dog-{name}.webp'), quality=78, method=4)
-    atlas.resize((atlas.width // 2, atlas.height // 2), Image.LANCZOS).save(os.path.join(OUT, f'dog-{name}-half.webp'), quality=78, method=4)
-    meta_all[name] = dict(m, cols=cols, rows=rows, cell=cell, file=f'dog-{name}.webp', half=f'dog-{name}-half.webp')
-    print(name, atlas.size, os.path.getsize(os.path.join(OUT, f'dog-{name}.webp')) // 1024, 'KB')
-json.dump(meta_all, open(os.path.join(OUT, 'dogs.json'), 'w'), indent=1)
+    base = name if cow else f'dog-{name}'
+    atlas.save(os.path.join(OUT, f'{base}.webp'), quality=78, method=4)
+    entry = dict(m, cols=cols, rows=rows, cell=cell, file=f'{base}.webp', half=f'{base}.webp')
+    if not cow:
+        atlas.resize((atlas.width // 2, atlas.height // 2), Image.LANCZOS).save(os.path.join(OUT, f'{base}-half.webp'), quality=78, method=4)
+        entry['half'] = f'{base}-half.webp'
+    groups['cows' if cow else 'dogs'][name] = entry
+    print(name, atlas.size, os.path.getsize(os.path.join(OUT, f'{base}.webp')) // 1024, 'KB')
+for g, meta in groups.items():
+    if meta: json.dump(meta, open(os.path.join(OUT, f'{g}.json'), 'w'), indent=1)

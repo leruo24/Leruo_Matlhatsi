@@ -112,8 +112,8 @@ export class NavGrid {
 }
 
 // ---------------------------------------------------------------- drawing
-const VERT = /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-const FRAG = /* glsl */ `precision highp float;
+export const VERT = /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+export const FRAG = /* glsl */ `precision highp float;
   uniform sampler2D tAtlas; uniform vec4 uCell; uniform float uDepth, uTint; varying vec2 vUv;
   void main(){
     vec4 c = texture2D(tAtlas, uCell.xy + vUv * uCell.zw);
@@ -136,7 +136,7 @@ function ballMaterial() {
 
 export function createDogs({ scene, camera, renderer, onChange = () => {}, sound = null }) {
   const group = new THREE.Group(); scene.add(group);
-  const state = { ready: false, dogs: [], nav: null, ball: null, light: null };
+  const state = { ready: false, dogs: [], nav: null, ball: null, light: null, control: -1, axes: [0, 0] };
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
   // floor brightness from the low-res panorama, so a dog walking out of the sun dims a little
@@ -237,7 +237,7 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
     [tx, ty] = t;
     state.ball = { x0: 0.15, y0: 0.45, z0: 1.25, x: tx, y: ty, t: 0, dur: 0.75 + 0.08 * Math.hypot(tx, ty), mode: 'flying', holder: null };
     ball.visible = ballShadow.visible = true;
-    for (const d of state.dogs) { d.mode = 'wait'; d.path = null; }
+    for (const d of state.dogs) if (d.mode !== 'driven') { d.mode = 'wait'; d.path = null; }
     return true;
   }
 
@@ -278,7 +278,7 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
       if (u >= 1) {
         b.mode = 'ground'; b.bounce = 0.35;
         // the race: everyone runs for it
-        for (const d of state.dogs) if (go(d, b.x, b.y, 'chase')) d.speed = SPEED[d.name] * 2.0;
+        for (const d of state.dogs) if (d.mode !== 'driven' && go(d, b.x, b.y, 'chase')) d.speed = SPEED[d.name] * 2.0;
       }
     } else if (b.mode === 'ground') {
       b.bounce = Math.max(0, b.bounce - dt * 0.9);
@@ -292,9 +292,37 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
     ballShadow.material.opacity = b.mode === 'flying' ? 0.4 : 1;
   }
 
+  // you walking a dog: stick up = away from you along the view, down = toward you, sideways = across
+  function driven(d, dt) {
+    const f = new THREE.Vector3(); camera.getWorldDirection(f);
+    const len = Math.hypot(f.x, f.z) || 1;
+    const fx = f.x / len, fy = -f.z / len, rx = fy, ry = -fx;
+    const [ax, ay] = state.axes;
+    let vx = fx * -ay + rx * ax, vy = fy * -ay + ry * ax;
+    const mag = Math.min(1, Math.hypot(vx, vy));
+    if (mag < 0.08) return 0;
+    const n = Math.hypot(vx, vy); vx /= n; vy /= n;
+    const want = Math.atan2(vy, vx);
+    const dh = Math.atan2(Math.sin(want - d.heading), Math.cos(want - d.heading));
+    d.heading += Math.sign(dh) * Math.min(Math.abs(dh), 7 * dt);
+    const sp = SPEED[d.name] * (0.6 + 1.3 * mag) * Math.max(0.3, Math.cos(dh));
+    const dx = Math.cos(d.heading) * sp * dt, dy = Math.sin(d.heading) * sp * dt;
+    const nav = state.nav;
+    // slide along walls and furniture instead of stopping dead
+    if (nav.isFree(d.x + dx, d.y + dy)) { d.x += dx; d.y += dy; }
+    else if (nav.isFree(d.x + dx, d.y)) d.x += dx;
+    else if (nav.isFree(d.x, d.y + dy)) d.y += dy;
+    else return 0;
+    // picks up the ball if you walk it there
+    const b = state.ball;
+    if (b && b.mode === 'ground' && Math.hypot(d.x - b.x, d.y - b.y) < 0.4) { b.mode = 'held'; b.holder = d; b.dropped = undefined; bark(d); }
+    return Math.hypot(dx, dy);
+  }
+
   function think(d, dt, reduced) {
     const b = state.ball;
     let moved = 0;
+    if (d.mode === 'driven') return driven(d, dt);
     if (d.mode === 'idle') {
       d.timer -= dt;
       if (d.timer <= 0) { const p = pickWander(d); if (p) { d.path = p; d.mode = 'walk'; d.speed = SPEED[d.name]; } else d.timer = 2; }
@@ -302,7 +330,7 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
       if (d.mode === 'chase' && b && b.mode === 'ground' && Math.hypot(d.x - b.x, d.y - b.y) < 0.45) {
         // got it: carry it back to you; the others give up and wander off after a moment
         b.mode = 'held'; b.holder = d; bark(d);
-        for (const o of state.dogs) if (o !== d) { o.mode = 'idle'; o.path = null; o.timer = rand(0.8, 2.5); o.speed = SPEED[o.name]; }
+        for (const o of state.dogs) if (o !== d && o.mode !== 'driven') { o.mode = 'idle'; o.path = null; o.timer = rand(0.8, 2.5); o.speed = SPEED[o.name]; }
         const [fx, fy] = frontSpot(); go(d, fx, fy, 'return'); d.speed = SPEED[d.name] * 1.5;
       } else if (d.path && d.path.length) {
         moved = steer(d, dt, reduced);
@@ -379,6 +407,19 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
       return best;
     },
     greet, throwBall,
+    names: () => state.dogs.map((d) => d.name),
+    /** take control of dog i (or -1 to let it go); it stands still until you move the stick */
+    control(i) {
+      state.dogs.forEach((d, k) => { if (d.mode === 'driven' && k !== i) { d.mode = 'idle'; d.timer = 1.5; d.speed = SPEED[d.name]; } });
+      state.control = i;
+      const d = state.dogs[i]; if (d) { d.mode = 'driven'; d.path = null; }
+      state.axes = [0, 0];
+    },
+    drive(ax, ay) { state.axes = [ax, ay]; },
+    bark(i) { const d = state.dogs[i ?? state.control]; if (d) bark(d); },
+    /** drop the ball if the walked dog is carrying it */
+    drop() { const b = state.ball; if (b && b.mode === 'held' && b.holder?.mode === 'driven') { b.mode = 'ground'; b.x = b.px; b.y = b.py; b.bounce = 0.2; b.holder = null; b.dropped = 8; } },
+    controlled() { return state.dogs[state.control] || null; },
     bubbles() { return state.dogs.filter((d) => d.bubble > 0).map((d) => ({ name: d.name, at: d.mesh.position, size: d.m.size, life: d.bubble })); },
   };
 }

@@ -43,6 +43,13 @@ Not used:
 The approved photo isn't physically consistent. The desk only reads as 0.76 m high if the camera is about 1.6 m up, the dogs and the console come out oversized, and the gravel yard sits above the horizon line. So this scene keeps the photo's arrangement and camera angle but uses real-world sizes, with a yard that rises gently.
 
 ## Status
+Fifth pass (23 November 2026):
+- **Front wall.** The front is a steel-framed glass wall (`thin_glass`) with a corner post, so the office has four walls and corners.
+- **Desk.** The laptop is open, with a separate screen object. The tablet is an old 10-inch Android-style tablet in a folio cover, also with a separate screen object.
+- **Caps.** The steel shelf moved to the left wall, so the whiteboard and caps show.
+- **Cows.** `render.py` takes `NOCOWS=1`. `cow_sprites.py` renders the grazing cows, and `export_screens.py` replaces `render_monitor_mask.py`, covering all three screens.
+- **Depth map.** It ignores glass, so things outside stay visible through the windows.
+
 Fourth pass (22 November 2026): the dogs walk.
 - `dog_sprites.py` renders each dog as sprite frames for the 360 page: 8 headings × an 8-frame walk cycle (a four-beat walk) and a 4-frame idle with a wagging tail, 320 px, 24 samples.
   - All three dogs are rebuilt standing, from the golden dog's skeleton with different proportions, ears and tails. The retriever is no longer lying down and the terrier no longer sits.

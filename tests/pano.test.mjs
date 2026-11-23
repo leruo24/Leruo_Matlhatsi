@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { dirToUv, photoDir, droneDir, homeView, MONITOR_QUAD, PANO, AUTOPILOT_ZONE, decodeDepth } from '../js/pano-view.js';
+import { dirToUv, photoDir, droneDir, homeView, PANO, AUTOPILOT_ZONE, decodeDepth, SCREEN_DEVICES } from '../js/pano-view.js';
 import { constrainWide, WIDE_ZONE } from '../js/drone-control.js';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+const SCREENS = JSON.parse(readFileSync(new URL('../assets/workshop-3d/screens.json', import.meta.url), 'utf8'));
 
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} vs ${b}`);
 const deg = THREE.MathUtils.radToDeg;
@@ -38,16 +39,22 @@ test('home view frames the scene like the photo', () => {
   assert.ok(homeView(0.46).fov <= 75 + 1e-9);   // tall phones: capped
 });
 
-test('the monitor is in front, faces the eye and is fully visible in the home view', () => {
-  for (const p of MONITOR_QUAD) assert.ok(p[2] < -3);
-  const [a, b, , d] = MONITOR_QUAD.map((p) => new THREE.Vector3(...p));
-  const n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(d, a)).normalize();
-  const toEye = a.clone().negate().normalize();
-  assert.ok(Math.abs(n.dot(toEye)) > 0.9, 'screen roughly faces the eye');
-  for (const aspect of [16 / 9, 1670 / 942, 21 / 9, 4 / 3]) {
-    const cam = homeCamera(aspect);
-    for (const p of MONITOR_QUAD) assert.ok(onScreen(cam, p), `monitor corner on screen at aspect ${aspect.toFixed(2)}`);
+test('monitor, laptop and tablet: in front of the eye, facing it, fully in the home view', () => {
+  assert.deepEqual(Object.keys(SCREENS).sort(), Object.keys(SCREEN_DEVICES).sort());
+  for (const [key, sc] of Object.entries(SCREENS)) {
+    const q = sc.quad.map((p) => new THREE.Vector3(...p));
+    for (const p of q) assert.ok(p.z < -3, `${key} is ahead`);
+    const n = new THREE.Vector3().subVectors(q[1], q[0]).cross(new THREE.Vector3().subVectors(q[3], q[0])).normalize();
+    assert.ok(Math.abs(n.dot(q[0].clone().negate().normalize())) > 0.6, `${key} roughly faces the eye`);
+    for (const aspect of [16 / 9, 1670 / 942, 21 / 9]) {
+      const cam = homeCamera(aspect);
+      for (const p of sc.quad) assert.ok(onScreen(cam, p), `${key} corner on screen at aspect ${aspect.toFixed(2)}`);
+    }
+    assert.ok(sc.rect[0] < sc.rect[2] && sc.rect[1] < sc.rect[3]);
   }
+  // sizes as modelled: a 1.10 m monitor, a ~13-inch laptop, a 10-inch tablet
+  const w = (k) => new THREE.Vector3(...SCREENS[k].quad[0]).distanceTo(new THREE.Vector3(...SCREENS[k].quad[1]));
+  assert.ok(Math.abs(w('monitor') - 1.10) < 0.01 && Math.abs(w('laptop') - 0.288) < 0.01 && Math.abs(w('tablet') - 0.217) < 0.01);
 });
 
 test('the autopilot keeps the drone in the home view; the remote can take it all the way round', () => {
@@ -69,7 +76,7 @@ test('depth decoding: 16 bits, logarithmic between 0.2 m and 30 km, white is sky
 });
 
 test('every panorama file the viewer asks for is in the repository', () => {
-  for (const f of [PANO.low, ...PANO.mid, ...PANO.high, 'monitor-mask.png', 'depth.png', 'nav.json', 'dogs.json']) {
+  for (const f of [PANO.low, ...PANO.mid, ...PANO.high, 'depth.png', 'nav.json', 'dogs.json', 'cows.json', 'pen.json', ...Object.values(SCREENS).map((s) => s.mask)]) {
     assert.ok(existsSync(new URL('../assets/workshop-3d/' + f, import.meta.url)), f);
   }
 });

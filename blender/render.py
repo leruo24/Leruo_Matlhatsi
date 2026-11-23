@@ -3,8 +3,8 @@ Render a view of blender/workshop.blend.
     python blender/render.py front  out.png [width] [samples]
     python blender/render.py pano   out.png [width] [samples] [tile i/n]
 'front' uses the camera matched to the approved photo; 'pano' is the 360-degree view from the
-same eye. With NODOGS=1 in the environment the three dogs are left out: the 360 page draws them
-live, walking. Long renders can be split into horizontal strips ("tile 0/4", top first), each rendered
+same eye. With NODOGS=1 in the environment the three dogs are left out, and with NOCOWS=1 the
+cows: the 360 page draws them live, walking. Long renders can be split into horizontal strips ("tile 0/4", top first), each rendered
 as a narrow band of latitude, and stitched with make_pano_assets.py.
 """
 import os, sys, time
@@ -20,11 +20,14 @@ bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, 'workshop.blend'))
 s = bpy.context.scene
 s.camera = bpy.data.objects['PhotoCam' if view == 'front' else 'PanoCam']
 DOG_ROOTS = ('Golden dog (standing)', 'Golden retriever (lying)', 'Terrier (sitting)')
+def hide(o):
+    o.hide_render = True
+    for c in o.children: hide(c)
 if os.environ.get('NODOGS') == '1':
-    def hide(o):
-        o.hide_render = True
-        for c in o.children: hide(c)
     for n in DOG_ROOTS: hide(bpy.data.objects[n])
+if os.environ.get('NOCOWS') == '1':      # the cows graze live on the page too
+    for o in list(bpy.data.objects):
+        if o.name.endswith('(cow)'): hide(o)
 s.render.resolution_x = width
 s.render.resolution_y = round(width * 942 / 1670) if view == 'front' else width // 2
 s.render.resolution_percentage = 100

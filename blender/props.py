@@ -117,6 +117,19 @@ def workshop_shell(m):
     boards('Front wall boards', fx1 - fx0, H, ((fx0 + fx1) / 2, front - 0.072, H / 2), 0, m['boards'])
     box('Corner post', (0.16, 0.16, H), (fx1 + 0.06, front - 0.02, H / 2), m['beam'], bevel=0.01)
     box('Header beam', (W, 0.22, 0.32), ((minX + maxX) / 2, front, H - 0.16), m['beam'], bevel=0.01)
+    # the rest of the front is a steel-framed glass wall, so the office has its four walls and
+    # corners and still looks out over the yard (thin black frames, a transom at door height)
+    box('Corner post right', (0.16, 0.16, H), (maxX + 0.02, front - 0.02, H / 2), m['beam'], bevel=0.01)
+    gx0, gx1, gtop = fx1 + 0.14, maxX - 0.06, H - 0.32
+    bays = 6; bw_ = (gx1 - gx0) / bays; gy = front - 0.01; tz = 2.4
+    for i in range(bays + 1):
+        box('Glazing mullion', (0.05, 0.07, gtop), (gx0 + i * bw_, gy, gtop / 2), m['steel_black'], bevel=0.003)
+    for z, hgt in ((0.03, 0.06), (tz, 0.05), (gtop - 0.02, 0.04)):
+        box('Glazing rail', (gx1 - gx0 + 0.05, 0.07, hgt), ((gx0 + gx1) / 2, gy, z), m['steel_black'], bevel=0.003)
+    for i in range(bays):
+        cx = gx0 + (i + 0.5) * bw_
+        box('Glazing pane', (bw_ - 0.05, 0.006, tz - 0.085), (cx, gy, 0.06 + (tz - 0.085) / 2), m['thin_glass'], bevel=0)
+        box('Glazing pane', (bw_ - 0.05, 0.006, gtop - tz - 0.065), (cx, gy, tz + 0.025 + (gtop - tz - 0.065) / 2), m['thin_glass'], bevel=0)
     # right wall with the sliding door slid open
     d0, d1 = r['door']; dh = r['door_h']
     box('Right wall rear', (0.1, d0 - back, H), (maxX + 0.05, (back + d0) / 2, H / 2), m['beam'], bevel=0)
@@ -176,7 +189,15 @@ def desk_setup(m):
 
     box('Keyboard', (0.44, 0.14, 0.022), (0.3, -0.13, t + 0.011), m['plastic_black'], bevel=0.004, parent=d)
     sphere('Mouse', 0.035, (0.66, -0.13, t + 0.012), m['plastic_black'], scale=(0.9, 1.5, 0.45), parent=d)
-    box('Laptop', (0.31, 0.22, 0.016), (-0.95, -0.08, t + 0.008), m['alu'], rot=(0, 0, math.radians(8)), bevel=0.004, parent=d)
+    # laptop, open (its screen content is drawn by the site, like the monitor's)
+    lap = empty('Laptop', (-0.9, -0.05, t), math.radians(18), d)
+    box('Laptop base', (0.32, 0.22, 0.016), (0, 0, 0.008), m['alu'], bevel=0.004, parent=lap)
+    box('Laptop keys', (0.27, 0.1, 0.002), (0, 0.025, 0.0165), m['plastic_black'], bevel=0.0005, parent=lap)
+    box('Laptop trackpad', (0.1, 0.06, 0.001), (0, -0.07, 0.0163), m['alu_dark'], bevel=0.0005, parent=lap)
+    hinge = empty('Laptop hinge', (0, 0.108, 0.016), 0, lap); hinge.rotation_euler = (math.radians(-12), 0, 0)
+    box('Laptop lid', (0.32, 0.007, 0.215), (0, 0.004, 0.1075), m['alu'], bevel=0.003, parent=hinge)
+    box('Laptop bezel', (0.31, 0.002, 0.205), (0, -0.0005, 0.1075), m['plastic_black'], bevel=0.001, parent=hinge)
+    box('Laptop screen', (0.288, 0.001, 0.18), (0, -0.0018, 0.112), m['screen'], bevel=0, parent=hinge)
     # Stanley tumbler with handle
     cyl('Stanley cup', 0.045, 0.27, (-0.5, 0.1, t + 0.135), m['stanley'], r2=0.05, parent=d)
     cyl('Stanley lid', 0.051, 0.025, (-0.5, 0.1, t + 0.282), m['stanley'], parent=d)
@@ -185,10 +206,16 @@ def desk_setup(m):
     h.rotation_euler = (math.pi / 2, 0, 0); h.scale = (0.8, 1.4, 1); h.data.materials.append(m['stanley'])
     # the desk lamp and plant are Poly Haven models placed by assets.furnish()
     # tablet propped in its folding cover
+    # an old 10-inch Android tablet (thick black bezel, silver rim, front camera) propped in a
+    # folio cover; the site draws its screen
     tab = empty('Tablet', (0.98, -0.08, t), math.radians(-8), d)
-    box('Tablet cover back', (0.25, 0.006, 0.18), (0, 0.03, 0.085), m['plastic_black'], rot=(math.radians(-18), 0, 0), bevel=0.002, parent=tab)
-    box('Tablet', (0.245, 0.007, 0.175), (0, 0.02, 0.09), m['screen'], rot=(math.radians(-18), 0, 0), bevel=0.003, parent=tab)
-    box('Cover fold', (0.25, 0.09, 0.005), (0, 0.075, 0.0025), m['plastic_black'], bevel=0.001, parent=tab)
+    tilt = empty('Tablet tilt', (0, 0.02, 0.004), 0, tab); tilt.rotation_euler = (math.radians(-22), 0, 0)
+    box('Tablet cover back', (0.27, 0.006, 0.19), (0, 0.012, 0.095), m['folio'], bevel=0.003, parent=tilt)
+    box('Tablet rim', (0.258, 0.0105, 0.176), (0, 0.004, 0.092), m['alu'], bevel=0.004, parent=tilt)
+    box('Tablet front', (0.254, 0.002, 0.172), (0, -0.0015, 0.092), m['bezel_gloss'], bevel=0.003, parent=tilt)
+    box('Tablet screen', (0.217, 0.001, 0.136), (0, -0.0028, 0.092), m['screen'], bevel=0, parent=tilt)
+    cyl('Tablet camera', 0.0025, 0.001, (0, -0.003, 0.172), m['plastic_black'], rot=(math.pi / 2, 0, 0), parent=tilt)
+    box('Cover fold', (0.27, 0.11, 0.006), (0, 0.085, 0.003), m['folio'], bevel=0.002, parent=tab)
     # Xbox Series S standing, vent circle toward the room, and a white controller
     xb = empty('Xbox', (1.18, 0.18, t), math.radians(-6), d)
     box('Xbox body', (0.151, 0.065, 0.275), (0, 0, 0.1375), m['plastic_white'], bevel=0.006, parent=xb)
@@ -297,9 +324,10 @@ def wall_items(m):
         bpy.ops.import_scene.gltf(filepath=glb)
         sh = bpy.context.selected_objects[0]
         while sh.parent: sh = sh.parent
-        sh.name = 'Steel shelf'; sh.scale = (0.08, 0.08, 0.08); sh.location = (-3.6, fy - 0.24, 0); sh.rotation_euler = (0, 0, math.pi)
+        # on the left wall, clear of the whiteboard and the caps
+        sh.name = 'Steel shelf'; sh.scale = (0.08, 0.08, 0.08); sh.location = (ROOM['minX'] + 0.26, 2.55, 0); sh.rotation_euler = (0, 0, -math.pi / 2)
     for i, z in enumerate((0.11, 0.52, 0.93)):
-        tb = empty(f'Toolbox {i}', (-3.6, fy - 0.24, z), 0)
+        tb = empty(f'Toolbox {i}', (ROOM['minX'] + 0.26, 2.55, z), math.pi / 2)
         box('Box', (0.42, 0.22, 0.2), (0, 0, 0.1), m['plastic_black'], bevel=0.01, parent=tb)
         box('Lid', (0.43, 0.23, 0.04), (0, 0, 0.21), m['yellow'], bevel=0.008, parent=tb)
         for sx in (-1, 1):

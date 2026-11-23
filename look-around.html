@@ -3,9 +3,39 @@
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}</script>
 <link rel="stylesheet" href="css/room.css"><link rel="stylesheet" href="css/drone-remote.css"></head><body>
 <canvas id="view" tabindex="0" aria-label="Three-dimensional workshop. Drag in any direction or use all four arrow keys. Home centres the view."></canvas>
-<header><p class="eyebrow">LERUO MATLHATSI / THE WORKSHOP <span class="preview-badge">3D PREVIEW · IN PRODUCTION</span></p><h1>A space for possibility.</h1><p>Drag to look around. Select the monitor to enter the computer, or a dog to call it over.</p><p id="status" role="status">Opening the workshop…</p></header>
-<footer><a class="back-home" href="index.html">← Main experience</a><div class="direction-pad" aria-label="Look controls"><button id="up" aria-label="Look up">↑</button><button id="left" aria-label="Look left">←</button><button id="centre" aria-label="Centre view">◎</button><button id="right" aria-label="Look right">→</button><button id="down" aria-label="Look down">↓</button></div><div class="actions"><button id="pause" aria-pressed="false" hidden>Pause scenery</button><button id="ball" hidden title="Throw a ball for the dogs (B). Double-click the floor to throw it there.">Throw ball</button><button id="drone-btn" aria-expanded="false" aria-controls="drone-panel" hidden>Fly drone</button><button id="pc" class="primary">Enter computer</button></div><span id="readout"></span></footer>
-<section id="drone-panel" aria-label="Drone controls" hidden>
+<header><p class="eyebrow">LERUO MATLHATSI / THE WORKSHOP <span class="preview-badge">3D PREVIEW · IN PRODUCTION</span></p><h1>A space for possibility.</h1><p class="lede">Drag to look around. Select the monitor or laptop to enter the computer, the tablet on a phone, or a dog to call it or walk it.</p></header>
+<button id="help-btn" class="help-btn" aria-expanded="false" aria-controls="help" aria-label="How it works">?</button>
+<p id="status" role="status" class="toast">Opening the workshop…</p>
+<footer><a class="back-home" href="index.html">← Main experience</a><div class="direction-pad" aria-label="Look controls"><button id="up" aria-label="Look up">↑</button><button id="left" aria-label="Look left">←</button><button id="centre" aria-label="Centre view">◎</button><button id="right" aria-label="Look right">→</button><button id="down" aria-label="Look down">↓</button></div>
+<nav class="dock" aria-label="Things to do">
+<button id="dog-btn" aria-expanded="false" aria-controls="dog-panel" hidden><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="9" r="1.8"/><circle cx="12" cy="6.5" r="1.8"/><circle cx="17" cy="9" r="1.8"/><path d="M12 12c-3 0-5.5 3-5.5 5.2 0 1.6 1.4 2.3 2.8 2l2.7-.7 2.7.7c1.4.3 2.8-.4 2.8-2C17.5 15 15 12 12 12z"/></svg><span class="label">Walk a dog</span></button>
+<button id="ball" hidden title="Throw a ball for the dogs (B). Double-click the floor to throw it there."><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M5.5 7.5c3 1.5 3.6 6.5 1 10M18.5 7.5c-3 1.5-3.6 6.5-1 10"/></svg><span class="label">Throw ball</span></button>
+<button id="drone-btn" aria-expanded="false" aria-controls="drone-panel" hidden><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="6" r="2.5"/><circle cx="18.5" cy="6" r="2.5"/><circle cx="5.5" cy="18" r="2.5"/><circle cx="18.5" cy="18" r="2.5"/><path d="M8 8l2.5 2.5M16 8l-2.5 2.5M8 16l2.5-2.5M16 16l-2.5-2.5"/><rect x="10" y="10" width="4" height="4" rx="1"/></svg><span class="label">Fly drone</span></button>
+<button id="pause" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6v12M15 6v12"/></svg><span class="label">Pause</span></button>
+</nav>
+<button id="pc" class="primary">Enter computer</button><span id="readout"></span></footer>
+<div id="dog-card" class="dog-card" role="dialog" aria-label="Dog" hidden><div class="dog-card-head"><strong id="dog-card-name">Dog</strong><button id="dog-card-close" aria-label="Close">×</button></div><div class="dog-card-actions"><button id="dog-call">Call over</button><button id="dog-walk" class="primary">Walk this dog</button></div></div>
+<section id="dog-panel" class="side-panel" aria-label="Walk a dog" hidden>
+<div class="drone-heading"><strong>DOGS / WALK</strong><button id="dog-close" aria-label="Close dog controls">×</button></div>
+<div class="dog-choice" role="group" aria-label="Which dog"><button data-dog="0" aria-pressed="true">Golden</button><button data-dog="1" aria-pressed="false">Retriever</button><button data-dog="2" aria-pressed="false">Terrier</button></div>
+<div class="remote-sticks single"><div><button class="remote-stick" id="dog-stick" aria-label="Walk stick. Up walks away from you, down toward you, left and right across. Arrow keys or W A S D also work."><span class="stick-cross">+</span><span class="stick-thumb"></span></button><span class="stick-label">WALK / RUN</span></div></div>
+<p id="dog-status" role="status">Drag the stick, or use the arrow keys / WASD.</p>
+<div class="drone-actions"><button id="dog-bark">Bark</button><button id="dog-throw">Throw ball</button><button id="dog-drop">Drop ball</button></div>
+<p class="hint">Push further to run. Walk it to the ball to pick it up. Space barks · Esc lets it go.</p>
+</section>
+<section id="help" class="side-panel help" aria-label="How it works" hidden>
+<div class="drone-heading"><strong>HOW IT WORKS</strong><button id="help-close" aria-label="Close help">×</button></div>
+<dl>
+<dt>Look around</dt><dd>Drag, or use the arrow keys and the pad. Home re-centres.</dd>
+<dt>The computer</dt><dd>Select the monitor or the laptop on the desk to sit down at LeruOS.</dd>
+<dt>The tablet</dt><dd>On a phone, Open tablet (or tap the old tablet on the desk) for a tablet-sized tour.</dd>
+<dt>The dogs</dt><dd>Select a dog to call it over or walk it. Walk a dog gives you a stick (or WASD) to steer it anywhere it can go.</dd>
+<dt>Fetch</dt><dd>Throw ball, B, or double-click the floor. The first dog there brings it back.</dd>
+<dt>The drone</dt><dd>Fly drone: fly it all round the workshop; the view follows.</dd>
+<dt>Out on the farm</dt><dd>The cows graze and wander in their pen beyond the yard.</dd>
+</dl>
+</section>
+<section id="drone-panel" class="side-panel" aria-label="Drone controls" hidden>
 <div class="drone-heading"><strong>SKY / REMOTE</strong><button id="drone-close" aria-label="Close drone controls">×</button></div>
 <p>Fly it anywhere around the workshop. The view turns to follow it.</p>
 <div class="remote-sticks">

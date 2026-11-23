@@ -7,6 +7,7 @@ a wall top or the inside of a solid (a downward-facing face). The dogs, grass an
 ignored. Output: {x0, y0, cell, w, h, data}, data = base64 bytes, one per cell, row by row from
 y0 (Blender's +Y, away from the desk side) : ground height in cm above the workshop floor + 100,
 or 255 if blocked.
+Also writes pen.json next to it: the ground height (m) on a 1 m grid over the cow pen.
 """
 import base64, json, math, os, sys
 import bpy
@@ -39,3 +40,11 @@ for j in range(h):
         free += ok
 json.dump(dict(x0=X0, y0=Y0, cell=CELL, w=w, h=h, data=base64.b64encode(bytes(data)).decode()), open(out, 'w'))
 print(f'NAV {w}x{h} free {free}/{w * h} -> {out}')
+
+# the cow pen (fence at x -14..2, y 60..74): ground heights for the grazing cows
+sys.path.insert(0, HERE)
+from props import _height
+px0, px1, py0, py1 = -14, 2, 60, 74
+pen = dict(x0=px0, y0=py0, cell=1, w=px1 - px0 + 1, h=py1 - py0 + 1,
+           heights=[[round(_height(px0 + i, py0 + j), 3) for i in range(px1 - px0 + 1)] for j in range(py1 - py0 + 1)])
+json.dump(pen, open(os.path.join(os.path.dirname(out), 'pen.json'), 'w'))

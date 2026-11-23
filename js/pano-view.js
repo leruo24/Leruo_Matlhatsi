@@ -9,6 +9,8 @@ import { spring, blend } from './motion.js';
  * screen (clickable, opens the PC) and the drone. The camera only turns, so a flat quad placed
  * where the monitor is in the scene lines up with the render exactly.
  *
+ * The same goes for the laptop and the old Android tablet on the desk (screens.json).
+ *
  * The panorama also writes depth: a distance map rendered from the same eye (depth.png, from
  * blender/render_depth.py) sets each sky-sphere pixel's depth to the real distance of what the
  * render shows there. Anything drawn live (the drone, the walking dogs, the ball) is then hidden
@@ -23,12 +25,9 @@ export const PANO = Object.freeze({
   high: ['pano-8k-0.jpg', 'pano-8k-1.jpg', 'pano-8k-2.jpg', 'pano-8k-3.jpg'], // 8192x4096 in quarters
 });
 
-// where the screen is actually visible (not hidden behind the chair): a mask rendered in panorama
-// space, covering uv [u0, u1] x [v0, v1] of the panorama (v up)
-export const MONITOR_MASK = Object.freeze({ file: 'monitor-mask.png', rect: [0.486173, 0.442415, 0.537491, 0.489237] });
-
-// the monitor's screen in the Blender scene (exported from blender/workshop.blend): TL, TR, BR, BL
-export const MONITOR_QUAD = Object.freeze([[-0.2525, -0.19, -4.084], [0.8235, -0.19, -3.8553], [0.8235, -0.67, -3.8553], [-0.2525, -0.67, -4.084]]);
+// the screens drawn live (monitor, laptop, old tablet): corners and visibility masks exported from
+// the Blender scene by blender/export_screens.py. Which device each one opens:
+export const SCREEN_DEVICES = Object.freeze({ monitor: 'pc', laptop: 'laptop', tablet: 'tablet' });
 
 /** Direction (three.js, unit vector) -> equirectangular uv of the Blender panorama (v up). */
 export function dirToUv(x, y, z) {
@@ -116,36 +115,53 @@ export function createPanoView({ scene, loader, renderer, camera, onChange = () 
   depthTex.colorSpace = THREE.NoColorSpace; depthTex.minFilter = depthTex.magFilter = THREE.NearestFilter; depthTex.generateMipmaps = false;
   const quality = () => (uniforms.uTiles.value > 1 ? (set === PANO.high ? '8K' : '4K') : 'preview');
 
-  // the monitor: a quad exactly where the screen is in the scene, showing the lock screen
-  const screenCanvas = document.createElement('canvas'); screenCanvas.width = 1024; screenCanvas.height = 576;
-  const screenTex = new THREE.CanvasTexture(screenCanvas); screenTex.colorSpace = THREE.NoColorSpace;
+  // the screens: flat quads exactly where the monitor, laptop and tablet screens are in the scene,
+  // each showing its lock screen, each cut by a mask so the chair (or anything else in front) stays in front
   const wallpaper = new Image(); wallpaper.src = 'assets/workshop.jpg';
   let lastMinute = -1; wallpaper.onload = () => { lastMinute = -1; onChange(); };
   const blankMask = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); blankMask.needsUpdate = true;
-  const q = MONITOR_QUAD.map((p) => new THREE.Vector3(...p));
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute([...q[3].toArray(), ...q[2].toArray(), ...q[1].toArray(), ...q[0].toArray()], 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
-  geo.setIndex([0, 1, 2, 0, 2, 3]);
-  const screen = new THREE.Mesh(geo, new THREE.ShaderMaterial({
-    uniforms: { tScreen: { value: screenTex }, tMask: { value: blankMask }, uMaskRect: { value: new THREE.Vector4(...MONITOR_MASK.rect) } },
-    side: THREE.DoubleSide, transparent: true, depthWrite: false, depthTest: false,   // the chair mask does the occlusion here
-    vertexShader: `varying vec2 vUv; varying vec3 vPos; void main(){ vUv = uv; vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    // a lit panel seen at golden hour: dimmed toward the corners, a hair of edge falloff
-    fragmentShader: `precision highp float; uniform sampler2D tScreen, tMask; uniform vec4 uMaskRect; varying vec2 vUv; varying vec3 vPos;
+  const screens = [], devices = [], focus = {};
+  const SCREEN_FRAG = `precision highp float; uniform sampler2D tScreen, tMask; uniform vec4 uMaskRect; uniform float uGlow; varying vec2 vUv; varying vec3 vPos;
       const float PI = 3.141592653589793;
-      void main(){ vec3 c = texture2D(tScreen, vUv).rgb; vec2 d = vUv - 0.5; c *= 0.86 - 0.34 * dot(d, d);
+      void main(){ vec3 c = texture2D(tScreen, vUv).rgb; vec2 d = vUv - 0.5; c *= (0.86 - 0.34 * dot(d, d)) * uGlow;
         c = mix(vec3(0.012), c, smoothstep(0.0, 0.004, vUv.x) * smoothstep(1.0, 0.996, vUv.x) * smoothstep(0.0, 0.006, vUv.y) * smoothstep(1.0, 0.994, vUv.y));
         vec3 dir = normalize(vPos);
         vec2 p = vec2(fract(0.5 + atan(dir.x, -dir.z) / (2.0 * PI)), 0.5 + asin(clamp(dir.y, -1.0, 1.0)) / PI);
         float a = texture2D(tMask, (p - uMaskRect.xy) / (uMaskRect.zw - uMaskRect.xy)).r;
-        gl_FragColor = vec4(c, a); }`,
-  }));
-  screen.userData.device = 'pc'; scene.add(screen);
-  screen.material.uniforms.tMask.value = prep(loader.load(PANO_DIR + MONITOR_MASK.file, onChange));
-  const centre = q.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(0.25);
-  const screenH = q[0].distanceTo(q[3]);
-  const focus = { pc: { position: new THREE.Vector3(), point: centre, fov: THREE.MathUtils.radToDeg(2 * Math.atan((screenH / 0.62) / 2 / centre.length())) } };
+        gl_FragColor = vec4(c, a); }`;
+  function addScreen(key, info) {
+    const size = key === 'tablet' ? [800, 500] : key === 'laptop' ? [800, 500] : [1024, 576];
+    const canvas = document.createElement('canvas'); [canvas.width, canvas.height] = size;
+    const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.NoColorSpace;
+    const q = info.quad.map((p) => new THREE.Vector3(...p));
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([...q[3].toArray(), ...q[2].toArray(), ...q[1].toArray(), ...q[0].toArray()], 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
+    geo.setIndex([0, 1, 2, 0, 2, 3]);
+    const mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({
+      uniforms: { tScreen: { value: tex }, tMask: { value: blankMask }, uMaskRect: { value: new THREE.Vector4(...info.rect) }, uGlow: { value: key === 'tablet' ? 0.92 : 1 } },
+      side: THREE.DoubleSide, transparent: true, depthWrite: false, depthTest: false,   // the mask does the occlusion here
+      vertexShader: `varying vec2 vUv; varying vec3 vPos; void main(){ vUv = uv; vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: SCREEN_FRAG,
+    }));
+    const device = SCREEN_DEVICES[key];
+    mesh.userData.device = device; mesh.userData.screen = key; scene.add(mesh);
+    mesh.material.uniforms.tMask.value = prep(loader.load(PANO_DIR + info.mask, onChange));
+    const centre = q.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(0.25);
+    const h = q[0].distanceTo(q[3]);
+    focus[device] = { position: new THREE.Vector3(), point: centre, fov: THREE.MathUtils.radToDeg(2 * Math.atan((h / 0.62) / 2 / centre.length())) };
+    screens.push({ key, canvas, tex, mesh }); devices.push(mesh);
+  }
+  const screensReady = fetch(PANO_DIR + 'screens.json').then((r) => r.json()).then((j) => {
+    for (const [key, info] of Object.entries(j)) addScreen(key, info);
+    lastMinute = -1; onChange();
+  }).catch((e) => console.warn('Screens unavailable', e));
+  function drawScreens() {
+    for (const sc of screens) {
+      if (sc.key === 'tablet') drawAndroidLock(sc.canvas); else drawLockScreen(sc.canvas, wallpaper);
+      sc.tex.needsUpdate = true;
+    }
+  }
 
   // the drone: same remote and autopilot as the main experience, but free to circle the whole
   // workshop 12 m out. The depth map hides it behind the walls, roof and tree trunks; through the
@@ -180,13 +196,14 @@ export function createPanoView({ scene, loader, renderer, camera, onChange = () 
 
   let time = 0;
   return {
-    sky, screen, drone, devices: [screen], focus, flight, quality,
+    sky, drone, devices, focus, flight, quality, screensReady,
+    screen(key) { return screens.find((s) => s.key === key)?.mesh; },
     get depthReady() { return uniforms.uDepthOn.value > 0.5; },
     update(dt, reduced) {
       time += dt;
       updateDrone(dt, time, reduced);
       const m = new Date().getMinutes();
-      if (m !== lastMinute) { lastMinute = m; drawLockScreen(screenCanvas, wallpaper); screenTex.needsUpdate = true; }
+      if (m !== lastMinute && screens.length) { lastMinute = m; drawScreens(); }
     },
     pilot: {
       set(x, y, angleDeg) { const f = constrainWide(x, y, angleDeg * Math.PI / 180); Object.assign(flight, { manual: true, tx: f.x, ty: f.y, angle: f.angle }); },
@@ -195,4 +212,39 @@ export function createPanoView({ scene, loader, renderer, camera, onChange = () 
       take() { Object.assign(flight, { manual: true, tx: flight.x, ty: flight.y }); },
     },
   };
+}
+
+/** The old Android tablet's lock screen (about 2012): dark wallpaper with faint diagonal lines, a big
+ * thin clock, the date, the unlock ring and the black system bar with its outline keys. No logos. */
+export function drawAndroidLock(canvas, now = new Date()) {
+  const g = canvas.getContext('2d'), W = canvas.width, H = canvas.height, bar = H * 0.09;
+  const bg = g.createRadialGradient(W * 0.2, H * 0.1, 0, W * 0.3, H * 0.3, W * 0.9);
+  bg.addColorStop(0, '#17324a'); bg.addColorStop(0.5, '#0b1622'); bg.addColorStop(1, '#030507');
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(51,181,229,0.06)'; g.lineWidth = 1;
+  for (let x = -H; x < W; x += 46) { g.beginPath(); g.moveTo(x, H); g.lineTo(x + H * 0.47, 0); g.stroke(); }
+  const hh = String(now.getHours()).padStart(2, '0'), mm = String(now.getMinutes()).padStart(2, '0');
+  g.fillStyle = '#f2f4f6'; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.font = `200 ${Math.round(H * 0.3)}px Roboto, "Helvetica Neue", Arial, sans-serif`;
+  g.fillText(`${hh}:${mm}`, W / 2, H * 0.44);
+  const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+  const months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+  g.font = `400 ${Math.round(H * 0.04)}px Roboto, Arial, sans-serif`; g.fillStyle = '#9aa0a6';
+  g.fillText(`${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]}`, W / 2, H * 0.52);
+  // unlock ring with a padlock
+  const cx = W / 2, cy = H * 0.72, r = H * 0.1;
+  g.strokeStyle = 'rgba(255,255,255,0.45)'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = '#fff'; g.lineWidth = 3; g.strokeRect(cx - r * 0.22, cy - r * 0.05, r * 0.44, r * 0.34);
+  g.beginPath(); g.arc(cx, cy - r * 0.05, r * 0.15, Math.PI, 0); g.stroke();
+  // system bar
+  g.fillStyle = '#000'; g.fillRect(0, H - bar, W, bar);
+  g.strokeStyle = '#d8d8d8'; g.lineWidth = 2.5; const ky = H - bar / 2, ks = bar * 0.28;
+  g.beginPath(); g.moveTo(W * 0.12 + ks, ky - ks * 0.6); g.lineTo(W * 0.12 - ks, ky); g.lineTo(W * 0.12 + ks, ky + ks * 0.6); g.stroke();
+  g.strokeRect(W * 0.22 - ks * 0.8, ky - ks * 0.4, ks * 1.6, ks * 1.1);
+  g.beginPath(); g.moveTo(W * 0.22 - ks, ky - ks * 0.3); g.lineTo(W * 0.22, ky - ks * 1.1); g.lineTo(W * 0.22 + ks, ky - ks * 0.3); g.stroke();
+  g.strokeRect(W * 0.32 - ks * 0.7, ky - ks * 0.5, ks * 1.4, ks * 1.1);
+  g.strokeRect(W * 0.32 - ks * 0.4, ky - ks * 0.85, ks * 1.4, ks * 1.1);
+  g.fillStyle = '#e8e8e8'; g.textAlign = 'right'; g.font = `300 ${Math.round(bar * 0.42)}px Roboto, Arial, sans-serif`;
+  g.fillText(`${hh}:${mm}`, W - bar * 0.4, ky + bar * 0.15);
+  g.fillStyle = '#33b5e5'; g.fillRect(W - bar * 2.0, ky - bar * 0.18, bar * 0.22, bar * 0.4);
 }

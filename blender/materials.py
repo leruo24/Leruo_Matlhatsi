@@ -214,6 +214,21 @@ def corrugated(name, color, along='xy', pitch=0.076, rough=0.42, metal=0.75):
     return m
 
 
+def thin_glass(name):
+    """Architectural glass as a thin sheet: see-through (light and shadows pass), with a Fresnel
+    reflection and a faint green tint. No refraction, so a single pane doesn't distort or add noise."""
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    nt = m.node_tree; nt.nodes.clear()
+    out = nt.nodes.new('ShaderNodeOutputMaterial')
+    tr = nt.nodes.new('ShaderNodeBsdfTransparent'); tr.inputs['Color'].default_value = (0.93, 0.97, 0.95, 1)
+    gl = nt.nodes.new('ShaderNodeBsdfGlossy'); gl.inputs['Roughness'].default_value = 0.02
+    fr = nt.nodes.new('ShaderNodeFresnel'); fr.inputs['IOR'].default_value = 1.52
+    mx = nt.nodes.new('ShaderNodeMixShader')
+    nt.links.new(fr.outputs[0], mx.inputs['Fac']); nt.links.new(tr.outputs[0], mx.inputs[1]); nt.links.new(gl.outputs[0], mx.inputs[2])
+    nt.links.new(mx.outputs[0], out.inputs['Surface'])
+    return m
+
+
 def emission(name, color, strength):
     m = bpy.data.materials.new(name); m.use_nodes = True
     nt = m.node_tree; nt.nodes.clear()
@@ -267,6 +282,10 @@ def all_materials():
         'wire_black': plain('Black wire', (0.02, 0.02, 0.02), rough=0.4),
         'clear': plain('Clear plastic', (0.9, 0.9, 0.9), rough=0.08, trans=0.9, ior=1.45),
         'glass': plain('Glass', (0.9, 0.95, 0.95), rough=0.0, trans=1.0, ior=1.5),
+        'thin_glass': thin_glass('Window glass (thin)'),
+        'alu_dark': plain('Dark aluminium', (0.3, 0.3, 0.32), rough=0.35, metal=1.0),
+        'bezel_gloss': plain('Gloss black bezel', (0.01, 0.01, 0.012), rough=0.08, coat=1.0),
+        'folio': plain('Folio cover', (0.06, 0.055, 0.05), rough=0.7),
         'bulb': emission('Warm bulb', (1.0, 0.75, 0.45), 30.0),
         'teal': plain('Board graphic teal', (0.05, 0.35, 0.33), rough=0.4),
         'cap_black': plain('Cap fabric', (0.02, 0.02, 0.025), rough=0.85, sheen=0.5),

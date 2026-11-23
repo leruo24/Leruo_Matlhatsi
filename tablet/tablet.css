@@ -1,0 +1,96 @@
+/* An old Android tablet (the 2011-2012 "Holo" look): black and dark grey, thin light type,
+   one cyan accent, a black system bar with outline keys. No logos. */
+:root{--holo:#33b5e5;--holo-d:#0099cc;--bg:#101214;--panel:#1b1d20;--line:#2c3035;--text:#e8eaed;--muted:#9aa0a6}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:Roboto,"Droid Sans","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden;user-select:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible,a:focus-visible{outline:2px solid var(--holo);outline-offset:2px}
+#device{position:absolute;inset:0 0 48px 0;overflow:hidden;background:#05070a radial-gradient(120% 90% at 20% 10%,#17324a 0%,#0b1622 45%,#030507 100%)}
+/* faint diagonal lines of the period's default wallpapers */
+#device::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,transparent 0 46px,#33b5e50b 46px 47px);pointer-events:none}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;animation:in .22s ease-out}
+.screen.active{display:flex}
+@keyframes in{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+
+/* lock screen */
+#lock{align-items:center;justify-content:center;gap:18px;background:#000c}
+.lock-clock{display:flex;flex-direction:column;align-items:center}
+#lock-time{font-size:clamp(64px,14vw,132px);font-weight:200;letter-spacing:-.02em;line-height:1}
+#lock-date{font-size:clamp(14px,2.2vw,20px);color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-top:6px}
+.lock-owner{color:var(--muted);font-size:14px;margin:0}
+.unlock-ring{width:118px;height:118px;border-radius:50%;border:2px solid #ffffff55;display:grid;place-items:center;margin-top:24px;touch-action:none;transition:border-color .2s,transform .2s}
+.unlock-ring:hover,.unlock-ring.dragging{border-color:var(--holo);transform:scale(1.04)}
+.lock-glyph{width:26px;height:20px;border:2px solid #fff;border-radius:4px;position:relative;top:6px}
+.lock-glyph::before{content:"";position:absolute;left:3px;top:-15px;width:16px;height:14px;border:2px solid #fff;border-bottom:0;border-radius:9px 9px 0 0}
+.lock-hint{font-size:12px;color:#7a8087;margin:0}
+
+/* home screen */
+#home{padding:22px 28px;overflow:auto}
+.search-bar{display:flex;align-items:center;gap:10px;width:min(360px,60%);padding:8px 12px;border-bottom:2px solid #ffffff40;color:#cfd3d8;font-size:15px}
+.search-glyph{width:14px;height:14px;border:2px solid #cfd3d8;border-radius:50%;position:relative}
+.search-glyph::after{content:"";position:absolute;width:7px;height:2px;background:#cfd3d8;right:-6px;bottom:-3px;transform:rotate(45deg)}
+.home-widget{display:flex;flex-direction:column;margin:28px 4px 8px}
+#widget-time{font-size:64px;font-weight:200;line-height:1}
+#widget-date{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--holo)}
+#widget-name{font-size:13px;color:var(--muted);margin-top:4px}
+.app-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:18px 10px;margin-top:auto;padding:16px 4px}
+.app-grid button{display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 4px;border-radius:6px;font-size:13px;color:#eef0f2;text-shadow:0 1px 2px #000}
+.app-grid button:hover,.app-grid button:active{background:#33b5e522}
+.app-icon{width:62px;height:62px;border-radius:12px;display:grid;place-items:center;font-size:26px;font-weight:300;color:#fff;box-shadow:0 3px 8px #0008,inset 0 1px 0 #ffffff40;position:relative}
+.app-icon.small{width:30px;height:30px;font-size:14px;border-radius:6px;box-shadow:none}
+.app-icon svg{width:58%;height:58%}
+
+/* app screens */
+#app{background:var(--bg)}
+.action-bar{display:flex;align-items:center;gap:6px;height:56px;padding:0 12px 0 4px;background:#1e2125;border-bottom:2px solid var(--holo);flex:none}
+.action-bar h1{font-size:19px;font-weight:400;margin:0 0 0 6px}
+.up{display:flex;align-items:center;gap:6px;height:48px;padding:0 8px;border-radius:4px}
+.up:hover{background:#ffffff14}
+.chev{width:9px;height:9px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(45deg)}
+.app-body{flex:1;overflow:auto;padding:18px clamp(16px,4vw,48px) 32px;user-select:text;-webkit-overflow-scrolling:touch}
+.app-body h2{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--holo);border-bottom:1px solid var(--holo-d);padding-bottom:6px;margin:26px 0 10px}
+.app-body h2:first-child{margin-top:4px}
+.app-body p{line-height:1.55;color:#d7dadf;margin:8px 0}
+.app-body .lead{font-size:18px;font-weight:300;color:#fff}
+.list{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.row{display:block;width:100%;text-align:left;padding:14px 6px;border-bottom:1px solid var(--line);color:var(--text);text-decoration:none}
+button.row:hover,a.row:hover{background:#33b5e518}
+.row strong{display:block;font-weight:400;font-size:17px}
+.row span{display:block;color:var(--muted);font-size:13px;margin-top:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{border:1px solid #3d444c;background:#1a1d21;border-radius:2px;padding:4px 8px;font-size:12px;color:#cfd4da}
+ul.points{margin:6px 0 0;padding-left:20px;line-height:1.5;color:#d7dadf}
+ul.points li{margin:4px 0}
+.person{display:flex;gap:18px;align-items:center}
+.person img{width:96px;height:96px;object-fit:cover;border-radius:2px;border:1px solid #333}
+.link-btn{display:inline-block;margin:6px 8px 0 0;padding:10px 14px;background:#2a2e33;border-bottom:2px solid var(--holo-d);color:#fff;text-decoration:none;font-size:14px}
+.link-btn:hover{background:#353a40}
+.card{background:var(--panel);border:1px solid var(--line);padding:12px 14px;margin:8px 0}
+.card h3{margin:0;font-weight:400;font-size:16px}
+.card .meta{color:var(--muted);font-size:13px}
+
+/* recents */
+#recents{background:#000d;padding:24px;gap:12px}
+#recents h2{font-weight:300;margin:0 0 8px}
+#recent-list{display:flex;gap:16px;flex-wrap:wrap}
+#recent-list button{width:200px;height:130px;background:#1e2125;border-top:2px solid var(--holo);display:flex;flex-direction:column;justify-content:flex-end;padding:10px;text-align:left;font-size:14px}
+#recent-list p{color:var(--muted)}
+
+/* system bar */
+.system-bar{position:absolute;left:0;right:0;bottom:0;height:48px;background:#000;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-top:1px solid #111}
+.nav-keys{display:flex;gap:clamp(18px,5vw,56px);margin-left:clamp(0px,6vw,80px)}
+.nav-keys button{width:56px;height:44px;display:grid;place-items:center;border-radius:4px}
+.nav-keys button:active,.nav-keys button:hover{background:#ffffff1c}
+.k-back{width:26px;height:14px;border:2px solid #ddd;border-left:0;border-radius:0 8px 8px 0;position:relative}
+.k-back::before{content:"";position:absolute;left:-7px;top:-6px;border:6px solid transparent;border-right:8px solid #ddd}
+.k-home{width:26px;height:20px;border:2px solid #ddd;border-top:0;position:relative;top:4px}
+.k-home::before{content:"";position:absolute;left:-4px;top:-12px;width:30px;height:16px;border-left:2px solid #ddd;border-top:2px solid #ddd;transform:scaleX(.68) rotate(45deg);transform-origin:left top;left:2px}
+.k-recent{width:20px;height:16px;border:2px solid #ddd;position:relative}
+.k-recent::before{content:"";position:absolute;left:4px;top:-7px;width:20px;height:16px;border-top:2px solid #ddd;border-right:2px solid #ddd}
+.status{display:flex;align-items:center;gap:12px;color:#e8e8e8;font-size:17px;font-weight:300}
+.i-wifi{width:18px;height:18px;border-radius:18px 18px 0 0;background:conic-gradient(from -45deg at 50% 100%,var(--holo) 90deg,transparent 0);clip-path:polygon(50% 100%,0 0,100% 0)}
+.i-batt{width:11px;height:19px;border:2px solid #ccc;border-radius:2px;position:relative;display:flex;align-items:flex-end;padding:1px}
+.i-batt::before{content:"";position:absolute;top:-4px;left:2px;width:3px;height:2px;background:#ccc}
+.i-batt i{display:block;width:100%;height:72%;background:var(--holo)}
+@media(max-width:600px){#home{padding:16px}.app-grid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}.app-icon{width:52px;height:52px}.nav-keys{margin-left:0}}
+@media(prefers-reduced-motion:reduce){.screen{animation:none}}

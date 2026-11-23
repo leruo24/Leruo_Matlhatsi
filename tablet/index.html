@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Leruo's tablet</title><link rel="stylesheet" href="tablet.css"></head>
+<body>
+<!-- An old 10-inch Android tablet, about 2012: a lock screen, a home screen of apps and the system bar.
+     Everything shown comes from ../os/content.js, the same file the computer uses. -->
+<main id="device" aria-live="polite">
+  <section id="lock" class="screen active" aria-label="Lock screen">
+    <div class="lock-clock"><span id="lock-time">--:--</span><span id="lock-date"></span></div>
+    <p class="lock-owner" id="lock-owner"></p>
+    <button id="unlock" class="unlock-ring" aria-label="Unlock the tablet"><span class="lock-glyph" aria-hidden="true"></span></button>
+    <p class="lock-hint">Tap or drag the lock to unlock</p>
+  </section>
+  <section id="home" class="screen" aria-label="Home screen">
+    <div class="search-bar" aria-hidden="true"><span class="search-glyph"></span><span>Search</span></div>
+    <div class="home-widget"><span id="widget-time">--:--</span><span id="widget-date"></span><span id="widget-name"></span></div>
+    <nav class="app-grid" id="apps" aria-label="Apps"></nav>
+  </section>
+  <section id="app" class="screen" aria-label="App">
+    <header class="action-bar"><button id="up" class="up" aria-label="Back to home"><span class="chev" aria-hidden="true"></span><span class="app-icon small" id="app-icon"></span></button><h1 id="app-title"></h1></header>
+    <div class="app-body" id="app-body"></div>
+  </section>
+  <section id="recents" class="screen" aria-label="Recent apps"><h2>Recent apps</h2><div id="recent-list"></div></section>
+</main>
+<footer class="system-bar">
+  <nav class="nav-keys" aria-label="Navigation"><button id="back" aria-label="Back"><svg viewBox="0 0 32 24" width="32" height="24" fill="none" stroke="#ddd" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M8 8h13a6 6 0 0 1 0 12h-9"/><path d="M12 3L7 8l5 5"/></svg></button><button id="homekey" aria-label="Home"><svg viewBox="0 0 32 24" width="32" height="24" fill="none" stroke="#ddd" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M5 12L16 3l11 9"/><path d="M8 10v11h16V10"/></svg></button><button id="recent" aria-label="Recent apps"><svg viewBox="0 0 32 24" width="32" height="24" fill="none" stroke="#ddd" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><rect x="6" y="8" width="16" height="13"/><path d="M10 4h16v13"/></svg></button></nav>
+  <div class="status" aria-hidden="true"><span class="i-wifi"></span><span class="i-batt"><i></i></span><span id="bar-time">--:--</span></div>
+</footer>
+<script src="../os/content.js"></script>
+<script src="tablet.js"></script>
+</body></html>

@@ -48,3 +48,14 @@ test('the workshop floor: the dogs can walk from the desk to the yard and to the
   assert.equal(g.isFree(-0.2, 3.85), false, 'under the desk top is not walkable');
   assert.ok(Math.abs(g.groundAt(...desk)) < 0.05, 'the workshop floor is at floor level');
 });
+
+import { penHeight, PEN } from '../js/cows.js';
+const penFile = new URL('../assets/workshop-3d/pen.json', import.meta.url);
+test('cow pen: inside the fence, heights interpolate the sampled ground', { skip: !existsSync(penFile) }, () => {
+  const pen = JSON.parse(readFileSync(penFile, 'utf8'));
+  assert.ok(PEN.x0 > -14 && PEN.x1 < 2 && PEN.y0 > 60 && PEN.y1 < 74);
+  const h = penHeight(pen, -10, 64), raw = pen.heights[64 - pen.y0][-10 - pen.x0];
+  assert.ok(Math.abs(h - raw) < 1e-9, 'exact on a grid point');
+  const mid = penHeight(pen, -9.5, 64), a = pen.heights[4][4], b = pen.heights[4][5];
+  assert.ok(Math.abs(mid - (a + b) / 2) < 1e-9, 'halfway between two samples');
+});
