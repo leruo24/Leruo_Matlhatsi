@@ -26,7 +26,7 @@ Repo: `leruo24/Leruo_Matlhatsi` → **https://leruo24.github.io/Leruo_Matlhatsi/
 The repository is public and ready to serve as it is: plain static files, relative paths only (so it works under `/Leruo_Matlhatsi/`), three.js vendored in `vendor/` (no CDN), a `.nojekyll` file so GitHub serves every folder untouched, and a `404.html`. Asset paths are checked for exact upper/lower case, because GitHub Pages is case-sensitive and Windows is not.
 
 1. Push to `main` (already done for the current version).
-2. On GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main`, folder `/ (root)` → Save.** Pages is not switched on yet; this is the one step that has to be done on the website.
+2. On GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main`, folder `/ (root)` → Save.** Done: Pages was switched on 24 Nov 2026 and the site is live at the address above.
 3. After a minute or two the site is live at the address above. The 3D page is at `…/Leruo_Matlhatsi/look-around.html`. Each later push to `main` republishes it automatically.
 
 The first visit downloads about 6–9 MB for the 3D page (one time-of-day panorama set, the depth map and the animal sprites). Browsers cache it afterwards.
