@@ -1,8 +1,8 @@
 // Sound for the workshop: real field recordings (CC0, via the ESC-50 dataset) mixed with a
 // few synthesised layers (the pond, the office in the intro, the PC boot). Everything is positioned
-// in the stereo field by where it sits in the scene, and the wind follows the same gusts
+// in the stereo field by where it sits in the scene, and the leaf rustle follows the same gusts
 // that move the trees.
-const FILES = ["moo1", "moo2", "moo3", "rooster", "bark", "bark1", "bark2", "bark3", "snore", "birds1", "birds2", "birds3", "crickets", "wind", "diesel", "click", "typing"];
+const FILES = ["moo1", "moo2", "moo3", "rooster", "bark", "bark1", "bark2", "bark3", "snore", "birds1", "birds2", "birds3", "crickets", "click", "typing"];
 
 export class Sound {
   constructor() {
@@ -96,7 +96,6 @@ export class Sound {
 
     FILES.forEach((n) => fetch(`assets/audio/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => new Promise((res, rej) => ctx.decodeAudioData(a, res, rej))).then((bf) => {
       this.buf[n] = bf;
-      if (n === "wind") this.wind = this.sampleLoop("wind", 0.0, -0.2);
       if (n === "crickets") this.crickets = this.sampleLoop("crickets", 0.0, 0.25);
     }).catch(() => {}));
   }
@@ -162,7 +161,6 @@ export class Sound {
     const f = this.focus;
     const lvl = (node, v, tc = 0.4) => node && node.gain.setTargetAtTime(v, t, tc);
     const N = this.nature; // crossfade office -> nature when the headset goes on
-    if (this.wind) lvl(this.wind.g, N * (0.10 + 0.30 * this.gust) * (f === "monitor" ? 0.4 : 1), 0.6);
     const tod = this.scene3d ? this.timeOfDay : 'sunset';
     const crick = { night: 1.6, sunset: 0.9, sunrise: 0.3, day: 0.12 }[tod] ?? 1;
     if (this.crickets) lvl(this.crickets.g, N * crick * (f === "monitor" ? 0.012 : 0.03), 1);
@@ -321,18 +319,6 @@ export class Sound {
       o.connect(g); o2.connect(g2).connect(g); g.connect(lp).connect(this.sfx);
       o.start(t + d); o2.start(t + d); o.stop(t + d + 2.7); o2.stop(t + d + 2.7);
     });
-  }
-
-  diesel() {
-    const b = this.buf.diesel;
-    if (!b || !this.ok) return;
-    const ctx = this.ctx, t = ctx.currentTime;
-    const s = ctx.createBufferSource(); s.buffer = b; s.loop = true;
-    s.playbackRate.setValueAtTime(0.8, t); s.playbackRate.linearRampToValueAtTime(1.0, t + 0.5); s.playbackRate.linearRampToValueAtTime(1.35, t + 1.2); s.playbackRate.linearRampToValueAtTime(0.95, t + 2.4);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.25); g.gain.setValueAtTime(0.5, t + 2.2); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
-    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1400;
-    const p = ctx.createStereoPanner(); p.pan.value = this.panAt(510);
-    s.connect(lp).connect(g).connect(p).connect(this.sfx); s.start(t); s.stop(t + 3.3);
   }
 
   /** synthesised supercar rev (no recording used) */
