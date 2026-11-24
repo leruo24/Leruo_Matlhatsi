@@ -136,6 +136,12 @@ Since 22 November 2026 the page shows a 360° render of the Blender scene in `bl
   - skills: Node.js, REST APIs, bpmn.io, Draw.io, EER modelling, Git/GitHub, plus spoken languages.
   - Phone numbers, the home address, ID and referee contacts are left out on purpose, because the site is public.
 - **Hosting.** `.nojekyll` and `404.html` were added, and asset paths were checked for exact case (see "Put it online").
+- **Checked** after the re-render, in headless Chrome with software WebGL:
+  - All four sets load at 8K with no page errors.
+  - The 393 × 852 phone layout shows Open tablet, and the tablet opens full screen (393 × 852).
+  - The tablet home screen fits at 330 × 505 to 800 × 500 without scrolling.
+  - The 40 unit tests pass.
+  - Not yet checked on a real phone or GPU.
 
 How it's built (`js/pano-view.js`, `js/look-around.js`):
 - **One eye, turning only.** The 360° image is rendered in Blender from the same eye as the photo-matched camera. The page shows it on a sphere around the camera. The camera only turns, so anything placed at its real position in the scene lines up with the render exactly.
