@@ -112,3 +112,10 @@ body.vr header,body.vr footer,body.vr .help-btn,body.vr .toast{opacity:0!importa
   .vr-hands { inset: auto; left: 50%; top: 50%; width: 175vw; height: auto; max-width: none; object-fit: fill; translate: -50% -24%;
     -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); }
 }
+
+/* mute button, always next to the help button */
+.sound-btn{right:76px;display:grid;place-items:center}
+.sound-btn .snd-off{display:none}
+.sound-btn[aria-pressed="false"] .snd-on{display:none}
+.sound-btn[aria-pressed="false"] .snd-off{display:block}
+@media(max-width:650px){.sound-btn{right:66px}}

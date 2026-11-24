@@ -24,18 +24,17 @@ const yaw = { x: 0, v: 0 }, pitch = { x: 0, v: 0 };
 let yawTarget = 0, pitchTarget = 0, drag = null, transition = null, zoom = null;
 let renderer, scene, camera, pano, dogs, cows, chickens, home = { pitch: 0, yaw: 0, fov: 50 };
 // barks only (the main experience's full soundscape is tuned to the photo): the same CC0 recordings,
-// loaded on the first click, panned to where the dog is; off if sound is switched off on the main page
+// loaded on the first click, panned to where the dog is; silent while sound is muted
 const sound = {
   ctx: null, buf: {},
   start() {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
-    try { if (localStorage.getItem('lm-sound') === 'off') return; } catch {}
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     this.ctx = new AC();
     for (const n of ['bark1', 'bark2', 'bark3']) fetch(`assets/audio/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a)).then((b) => { this.buf[n] = b; }).catch(() => {});
   },
   dog(i, x) {
-    const b = this.buf[['bark1', 'bark2', 'bark3'][i]]; if (!this.ctx || !b) return;
+    const b = this.buf[['bark1', 'bark2', 'bark3'][i]]; if (!this.ctx || !b || farmSound?.enabled === false) return;
     const s = this.ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = [1.0, 0.92, 1.12][i];
     const g = this.ctx.createGain(); g.gain.value = [0.5, 0.55, 0.45][i];
     const p = this.ctx.createStereoPanner(); p.pan.value = Math.max(-0.9, Math.min(0.9, (x - 835) / 920));
@@ -447,6 +446,22 @@ if (coarse) document.body.classList.add('touch');
 // the intro: the office, the headset, then this view
 const intro = createIntro({ view: canvas, skip: params.has('nointro'), onDone: () => { canvas.focus({ preventScroll: true }); wake(); } });
 farmSound = intro.sound; farmSound.timeOfDay = currentTime(); farmSound.scene3d = true;
+
+/* ---- mute, at any time: the button by the help button, or the M key (remembered between visits) ---- */
+const soundBtn = $('#sound-btn');
+function syncSound() {
+  const on = farmSound.enabled;
+  soundBtn.setAttribute('aria-pressed', String(on));
+  soundBtn.setAttribute('aria-label', on ? 'Mute sound (M)' : 'Turn sound on (M)'); soundBtn.title = soundBtn.getAttribute('aria-label');
+  const m = $('#vr-mute'); if (m) { m.textContent = on ? 'Sound on' : 'Sound off'; m.setAttribute('aria-pressed', String(on)); }
+  device.contentWindow?.postMessage({ type: 'host', action: 'mute', on }, '*');   // LeruOS's own clicks and chimes
+}
+function toggleSound() { farmSound.start(); farmSound.toggle(); sound.start(); syncSound(); say(farmSound.enabled ? 'Sound on.' : 'Sound muted.'); }
+soundBtn.onclick = toggleSound;
+addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey && !screen.open && !['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) toggleSound(); });
+$('#vr-mute')?.addEventListener('click', () => setTimeout(syncSound, 0));
+device.addEventListener('load', syncSound);
+syncSound();
 
 addEventListener('resize', resize);
 reduced.addEventListener?.('change', wake);

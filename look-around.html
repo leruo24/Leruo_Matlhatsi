@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f5c43'/%3E%3Cpath d='M16 6c-5 4-7 9-5 14 1 3 3 5 5 6 2-1 4-3 5-6 2-5 0-10-5-14z' fill='%239be37d'/%3E%3C/svg%3E" /><meta name="viewport" content="width=device-width,initial-scale=1"><title>Leruo Matlhatsi · Personal Portfolio</title>
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}</script>
-<link rel="stylesheet" href="css/room.css?v=202611242131"><link rel="stylesheet" href="css/drone-remote.css?v=202611242131"></head><body>
+<link rel="stylesheet" href="css/room.css?v=202611242137"><link rel="stylesheet" href="css/drone-remote.css?v=202611242137"></head><body>
 <section id="vr" aria-label="Intro">
 <div class="vr-gate"><div class="vg-mark">lm<span>.</span></div><button id="vr-enter" class="vr-btn">Click to enter</button><p>Best with sound on</p></div>
 <canvas class="vr-shot vr-office" role="img" aria-label="A busy black-and-white office with a VR headset on the desk."></canvas>
@@ -13,6 +13,7 @@
 </section>
 <canvas id="view" tabindex="0" aria-label="Three-dimensional workshop. Drag in any direction or use all four arrow keys. Home centres the view."></canvas>
 <header><p class="eyebrow">3D look around</p><button id="time-chip" class="time-chip" title="Matches the time where you are">Your time</button></header>
+<button id="sound-btn" class="help-btn sound-btn" aria-pressed="true" aria-label="Mute sound (M)" title="Mute sound (M)"><svg class="snd-on" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 9.5h4l5-4v13l-5-4H3z" fill="currentColor"/><path d="M15 9a4 4 0 010 6M17.5 6.5a7.5 7.5 0 010 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><svg class="snd-off" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 9.5h4l5-4v13l-5-4H3z" fill="currentColor"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
 <button id="help-btn" class="help-btn" aria-expanded="false" aria-controls="help" aria-label="How it works">?</button>
 <p id="status" role="status" class="toast">Opening the workshop…</p>
 <footer><a class="back-home" href="index.html" aria-label="Back to the main experience">← <span class="bh-long">Main experience</span><span class="bh-short">Home</span></a><div class="direction-pad" aria-label="Look controls"><button id="up" aria-label="Look up">↑</button><button id="left" aria-label="Look left">←</button><button id="centre" aria-label="Centre view">◎</button><button id="right" aria-label="Look right">→</button><button id="down" aria-label="Look down">↓</button></div>
@@ -45,6 +46,7 @@
 <dt>The drone</dt><dd>Fly drone: fly it all round the workshop; the view follows.</dd>
 <dt>Out on the farm</dt><dd>The cows graze in their pen right outside the left window, hens peck around the coop behind the office, and birds wheel overhead.</dd>
 <dt>The bench</dt><dd>Select the ESP32 bench (right of the desk) for what's on it.</dd>
+<dt>Sound</dt><dd>The speaker button at the top right, or M, mutes and unmutes at any time.</dd>
 <dt>Time of day</dt><dd>The farm shows sunrise, afternoon, sunset or night to match your clock. The chip at the top tries the others.</dd>
 </dl>
 </section>
@@ -63,4 +65,4 @@
 <p id="drone-status" role="status">Manual flight · release the sticks to hover.</p>
 </section>
 <dialog id="screen"><button id="exit">Back to look-around</button><iframe title="Portfolio device" id="device"></iframe></dialog>
-<script type="module" src="js/look-around.js?v=202611242131"></script><script type="module" src="js/drone-remote.js?v=202611242131"></script></body></html>
+<script type="module" src="js/look-around.js?v=202611242137"></script><script type="module" src="js/drone-remote.js?v=202611242137"></script></body></html>
