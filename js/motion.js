@@ -20,13 +20,14 @@ export class FrameBudget {
     this.average = 1 / 60; this.slow = 0; this.fast = 0; this.cooldown = 2;
   }
   sample(dt) {
-    if (!(dt > 0) || dt > .15) return this.scale;
+    // hitches (a texture upload, a garbage collection, a screenshot) are skipped: only steady slowness counts
+    if (!(dt > 0) || dt > .1) return this.scale;
     this.average += (dt - this.average) * blend(1.5, dt);
     this.cooldown = Math.max(0, this.cooldown - dt);
-    this.slow = this.average > .023 ? this.slow + dt : 0;
-    this.fast = this.average < .018 ? this.fast + dt : 0;
-    if (this.cooldown === 0 && (this.slow > 2 || this.fast > 8)) {
-      this.scale = Math.min(this.maximum, Math.max(Math.min(this.minimum, this.maximum), this.scale + (this.slow > 2 ? -.1 : .05)));
+    this.slow = this.average > .028 ? this.slow + dt : 0;   // under about 35 fps for 3 s
+    this.fast = this.average < .02 ? this.fast + dt : 0;    // over 50 fps for 3 s: sharpen again
+    if (this.cooldown === 0 && (this.slow > 3 || this.fast > 3)) {
+      this.scale = Math.min(this.maximum, Math.max(Math.min(this.minimum, this.maximum), this.scale + (this.slow > 3 ? -.1 : .1)));
       this.cooldown = 3; this.slow = this.fast = 0;
     }
     return this.scale;

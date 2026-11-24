@@ -220,6 +220,7 @@ The old room modules (`js/room.js`, `js/room-seam.js`, `js/room-detail.js` and t
 ### Faster start, sharper room (24 November 2026)
 - **Start-up.** The intro photos are WebP now (the office photo went from 2.0 MB to 120 KB, the walker from 1.2 MB to 29 KB), the main page's cow sprite from 1.2 MB to 25 KB, and the room's depth map is lossless WebP (1.2 MB to 565 KB, pixel-identical). The look-around page fetches the panorama first, then the dogs; the cows and hens wait until the room is sharp (or 6 s) and the ball-carrying sheets come 3 s after the dogs. Measured locally: the main page downloads 2.8 MB instead of 6.9 MB, the look-around page 16.3 MB instead of 19.2 MB.
 - **Sharpness.** The room never renders below 1:1 any more (it used to drop to 0.6 when the frame rate dipped) and goes up to 2x on high-DPI screens, desktop included. The panorama is sampled with a bicubic (Catmull-Rom) filter instead of plain bilinear, and the tiles are re-made from the renders with a light unsharp mask at JPEG quality 90 (was 84). An 8K set is now about 2.5-3 MB instead of 1.6-2.2 MB.
+- On Leruo's laptop (AMD Radeon integrated graphics, 2x screen, Chrome) the room ran at about 114 fps, but loading hitches had pushed the resolution down to 1.1x; the fallback now ignores single slow frames (over 100 ms), only steps down after 3 s under about 35 fps, and steps back up after 3 s over 50 fps.
 - The panorama is still 8192 px around; on a large high-DPI screen it is magnified about 2x, so it cannot be pin-sharp without a bigger render.
 
 ### Asset sources and licences
