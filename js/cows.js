@@ -9,9 +9,12 @@ import { VERT, FRAG, spriteHeading, toThree } from './dogs.js';
  */
 const DIR = 'assets/workshop-3d/';
 // the pen's fence runs x -14..2, y 60..74; cows keep 1.4 m inside it
-export const PEN = Object.freeze({ x0: -14 + 1.4, x1: 2 - 1.4, y0: 60 + 1.4, y1: 74 - 1.4 });
+export const PEN = Object.freeze({ x0: -27 + 1.4, x1: -13 - 1.4, y0: -8 + 1.4, y1: 4 - 1.4 });
+// things in the pen the cows walk round: the hay ring, the shelter, the bales (x, y, radius)
+export const PEN_OBSTACLES = Object.freeze([[-21.5, -3.0, 2.0], [-24.8, -6.2, 2.6], [-24.5, 2.0, 1.6], [-22.8, 2.4, 1.6]]);
+export const inPen = (x, y) => x >= PEN.x0 && x <= PEN.x1 && y >= PEN.y0 && y <= PEN.y1 && !PEN_OBSTACLES.some(([ox, oy, r]) => Math.hypot(x - ox, y - oy) < r);
 // where they stand at first (the render's placings) and which coat each wears
-const HERD = [[-10, 64, 30, 'cow-brown'], [-5, 67, -60, 'cow-black'], [-2, 63, 120, 'cow-red'], [-8, 70, 200, 'cow-brown']];
+const HERD = [[-18, -4, 30, 'cow-brown'], [-16, 0, -60, 'cow-black'], [-20, 0.5, 120, 'cow-red'], [-17.5, -5.5, 200, 'cow-brown']];
 
 export function penHeight(pen, x, y) {
   const fx = Math.max(0, Math.min(pen.w - 1.001, (x - pen.x0) / pen.cell)), fy = Math.max(0, Math.min(pen.h - 1.001, (y - pen.y0) / pen.cell));
@@ -50,7 +53,7 @@ export function createCows({ scene, camera, onChange = () => {} }) {
         for (let k = 0; k < 20; k++) {
           const a = rand(0, Math.PI * 2), r = rand(2, 5);
           const tx = c.x + Math.cos(a) * r, ty = c.y + Math.sin(a) * r;
-          if (tx < PEN.x0 || tx > PEN.x1 || ty < PEN.y0 || ty > PEN.y1) continue;
+          if (!inPen(tx, ty) || !inPen((c.x + tx) / 2, (c.y + ty) / 2)) continue;
           if (state.cows.some((o) => o !== c && Math.hypot(o.x - tx, o.y - ty) < 2.6)) continue;
           c.tx = tx; c.ty = ty; c.mode = 'walk'; break;
         }

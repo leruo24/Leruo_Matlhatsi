@@ -14,7 +14,7 @@ PRESETS = {
     # sun low in the east, pink and gold sky, the room's lamps still on
     'sunrise': dict(sky_el=3.5, az=62.0, lamp_el=9.0, energy=4.0, color=(1.0, 0.76, 0.62), sky=0.42, sun_int=0.45,
                     clouds=((0.42, 0.36, 0.55), (1.45, 0.92, 1.0)), cover=(0.48, 0.74), night=0.0,
-                    haze=(0.80, 0.74, 0.84), haze_k=1.2, exposure=-0.35, interior=0.6, windows=1.0, city=0.5,
+                    haze=(0.80, 0.74, 0.84), haze_k=1.2, exposure=-0.35, interior=0.6, windows=0.6, city=0.12,
                     bounce=(420.0, (1.0, 0.75, 0.6)), fill=1.2),
     # early afternoon: high sun a little left of the front, blue sky, white clouds, lamps off
     'day': dict(sky_el=50.0, az=-35.0, lamp_el=50.0, energy=4.2, color=(1.0, 0.96, 0.90), sky=1.0, sun_int=1.0,
@@ -24,7 +24,7 @@ PRESETS = {
     # golden hour (the original look, matched to the approved photo)
     'sunset': dict(sky_el=2.0, az=-28.0, lamp_el=14.0, energy=9.0, color=(1.0, 0.62, 0.34), sky=0.3, sun_int=0.7,
                    clouds=((0.60, 0.26, 0.20), (1.8, 0.80, 0.38)), cover=(0.46, 0.70), night=0.0,
-                   haze=(0.95, 0.62, 0.42), haze_k=1.0, exposure=-0.3, interior=0.6, windows=1.0, city=0.4,
+                   haze=(0.95, 0.62, 0.42), haze_k=1.0, exposure=-0.3, interior=0.6, windows=0.8, city=0.25,
                    bounce=(900.0, (1.0, 0.72, 0.48)), fill=1.0),
     # night: moonlight, stars, every lamp in the room on, the farmhouse and the city lit
     'night': dict(sky_el=-12.0, az=35.0, lamp_el=38.0, energy=0.06, color=(0.55, 0.65, 1.0), sky=0.3, sun_int=0.0,

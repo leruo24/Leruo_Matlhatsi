@@ -23,8 +23,9 @@ GEN = os.path.join(HERE, 'assets', 'gen')
 
 # crop fields (x0, x1, y0, y1, kind): the grass blades and trees keep out of them
 FIELDS = [(-62, -18, 46, 104, 'maize'), (14, 62, 70, 140, 'wheat'), (-70, 30, -110, -24, 'rows'),
-          (-130, -26, -46, 16, 'ploughed'), (-80, -40, 108, 170, 'rows'), (64, 120, 20, 90, 'maize')]
-COOP = (-6.5, 12.5)     # chicken coop in the yard (the chickens are drawn live on the page)
+          (-130, -31, -46, 16, 'ploughed'), (-80, -40, 108, 170, 'rows'), (64, 120, 20, 90, 'maize')]
+COOP = (-3.5, -11.0)    # chicken coop behind the office, in view of the back window (hens are live)
+PEN = (-27.0, -13.0, -8.0, 4.0)   # cow pen x0, x1, y0, y1: right outside the left window
 
 
 def in_field(x, y, pad=0.0):
@@ -129,10 +130,10 @@ def interior(m):
     # framed photographs (Leruo's own photos from assets/)
     A = os.path.join(REPO, 'assets')
     fy = ROOM['front'] - 0.075
-    frame('Photo outdoors', os.path.join(A, 'leruo-outdoors.jpg'), 0.42, 0.32, (-4.5, fy - 0.0125, 2.25), math.pi, m)
-    frame('Photo headshot', os.path.join(A, 'leruo-headshot.jpg'), 0.3, 0.38, (-4.5, fy - 0.0125, 1.62), math.pi, m)
+    frame('Photo outdoors', os.path.join(A, 'leruo-outdoors.jpg'), 0.42, 0.32, (-4.5, fy - 0.0125, 2.25), 0.0, m)
+    frame('Photo headshot', os.path.join(A, 'leruo-headshot.jpg'), 0.3, 0.38, (-4.5, fy - 0.0125, 1.62), 0.0, m)
     back = ROOM['back'] + 0.0125
-    frame('Photo standing', os.path.join(A, 'leruo-standing.jpg'), 0.36, 0.5, (0.72, back + 0.0125, 1.75), 0.0, m)
+    frame('Photo standing', os.path.join(A, 'leruo-standing.jpg'), 0.36, 0.5, (0.72, back + 0.0125, 1.75), math.pi, m)
     # window seat under the left window, linen cushion, two throw pillows
     lx = ROOM['minX']
     box('Window seat', (0.5, 3.0, 0.42), (lx + 0.27, 0.25, 0.21), m['beam'], bevel=0.01)
@@ -153,9 +154,82 @@ def interior(m):
     # a stack on the window seat
     for k, c in enumerate(((0.12, 0.18, 0.14), (0.55, 0.50, 0.42), (0.42, 0.20, 0.12))):
         box('Book stack', (0.2, 0.26, 0.035), (lx + 0.3, 0.6, 0.517 + k * 0.036), M.plain('Book', c, rough=0.7), rot=(0, 0, 0.1 * k), bevel=0.003)
+    farmhouse_corner(m)
     # a big fiddle-leaf plant in the front left corner
     import assets as AS
     AS.place('potted_plant_01', (lx + 0.5, 3.75, 0), rot_z=1.2, scale=1.25, floor=0.0, label='Corner plant (Poly Haven)')
+
+
+def straw_material():
+    m, nt, b = M._new('Straw weave')
+    mp = M._coords(nt, 40.0)
+    w = nt.nodes.new('ShaderNodeTexWave'); w.wave_type = 'BANDS'; w.inputs['Distortion'].default_value = 3; w.inputs['Detail'].default_value = 4
+    nt.links.new(mp.outputs['Vector'], w.inputs['Vector'])
+    r = M._ramp(nt, [(0.2, (0.42, 0.30, 0.13)), (0.8, (0.72, 0.58, 0.32))]); nt.links.new(w.outputs['Fac'], r.inputs['Fac'])
+    nt.links.new(r.outputs['Color'], b.inputs['Base Color']); M._set(b, rough=0.85, sheen=0.3)
+    M._bump(nt, b, w.outputs['Fac'], 0.4, 0.004)
+    return m
+
+
+def farmhouse_corner(m):
+    """Left wall: an oak-and-black-pipe open shelf of farm things, a peg rail with a straw hat,
+    herbs on the window sill and a milk churn by the crates."""
+    lx = ROOM['minX']; oak = m['beam']; pipe = m['steel_black']
+    sh = empty('Farm shelf', (lx + 0.2, 2.55, 0), 0)
+    for sy in (-0.5, 0.5):
+        for sx in (-0.15, 0.15):
+            cyl('Shelf pipe', 0.014, 1.86, (sx, sy, 0.93), pipe, parent=sh, seg=12)
+    levels = (0.12, 0.6, 1.08, 1.56, 1.86)
+    for z in levels:
+        box('Shelf board', (0.36, 1.1, 0.035), (0, 0, z), oak, bevel=0.004, parent=sh)
+    wicker = straw_material()
+    for k, y in enumerate((-0.25, 0.25)):     # baskets on the bottom shelf
+        box('Basket', (0.3, 0.42, 0.24), (0, y, 0.255), wicker, bevel=0.03, parent=sh)
+    glass = m['clear']
+    for k in range(4):                         # preserve jars
+        y = -0.4 + k * 0.17
+        cyl('Jar', 0.045, 0.13, (0.02, y, 0.6 + 0.0175 + 0.065), glass, parent=sh, seg=24)
+        cyl('Jar fill', 0.042, 0.1, (0.02, y, 0.6 + 0.0175 + 0.052), M.plain(f'Preserve {k}', [(0.5, 0.08, 0.05), (0.75, 0.42, 0.05), (0.3, 0.4, 0.1), (0.55, 0.15, 0.25)][k], rough=0.2, trans=0.3), parent=sh, seg=24)
+        cyl('Jar lid', 0.047, 0.015, (0.02, y, 0.6 + 0.0175 + 0.137), M.plain('Gingham lid', (0.6, 0.12, 0.1), rough=0.8), parent=sh, seg=24)
+    # an egg basket and a stack of books on the next shelf
+    box('Egg basket', (0.26, 0.3, 0.1), (0, 0.25, 1.08 + 0.0675), wicker, bevel=0.03, parent=sh)
+    eggm = M.plain('Eggs', (0.78, 0.62, 0.45), rough=0.5)
+    for k in range(7):
+        sphere('Egg', 0.026, (-0.08 + (k % 3) * 0.08, 0.17 + (k // 3) * 0.08, 1.08 + 0.12), eggm, scale=(1, 1, 1.3), parent=sh, seg=12)
+    books(lx + 0.12, 2.12, 1.1, 0.42, math.pi / 2, 9, m)
+    # potted herbs on top
+    terra = M.plain('Terracotta', (0.55, 0.25, 0.13), rough=0.8)
+    leaf = M.plain('Herb leaf', (0.13, 0.32, 0.08), rough=0.55, sheen=0.4)
+    for k, y in enumerate((-0.35, 0.05, 0.4)):
+        cyl('Herb pot', 0.07, 0.12, (0, y, 1.88 + 0.06), terra, r2=0.085, parent=sh, seg=24)
+        for j in range(5):
+            a = j / 5 * math.tau + k
+            sphere('Herb', 0.045, (math.cos(a) * 0.035, y + math.sin(a) * 0.035, 2.0 + 0.02 * (j % 2)), leaf, scale=(1, 1, 0.8), parent=sh, seg=10)
+    # galvanised watering can on the floor by the shelf
+    galv = M.plain('Galvanised', (0.62, 0.63, 0.64), rough=0.35, metal=0.9)
+    cyl('Watering can', 0.11, 0.24, (lx + 0.55, 1.9, 0.12), galv, seg=28)
+    tube_path('Can spout', [(lx + 0.6, 1.83, 0.08), (lx + 0.7, 1.7, 0.26), (lx + 0.72, 1.66, 0.3)], 0.012, galv)
+    # peg rail with a straw hat between the window and the back corner
+    py0 = -3.2
+    box('Peg rail', (0.03, 1.2, 0.09), (lx + 0.015, py0 + 0.85, 1.72), oak, bevel=0.005)
+    for k in range(4):
+        cyl('Peg', 0.012, 0.08, (lx + 0.07, py0 + 0.4 + k * 0.3, 1.72), oak, rot=(0, math.pi / 2, 0), seg=10)
+    hat = empty('Straw hat', (lx + 0.1, py0 + 0.7, 1.6), 0); hat.rotation_euler = (0, math.radians(-75), 0)
+    cyl('Hat brim', 0.2, 0.012, (0, 0, 0), wicker, parent=hat, seg=40)
+    cyl('Hat crown', 0.1, 0.1, (0, 0, 0.055), wicker, r2=0.09, parent=hat, seg=32)
+    cyl('Hat band', 0.101, 0.025, (0, 0, 0.02), M.plain('Hat band', (0.15, 0.08, 0.04), rough=0.6), parent=hat, seg=32)
+    tube_path('Rope coil', [(lx + 0.06, py0 + 1.0 + 0.1 * math.cos(a), 1.55 + 0.1 * math.sin(a)) for a in [k / 16 * math.tau for k in range(17)]], 0.012,
+              M.plain('Rope', (0.55, 0.45, 0.3), rough=0.9))
+    # milk churn by the crates
+    cyl('Milk churn', 0.17, 0.5, (lx + 0.85, ROOM['back'] + 0.4, 0.25), galv, r2=0.15, seg=32)
+    cyl('Churn neck', 0.1, 0.16, (lx + 0.85, ROOM['back'] + 0.4, 0.58), galv, seg=24)
+    cyl('Churn lid', 0.12, 0.03, (lx + 0.85, ROOM['back'] + 0.4, 0.67), galv, seg=24)
+    # herbs on the left window sill
+    for k, y in enumerate((-0.9, -0.55, 1.0, 1.4)):
+        cyl('Sill pot', 0.05, 0.09, (lx + 0.1, y, 0.97), terra, r2=0.06, seg=20)
+        for j in range(4):
+            a = j / 4 * math.tau + k
+            sphere('Herb', 0.035, (lx + 0.1 + math.cos(a) * 0.025, y + math.sin(a) * 0.025, 1.06), leaf, scale=(1, 1, 0.8), seg=10)
 
 
 # ---------------------------------------------------------------- the ESP32 bench
@@ -351,7 +425,7 @@ def silo(m, x, y, r, h, mat):
 
 def chicken_coop(m, extra):
     x, y = COOP; z = _height(x, y)
-    g = empty('Chicken coop', (x, y, z), math.radians(20))
+    g = empty('Chicken coop', (x, y, z), math.radians(180))    # pop hole toward the office
     white = M.plain('Coop white', (0.80, 0.79, 0.74), rough=0.7)
     for sx in (-1, 1):
         for sy in (-1, 1):
@@ -400,6 +474,52 @@ def tractor(m, loc, rot):
     cyl('Exhaust', 0.04, 1.0, (0.3, -1.6, 1.8), m['steel_black'], parent=g)
 
 
+def round_bale(m, x, y, rot, mat):
+    z = _height(x, y)
+    cyl('Round bale', 0.75, 1.2, (x, y, z + 0.75), mat, rot=(math.pi / 2, 0, rot), seg=40)
+
+
+def cow_pen(m, extra):
+    """A post-and-rail pen right outside the left window, with a trough, round bales, a hay ring
+    and a lean-to shelter (the cows themselves are drawn live on the page)."""
+    import nature as N
+    x0, x1, y0, y1 = PEN
+    N.fence(m, [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], post_gap=2.5)
+    galv = M.plain('Galvanised trough', (0.6, 0.61, 0.62), rough=0.35, metal=0.9)
+    tx, ty = x1 - 0.7, -1.5
+    z = _height(tx, ty)
+    box('Trough', (0.7, 2.6, 0.5), (tx, ty, z + 0.25), galv, bevel=0.03)
+    box('Trough water', (0.62, 2.5, 0.01), (tx, ty, z + 0.45), m['water'], bevel=0)
+    hay = M.plain('Hay', (0.62, 0.50, 0.26), rough=0.95, sheen=0.4)
+    try:
+        hay = straw_material(); hay.name = 'Hay bale'
+    except Exception:
+        pass
+    round_bale(m, x0 + 2.5, y1 - 2.0, 0.3, hay)
+    round_bale(m, x0 + 4.2, y1 - 1.6, 1.4, hay)
+    # a hay ring feeder with a bale in it
+    rx, ry = (x0 + x1) / 2 - 1.5, (y0 + y1) / 2 - 1.0
+    bpy.ops.mesh.primitive_torus_add(major_radius=1.0, minor_radius=0.04, location=(rx, ry, _height(rx, ry) + 0.95))
+    bpy.context.object.data.materials.append(galv); bpy.context.object.name = 'Hay ring'
+    bpy.ops.mesh.primitive_torus_add(major_radius=1.0, minor_radius=0.04, location=(rx, ry, _height(rx, ry) + 0.35))
+    bpy.context.object.data.materials.append(galv)
+    for k in range(12):
+        a = k / 12 * math.tau
+        cyl('Ring bar', 0.025, 0.65, (rx + math.cos(a), ry + math.sin(a), _height(rx, ry) + 0.65), galv, seg=8)
+    round_bale(m, rx, ry, 0.0, hay)
+    # lean-to shelter in the far corner
+    sx, sy = x0 + 2.2, y0 + 1.8
+    sz = _height(sx, sy)
+    for dx in (-1.8, 1.8):
+        for dy, h in ((-1.4, 2.2), (1.4, 2.8)):
+            box('Shelter post', (0.12, 0.12, h), (sx + dx, sy + dy, sz + h / 2), m['beam'], bevel=0.01)
+    box('Shelter roof', (4.2, 3.4, 0.05), (sx, sy, sz + 2.55), m['corrugated'], rot=(math.radians(-10), 0, 0), bevel=0)
+    box('Shelter back', (4.0, 0.04, 2.2), (sx, sy - 1.45, sz + 1.1), m['corrugated'], bevel=0)
+    # a few bales stacked outside the pen
+    for k, (bx, by) in enumerate(((x0 - 2.0, y1 + 1.2), (x0 - 0.4, y1 + 1.3))):
+        round_bale(m, bx, by, 0.1 * k, hay)
+
+
 def farm(m, extra):
     # crop fields: extra ground materials, assigned by face
     ground = bpy.data.objects['Ground']
@@ -411,12 +531,13 @@ def farm(m, extra):
         for x0, x1, y0, y1, kind in FIELDS:
             if x0 < c.x < x1 and y0 < c.y < y1:
                 p.material_index = base + kinds.index(kind); break
-    fence_pts = [((-62, 46), (-18, 46)), ((14, 70), (62, 70)), ((-70, -24), (30, -24)), ((-26, -46), (-26, 16))]
+    fence_pts = [((-62, 46), (-18, 46)), ((14, 70), (62, 70)), ((-70, -24), (30, -24)), ((-31, -46), (-31, 16))]
     import nature as N
     for a, b in fence_pts:
         N.fence(m, [a, b], post_gap=4.0)
     windpump(m, (-10.0, 46.0))
     chicken_coop(m, extra)
+    cow_pen(m, extra)
     tractor(m, (12.0, 50.0), math.radians(120))
     tractor(m, (-34.0, -30.0), math.radians(10))
     galv = M.plain('Galvanised silo', (0.62, 0.63, 0.64), rough=0.3, metal=0.9)
@@ -477,7 +598,7 @@ def mountains(m):
                 az = math.degrees(math.atan2(math.sin(a), math.cos(a)))
                 env = 0.55 + 0.45 * (noise.noise(Vector((math.cos(a) * 1.6, math.sin(a) * 1.6, seed + 4))) * 0.5 + 0.5)
                 if name == 'Near range':
-                    env *= 1 - 0.6 * math.exp(-((az - 19) / 14) ** 2)     # a low gap in front, behind the city
+                    env *= 1 - 0.6 * math.exp(-((az - 70) / 14) ** 2)     # a low gap in front, behind the city
                 prof = max(0.0, math.sin(math.pi * j / rows)) ** 0.8
                 h = peak * env * (0.25 + 0.75 * _ridge(x, y, 0.00045, seed) ** 1.4) * prof
                 row.append(bm.verts.new((x, y, h - 40)))
@@ -498,7 +619,7 @@ def city_material():
     br.inputs['Brick Width'].default_value = 3.2; br.inputs['Row Height'].default_value = 3.6
     nt.links.new(tc.outputs['Object'], br.inputs['Vector'])
     rnd = nt.nodes.new('ShaderNodeTexWhiteNoise'); nt.links.new(br.outputs['Color'], rnd.inputs['Vector'])
-    lit = nt.nodes.new('ShaderNodeMath'); lit.operation = 'GREATER_THAN'; lit.inputs[1].default_value = 0.62
+    lit = nt.nodes.new('ShaderNodeMath'); lit.operation = 'GREATER_THAN'; lit.inputs[1].default_value = 0.72
     sep = nt.nodes.new('ShaderNodeSeparateColor'); nt.links.new(rnd.outputs['Color'], sep.inputs['Color'])
     nt.links.new(sep.outputs[0], lit.inputs[0])
     notm = nt.nodes.new('ShaderNodeMath'); notm.operation = 'SUBTRACT'; notm.inputs[0].default_value = 1.0
@@ -506,7 +627,7 @@ def city_material():
     win = nt.nodes.new('ShaderNodeMath'); win.operation = 'MULTIPLY'
     nt.links.new(lit.outputs[0], win.inputs[0]); nt.links.new(notm.outputs[0], win.inputs[1])
     tone = nt.nodes.new('ShaderNodeMix'); tone.data_type = 'RGBA'
-    tone.inputs['A'].default_value = (0.58, 0.58, 0.60, 1); tone.inputs['B'].default_value = (0.30, 0.36, 0.42, 1)
+    tone.inputs['A'].default_value = (0.42, 0.42, 0.44, 1); tone.inputs['B'].default_value = (0.22, 0.27, 0.32, 1)
     nt.links.new(sep.outputs[1], tone.inputs['Factor'])
     nt.links.new(tone.outputs['Result'], b.inputs['Base Color'])
     M._set(b, rough=0.35, metal=0.3)
@@ -524,21 +645,21 @@ def city_material():
 
 
 def city(m, extra):
-    """A skyline 3-4 km off, a little right of straight ahead, in front of the low gap in the range.
+    """A skyline 5.5-7.5 km off to the right (through the open door), in front of a low gap in the range.
     Generic towers (no real landmarks), a few tall ones and a telecom mast."""
     rnd = random.Random(21)
     mat = city_material()
     for i in range(95):
-        az = math.radians(rnd.gauss(19, 4.5)); r = rnd.uniform(3000, 4300)
-        w = rnd.uniform(18, 45); d = w * rnd.uniform(0.7, 1.3)
+        az = math.radians(rnd.gauss(70, 4.5)); r = rnd.uniform(5600, 7400)
+        w = rnd.uniform(25, 60); d = w * rnd.uniform(0.7, 1.3)
         tall = rnd.random() < 0.18
-        h = (rnd.uniform(120, 230) if tall else rnd.uniform(25, 95)) * (1.0 - 0.4 * abs(math.degrees(az) - 19) / 16)
+        h = (rnd.uniform(170, 320) if tall else rnd.uniform(40, 140)) * (1.0 - 0.4 * min(1.0, abs(math.degrees(az) - 70) / 16))
         x, y = math.sin(az) * r, math.cos(az) * r
         o = box('Tower', (w, d, h), (x, y, h / 2 - 5), mat, rot=(0, 0, rnd.uniform(0, math.pi)), bevel=0)
         if tall and rnd.random() < 0.6:
             box('Tower crown', (w * 0.7, d * 0.7, h * 0.12), (x, y, h + h * 0.06 - 5), mat, rot=o.rotation_euler, bevel=0)
-    a = math.radians(21); r = 3600
-    cyl('Telecom mast', 7, 240, (math.sin(a) * r, math.cos(a) * r, 115), mat, seg=12)
-    cyl('Mast head', 13, 22, (math.sin(a) * r, math.cos(a) * r, 230), mat, seg=12)
+    a = math.radians(72); r = 6500
+    cyl('Telecom mast', 9, 300, (math.sin(a) * r, math.cos(a) * r, 145), mat, seg=12)
+    cyl('Mast head', 16, 26, (math.sin(a) * r, math.cos(a) * r, 290), mat, seg=12)
     red = M.emission('City beacon', (1.0, 0.1, 0.05), 0.0)
-    sphere('Mast beacon', 3.0, (math.sin(a) * r, math.cos(a) * r, 262), red, seg=8)
+    sphere('Mast beacon', 4.0, (math.sin(a) * r, math.cos(a) * r, 322), red, seg=8)

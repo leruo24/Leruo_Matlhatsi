@@ -2,15 +2,15 @@ import * as THREE from 'three';
 import { VERT, FRAG, spriteHeading, toThree, NavGrid } from './dogs.js';
 
 /**
- * Free-range hens around the coop in the yard (about 13 m out, front left). Like the cows they are
+ * Free-range hens around the coop behind the office (about 11 m out, in view of the back window). Like the cows they are
  * Blender sprite frames (blender/chicken_sprites.py): 8 headings x a walk cycle plus a pecking loop.
  * They peck about, then trot a metre or three to a new spot near the coop, on free ground from
  * nav.json (the same grid the dogs walk on), keeping clear of each other.
  */
 const DIR = 'assets/workshop-3d/';
-export const COOP = Object.freeze({ x: -6.5, y: 12.5, r: 4.6 });
-const FLOCK = [[-4.6, 11.0, 'chicken-brown'], [-5.2, 13.8, 'chicken-white'], [-8.4, 11.2, 'chicken-brown'],
-  [-3.8, 12.9, 'chicken-black'], [-7.6, 14.6, 'chicken-white'], [-6.0, 10.2, 'chicken-brown']];
+export const COOP = Object.freeze({ x: -3.5, y: -11.0, r: 3.6 });
+const FLOCK = [[-1.5, -9.4, 'chicken-brown'], [-2.0, -13.2, 'chicken-white'], [-5.6, -9.6, 'chicken-brown'],
+  [-1.0, -11.6, 'chicken-black'], [-5.8, -12.8, 'chicken-white'], [-3.4, -8.5, 'chicken-brown']];
 
 export function createChickens({ scene, camera, onChange = () => {} }) {
   const group = new THREE.Group(); scene.add(group);
@@ -35,7 +35,7 @@ export function createChickens({ scene, camera, onChange = () => {} }) {
   }).catch((e) => console.warn('Chickens unavailable', e));
 
   const _v = new THREE.Vector3();
-  const okSpot = (h, x, y) => Math.hypot(x - COOP.x, y - COOP.y) < COOP.r && state.nav.clear(h.x, h.y, x, y)
+  const okSpot = (h, x, y) => Math.hypot(x - COOP.x, y - COOP.y) < COOP.r && x > -12.6 && state.nav.clear(h.x, h.y, x, y)
     && !state.hens.some((o) => o !== h && Math.hypot(o.x - x, o.y - y) < 0.5);
   function think(h, dt) {
     if (h.mode === 'peck') {

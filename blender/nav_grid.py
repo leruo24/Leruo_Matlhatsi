@@ -16,7 +16,7 @@ from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 out = os.path.abspath(sys.argv[1])
-X0, X1, Y0, Y1, CELL = -11.0, 9.0, -3.6, 17.0, 0.1
+X0, X1, Y0, Y1, CELL = -16.0, 9.0, -15.5, 17.0, 0.1
 bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, 'workshop.blend'))
 s = bpy.context.scene
 
@@ -47,10 +47,10 @@ for j in range(h):
 json.dump(dict(x0=X0, y0=Y0, cell=CELL, w=w, h=h, data=base64.b64encode(bytes(data)).decode()), open(out, 'w'))
 print(f'NAV {w}x{h} free {free}/{w * h} -> {out}')
 
-# the cow pen (fence at x -14..2, y 60..74): ground heights for the grazing cows
+# the cow pen (fence at x -27..-13, y -8..4, outside the left window): ground heights for the cows
 sys.path.insert(0, HERE)
 from props import _height
-px0, px1, py0, py1 = -14, 2, 60, 74
+px0, px1, py0, py1 = -27, -13, -8, 4
 pen = dict(x0=px0, y0=py0, cell=1, w=px1 - px0 + 1, h=py1 - py0 + 1,
            heights=[[round(_height(px0 + i, py0 + j), 3) for i in range(px1 - px0 + 1)] for j in range(py1 - py0 + 1)])
 json.dump(pen, open(os.path.join(os.path.dirname(out), 'pen.json'), 'w'))

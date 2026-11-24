@@ -211,8 +211,8 @@ def furnish(room, desk):
     place('jug_01', (sx + 0.7, sy - 0.05, 1.32), rot_z=-0.6, floor=1.32)
     place('lantern_01', (sx - 0.4, sy, 1.75), rot_z=0.9, floor=1.75)
     # left wall, rear: two stacked crates (the window seat and floor lamp are in farm_office.py)
-    place('wooden_crate_02', (minX + 0.35, back + 1.75, 0), rot_z=0.0, floor=0.0)
-    place('wooden_crate_01', (minX + 0.4, back + 1.6, 0.47), rot_z=0.25, floor=0.475)
+    place('wooden_crate_02', (minX + 0.35, back + 0.45, 0), rot_z=0.0, floor=0.0)
+    place('wooden_crate_01', (minX + 0.4, back + 0.42, 0.47), rot_z=0.25, floor=0.475)
     # a stool at the ESP32 bench
     place('wooden_stool_01', (1.55, 0.95, 0), rot_z=0.3, floor=0.0)
     # a plastic chair under the shade tree, turned toward the pond
@@ -241,6 +241,8 @@ def grass_blades(count=650000, radius=55.0, seed=3):
     for x0, x1, y0, y1, _ in FIELDS:
         field |= (x > x0) & (x < x1) & (y > y0) & (y < y1)
     coop = np.hypot(x - COOP[0], y - COOP[1]) < 2.8
+    from farm_office import PEN
+    coop |= (x > PEN[0] + 1) & (x < PEN[0] + 4.5) & (y > PEN[2] + 0.3) & (y < PEN[2] + 3.4)   # under the shelter
     keep = ~(gravel | pond | room | field | coop)
     x, y = x[keep][:count], y[keep][:count]
     count = len(x)

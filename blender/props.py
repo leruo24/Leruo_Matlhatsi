@@ -336,20 +336,7 @@ def wall_items(m):
         box('Truck', (0.18, 0.04, 0.03), (0, 0.06 + (z - 0.5) * 0.2, z), m['steel'], rot=(math.radians(-12), 0, 0), parent=lb)
         for sx in (-1, 1):
             cyl('Wheel', 0.035, 0.045, (sx * 0.1, 0.03 + (z - 0.5) * 0.2, z), m['plastic_white'], rot=(0, math.pi / 2, 0), parent=lb)
-    # steel shelving with yellow-and-black toolboxes (Poly Haven CC0 frame)
-    glb = os.path.join(REPO, 'assets', 'models', 'steel_frame_shelves_01.glb')
-    if os.path.exists(glb):
-        bpy.ops.import_scene.gltf(filepath=glb)
-        sh = bpy.context.selected_objects[0]
-        while sh.parent: sh = sh.parent
-        # on the left wall, clear of the whiteboard and the caps
-        sh.name = 'Steel shelf'; sh.scale = (0.08, 0.08, 0.08); sh.location = (ROOM['minX'] + 0.26, 2.55, 0); sh.rotation_euler = (0, 0, -math.pi / 2)
-    for i, z in enumerate((0.11, 0.52, 0.93)):
-        tb = empty(f'Toolbox {i}', (ROOM['minX'] + 0.26, 2.55, z), math.pi / 2)
-        box('Box', (0.42, 0.22, 0.2), (0, 0, 0.1), m['plastic_black'], bevel=0.01, parent=tb)
-        box('Lid', (0.43, 0.23, 0.04), (0, 0, 0.21), m['yellow'], bevel=0.008, parent=tb)
-        for sx in (-1, 1):
-            box('Latch', (0.03, 0.012, 0.05), (sx * 0.15, -0.115, 0.19), m['yellow'], bevel=0.003, parent=tb)
+    # (the left wall's shelf is farm_office.farmhouse_corner())
 
 
 # ---------------------------------------------------------------- outdoors

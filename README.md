@@ -84,12 +84,20 @@ Since 22 November 2026 the page shows a 360° render of the Blender scene in `bl
   - crop fields (maize, wheat, young rows, ploughed ground) on four sides;
   - a classic windpump with a round concrete dam;
   - a barn twice the size, with galvanised silos;
-  - an implement shed behind the office, two tractors and a chicken coop in the yard;
+  - an implement shed and a chicken coop behind the office, and two tractors;
+  - a cow pen right outside the left window, with a post-and-rail fence, a trough, round bales, a hay ring and a lean-to shelter;
   - mountain ranges all the way round, nearer and taller than before, with rock and veld shading and haze that changes with the time of day;
-  - a generic city skyline 3–4 km out, front right, in a low gap in the range. Its windows light up at night.
-- **Hens and birds.** Six hens peck around the coop and trot about (`js/chickens.js`, sprites from `blender/chicken_sprites.py`). They walk on the same floor grid as the dogs, which now covers the rising yard. A small flock of birds wheels over the farm, except at night.
+  - a generic city skyline 5.5–7.5 km off to the right, seen through the open door in a low gap in the range. Its windows light up at night.
+- **Hens and birds.** Six hens peck around the coop behind the office (in view of the back window) and trot about (`js/chickens.js`, sprites from `blender/chicken_sprites.py`). They walk on the same floor grid as the dogs, which now covers the rising yard. A small flock of birds wheels over the farm, except at night.
 - **The drone** is a small 3D quadcopter (body, arms, motors, spinning props with blur discs, a camera gimbal, and navigation lights at night and dawn) instead of a flat picture. It is lit by a sun and sky light that match each render.
-- **The tablet** stands upright on the desk, and its view on the page is portrait on every screen, so it is easy to use on a phone.
+- **The tablet** stands upright on the desk, and its view on the page is portrait on every screen, so it is easy to use on a phone. Its home screen fits without scrolling, and no scrollbars show (long app pages still swipe).
+- **24 November, after the first look:**
+  - The cows moved into the new pen by the left window, re-rendered at 256 px a frame to suit the closer view.
+  - The coop moved from the front yard (where it hid the truck and the garage) to behind the office.
+  - The city moved to the far right and further out.
+  - The Poly Haven steel shelf, whose boards didn't line up with its frame, is replaced by an oak and black-pipe farmhouse shelf of baskets, preserve jars, an egg basket, books and herbs. There is also a peg rail with a straw hat, a milk churn, and herbs on the window sill.
+  - The crates moved clear of the floor lamp.
+  - The framed photos faced the wall (they showed as black squares) and now face the room.
 - **Checked** on 24 November 2026 in headless Chrome with software WebGL (SwiftShader, no GPU), at 1400 × 800 and on a 390 × 844 touch viewport:
   - The intro plays through to the 3D view.
   - All four time sets load at 8K, and the chip switches between them.
@@ -117,7 +125,7 @@ How it's built (`js/pano-view.js`, `js/look-around.js`):
   - Select a dog and a small card offers **Call over** (it trots up in front of you, turns to face you and barks, with a "Woof!" bubble; sound is off if it's switched off on the main page) or **Walk this dog**.
   - **Walk a dog** opens a panel with a choice of dog and a stick, like the drone remote: up walks it away from you along the view, down brings it toward you, left and right go across, and further means faster. Arrow keys / WASD work too, Space barks, and Esc lets it go. It slides along walls and furniture, picks up the ball if you walk it there, and the view turns to keep it in sight.
   - **Throw ball** (or B, or double-click a spot on the floor) throws a tennis ball. The dogs race for it, and the first one there carries it back to you.
-- **The cows** graze in their pen across the farm (about 65 m out) and amble a few metres to fresh grass now and then, keeping clear of each other and the fence (`js/cows.js`). Like the dogs, they're Blender sprite frames (`blender/cow_sprites.py`, three coats, a walk cycle and a grazing loop with the head down and the tail swishing). They're no longer in the render, and their ground heights come from `pen.json`.
+- **The cows** graze in their pen right outside the left window (15–25 m out) and amble a few metres to fresh grass now and then, keeping clear of each other and the fence (`js/cows.js`). Like the dogs, they're Blender sprite frames (`blender/cow_sprites.py`, three coats, a walk cycle and a grazing loop with the head down and the tail swishing). They're no longer in the render, and their ground heights come from `pen.json`.
 - **Controls.** A dock holds Walk a dog, Throw ball, Fly drone and Pause, next to the main button. Messages appear as a short toast above it, and **?** explains everything. On touch screens the look pad is hidden, because dragging does the same.
 - **The drone** uses the same autopilot and two-stick remote as the main experience, but in the 360 view the remote can fly it all the way round the workshop, 12 m out and between 3° and 31° up, at 2.2 times the main page's speed. While you fly it, the view turns to keep it in sight, and the walls and roof hide it when it goes behind them (you can see it through the back window). The autopilot keeps to the sky in front. Pause scenery and reduced motion stop it, and the dogs as well.
 - **Unchanged:** dragging, the arrow keys and on-screen pad, Home to re-centre, `?perf` and `?debug`. Without WebGL the page pans the 2048-px panorama as a still image.
@@ -128,7 +136,7 @@ How it's built (`js/pano-view.js`, `js/look-around.js`):
   - The screens and their masks: `python export_screens.py ../assets/workshop-3d`.
   - The depth map: `python render_depth.py ../assets/workshop-3d/depth.png 4096 40`.
   - The floor grid (workshop, yard and coop) and the cow pen heights: `python nav_grid.py ../assets/workshop-3d/nav.json`.
-  - The dogs: `python dog_sprites.py <dir> 320 24`. The cows: `python cow_sprites.py <dir> 160 24`. The hens: `python chicken_sprites.py <dir> 128 16`. Then run `python3 make_dog_atlases.py <dir>` for each folder.
+  - The dogs: `python dog_sprites.py <dir> 320 24`. The cows: `python cow_sprites.py <dir> 256 16`. The hens: `python chicken_sprites.py <dir> 192 16`. Then run `python3 make_dog_atlases.py <dir>` for each folder.
 
 Checked on 22 November 2026 in headless Chrome with **software** WebGL (SwiftShader, 2 CPU cores, no GPU):
 - The 8K tiles loaded on desktop and the 4K halves on a 390 × 844 touch viewport.

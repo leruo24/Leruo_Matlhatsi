@@ -1,7 +1,7 @@
 """
 Free-range chickens for the 360 view, made like the cows (cow_sprites.py): a skinned body rendered
 as sprite frames, 8 headings x a walk cycle (legs stepping, the head bobbing) plus a pecking loop,
-seen from ~7 degrees above because the coop is ~13 m away across the yard.
+seen from ~8 degrees above because the coop is ~11 m out behind the office.
 
     python blender/chicken_sprites.py <out dir> [cell px] [samples]
 """
@@ -14,7 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import dog_sprites as DS
 
-ELEV = math.radians(7.0)
+ELEV = math.radians(8.0)
 HEADINGS, WALK, PECK = 8, 6, 6
 COATS = {   # feathers, tail
     'brown': ((0.24, 0.085, 0.025), (0.06, 0.03, 0.012)),
@@ -88,7 +88,7 @@ def render(out, cell, samples):
                 cols[(seg == i) & (skin['rest'][:, 2] > 0.095), :3] = feather
         attr = body.data.color_attributes.new('Col', 'FLOAT_COLOR', 'POINT')
         attr.data.foreach_set('color', cols.reshape(-1).astype(np.float32))
-        m = M.plain('Chicken ' + name, feather, rough=0.7, sheen=0.6)
+        m = M.plain('Chicken ' + name, feather, rough=0.75, sheen=0.15)
         nt = m.node_tree; a = nt.nodes.new('ShaderNodeAttribute'); a.attribute_name = 'Col'
         nt.links.new(a.outputs['Color'], nt.nodes['Principled BSDF'].inputs['Base Color'])
         body.data.materials.clear(); body.data.materials.append(m)
@@ -117,7 +117,7 @@ def render(out, cell, samples):
                 s.render.filepath = os.path.join(out, f'chicken-{name}_{"walk" if kind == "walk" else "idle"}_{h}_{idx}.png')
                 bpy.ops.render.render(write_still=True)
             print(f'chicken {name} frame {fi + 1}/{len(frames)} {time.time() - t0:.0f}s', flush=True)
-        json.dump(dict(size=S, groundY=ground_y, elev=7, headings=HEADINGS, walk=WALK, idle=PECK, stride=0.18, speed=0.45),
+        json.dump(dict(size=S, groundY=ground_y, elev=8, headings=HEADINGS, walk=WALK, idle=PECK, stride=0.18, speed=0.45),
                   open(os.path.join(out, f'chicken-{name}.json'), 'w'))
 
 

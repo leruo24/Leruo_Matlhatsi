@@ -1,8 +1,8 @@
 {
  "cow-black": {
   "size": 3.0,
-  "groundY": 0.7826431475736169,
-  "elev": 4,
+  "groundY": 0.7820289228707007,
+  "elev": 5.5,
   "headings": 8,
   "walk": 8,
   "idle": 6,
@@ -10,14 +10,14 @@
   "speed": 0.35,
   "cols": 14,
   "rows": 8,
-  "cell": 160,
+  "cell": 256,
   "file": "cow-black.webp",
   "half": "cow-black.webp"
  },
  "cow-brown": {
   "size": 3.0,
-  "groundY": 0.7826431475736169,
-  "elev": 4,
+  "groundY": 0.7820289228707007,
+  "elev": 5.5,
   "headings": 8,
   "walk": 8,
   "idle": 6,
@@ -25,14 +25,14 @@
   "speed": 0.35,
   "cols": 14,
   "rows": 8,
-  "cell": 160,
+  "cell": 256,
   "file": "cow-brown.webp",
   "half": "cow-brown.webp"
  },
  "cow-red": {
   "size": 3.0,
-  "groundY": 0.7826431475736169,
-  "elev": 4,
+  "groundY": 0.7820289228707007,
+  "elev": 5.5,
   "headings": 8,
   "walk": 8,
   "idle": 6,
@@ -40,7 +40,7 @@
   "speed": 0.35,
   "cols": 14,
   "rows": 8,
-  "cell": 160,
+  "cell": 256,
   "file": "cow-red.webp",
   "half": "cow-red.webp"
  }

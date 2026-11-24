@@ -1,7 +1,7 @@
 """
 Grazing cows for the 360 view: like the dogs (dog_sprites.py), each cow coat is rendered as
 sprite frames, 8 headings x a walk cycle plus a grazing loop (head down, nosing the grass from
-side to side, tail swishing), seen almost level because the pen is ~65 m away across the farm.
+side to side, tail swishing), seen from a little above because the pen is 15-25 m out from the left window.
 
     python blender/cow_sprites.py <out dir> [cell px] [samples]
 """
@@ -14,7 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import dog_sprites as DS
 
-ELEV = math.radians(4.0)
+ELEV = math.radians(5.5)
 HEADINGS, WALK, GRAZE = 8, 8, 6
 COATS = {
     'brown': ('Brown and white coat', (0.32, 0.16, 0.07), (0.82, 0.78, 0.72)),
@@ -109,7 +109,7 @@ def render(out, cell, samples):
                 s.render.filepath = os.path.join(out, f'cow-{name}_{kind if kind == "walk" else "idle"}_{h}_{idx}.png')
                 bpy.ops.render.render(write_still=True)
             print(f'cow {name} frame {fi + 1}/{len(frames)} {time.time() - t0:.0f}s', flush=True)
-        json.dump(dict(size=S, groundY=ground_y, elev=4, headings=HEADINGS, walk=WALK, idle=GRAZE, stride=0.44, speed=0.35),
+        json.dump(dict(size=S, groundY=ground_y, elev=5.5, headings=HEADINGS, walk=WALK, idle=GRAZE, stride=0.44, speed=0.35),
                   open(os.path.join(out, f'cow-{name}.json'), 'w'))
 
 

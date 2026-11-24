@@ -122,7 +122,7 @@ def trees(m):
     rnd = random.Random(5); placed = []
     spots = [(-26, 18), (-32, 44), (-10, 62), (9, 70), (-30, 75), (24, 90), (-12, 95), (-40, 55), (2, 140), (30, 150),
              (-55, 120), (46, 70), (60, 110), (-70, 160), (-20, 180), (15, 210), (75, 190), (-95, 220), (40, 260), (-45, 300),
-             (52, 33), (36, 45), (-34, 28), (-48, 34)]
+             (36, 45), (-34, 28), (-48, 34)]
     from farm_office import in_field
     spots += [(x, -118) for x in range(-66, 32, 9)] + [(-134, y) for y in range(-40, 20, 10)]
     for i, (x, y) in enumerate(spots):
@@ -208,9 +208,8 @@ def buildings(m, extra):
     for x in range(-8, 9, 2):
         box('Verandah post', (0.15, 0.15, 2.9), (x, -7.0, 1.45), extra['house_wood'], bevel=0.01, parent=house)
     box('Verandah deck', (16.5, 2.8, 0.25), (0, -5.8, 0.12), extra['house_wood'], bevel=0.01, parent=house)
-    # fence lines across the fields and the cow pen near the barn
+    # fence line across the fields (the cow pen is now outside the left window: farm_office.cow_pen)
     fence(m, [(-45, 40), (-20, 42), (6, 41), (12, 47)])
-    fence(m, [(-14, 60), (2, 60), (2, 74), (-14, 74), (-14, 60)])
 
 
 def skyline(m, extra):
