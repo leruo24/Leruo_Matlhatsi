@@ -23,6 +23,8 @@ No build step. It runs on GitHub Pages as static files. Generated imagery is inc
 ## Put it online (GitHub Pages)
 Repo: `leruo24/Leruo_Matlhatsi` → **https://leruo24.github.io/Leruo_Matlhatsi/**
 
+Before committing a change, run `python3 tools/stamp.py`. It adds a version (`?v=...`) to every script and stylesheet in the pages, so a visitor's browser can't mix old cached files with new ones in the 10 minutes GitHub Pages lets it cache them.
+
 The repository is public and ready to serve as it is: plain static files, relative paths only (so it works under `/Leruo_Matlhatsi/`), three.js vendored in `vendor/` (no CDN), a `.nojekyll` file so GitHub serves every folder untouched, and a `404.html`. Asset paths are checked for exact upper/lower case, because GitHub Pages is case-sensitive and Windows is not.
 
 1. Push to `main` (already done for the current version).

@@ -66,7 +66,7 @@ window.PORTFOLIO = {
     { group: "Programming", items: ["C#", "TypeScript", "JavaScript", "Python", "SQL", "C++ (Arduino)"] },
     { group: "Frameworks", items: ["ASP.NET Core", "Razor Pages", "EF Core", "Node.js", "REST APIs", "React Native / Expo", "React", "FastAPI", "Vite"] },
     { group: "Cloud & data", items: ["Supabase / PostgreSQL (RLS)", "Google Cloud Run", "BigQuery", "Firestore", "Docker", "Railway", "Vercel"] },
-    { group: "IoT", items: ["ESP32", "ESP-NOW", "MQTT (HiveMQ)", "Sensors & actuators", "Hardware–software integration", "Soil & climate sensors", "Relays & pumps", "3D printing"] },
+    { group: "IoT", items: ["ESP32", "ESP-NOW", "MQTT (HiveMQ)", "Sensors & actuators", "Hardware-software integration", "Soil & climate sensors", "Relays & pumps", "3D printing"] },
     { group: "AI", items: ["Vertex AI", "Google Gemini", "AI-assisted development (Claude Code, Copilot)"] },
     { group: "Business & IS", items: ["BPMN (ARIS, Signavio, bpmn.io)", "SAP S/4HANA (P2P, O2C)", "ERP concepts", "Intro ABAP (Eclipse ADT, SAP GUI)", "UML", "Draw.io", "Database design & EER modelling", "Jira", "Git / GitHub", "Requirements & stakeholder interviews"] },
     { group: "Spoken languages", items: ["English (fluent)", "Setswana (fluent)", "Sesotho (proficient)", "Afrikaans (pre-intermediate)", "isiZulu (pre-intermediate)", "isiXhosa (beginner)"] },
@@ -77,7 +77,7 @@ window.PORTFOLIO = {
     {
       role: "Business Analyst Consultant",
       org: "Remote",
-      dates: "Nov 2025 – present",
+      dates: "Nov 2025 to present",
       points: [
         "Gathering client requirements, analysing processes and translating stakeholder needs into system requirements and digital solution recommendations.",
         "Clients include Venture54, Fa8th and Beyond Church.",
@@ -95,7 +95,7 @@ window.PORTFOLIO = {
     {
       role: "Faculty Orientation Leader",
       org: "University of Cape Town",
-      dates: "Nov 2025 – Feb 2026",
+      dates: "Nov 2025 to Feb 2026",
       points: [
         "Helped first-year students into university life: academic guidance, peer mentorship and support, and help with university systems, online platforms and essential tech tools.",
       ],
@@ -103,7 +103,7 @@ window.PORTFOLIO = {
     {
       role: "Brand Promoter",
       org: "Cape Town",
-      dates: "Feb 2025 – present",
+      dates: "Feb 2025 to present",
       points: [
         "Represent national brands at events such as UCT Varsity Cup rugby, engaging students to drive visibility and energy on campus.",
       ],
@@ -111,7 +111,7 @@ window.PORTFOLIO = {
     {
       role: "Bartender",
       org: "Cape Town",
-      dates: "Sept 2025 – present",
+      dates: "Sept 2025 to present",
       points: [
         "Hospitality work including DHL VIP hospitality and business lounge suites.",
       ],
@@ -119,7 +119,7 @@ window.PORTFOLIO = {
     {
       role: "Residence Mentor",
       org: "Upper Campus Residence, University of Cape Town",
-      dates: "Feb 2024 – Nov 2024",
+      dates: "Feb 2024 to Nov 2024",
       points: [
         "Supported first-year students as they adjusted to university life, with monthly meetings to help their transition.",
       ],
@@ -130,7 +130,7 @@ window.PORTFOLIO = {
     {
       degree: "Bachelor of Social Science: Information Systems, Politics & Industrial Sociology",
       org: "University of Cape Town",
-      dates: "Feb 2023 – present (final year)",
+      dates: "Feb 2023 to present (final year)",
       points: [
         "Systems development in ASP.NET Core, business process management and enterprise systems (BPMN, SAP S/4HANA), and a final-year team project for a real sponsor.",
       ],
@@ -138,7 +138,7 @@ window.PORTFOLIO = {
     {
       degree: "Matric",
       org: "Jeppe High School for Boys, Johannesburg",
-      dates: "2018 – 2022",
+      dates: "2018 to 2022",
       points: [],
     },
   ],
@@ -163,7 +163,7 @@ window.PORTFOLIO = {
       points: [
         "Built per-zone ESP32 kits (soil moisture, temperature/humidity, relay and pump) that report over MQTT via HiveMQ Cloud.",
         "Designed the Supabase/PostgreSQL schema with row-level security, and an ASP.NET Core (.NET 8) API for device ingestion and auto-irrigation, deployed with Docker on Railway.",
-        "Built an FAO-56 (Penman–Monteith) engine that turns sensor and weather data into simple, actionable insights for farmers.",
+        "Built an FAO-56 (Penman-Monteith) engine that turns sensor and weather data into simple, actionable insights for farmers.",
         "Farmers water their fields from an Expo / React Native app (Android APK); staff manage farms from a TypeScript admin site on Vercel.",
         "Estimated water use without a flow meter: pump runtime × a measured flow rate.",
         "Beyond code: sourced the hardware and supplier quotes, built the test and presentation boards, 3D-printed a demo model, and wrote the user guide, installation guide and test cases for the handover to the sponsor.",
