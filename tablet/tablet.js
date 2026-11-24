@@ -49,7 +49,7 @@
   if (P.education?.length || P.awards?.length) add('study', 'Education', '#cc0000', G.study, () => `
     ${P.education?.length ? '<h2>Education</h2>' : ''}${(P.education || []).map((e) => `<div class="card"><h3>${esc(e.degree)}</h3><p class="meta">${esc([e.org, e.dates].filter(Boolean).join(' · '))}</p>${e.points?.length ? `<ul class="points">${e.points.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>`).join('')}
     ${P.awards?.length ? `<h2>Awards</h2><ul class="points">${P.awards.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}`);
-  if (P.interests?.length) add('likes', 'Interests', '#33b5e5', G.likes, () => `<h2>Interests</h2>${P.interests.map((x) => `<div class="card"><h3>${esc(x.icon || '')} ${esc(x.title)}</h3><p>${esc(x.text)}</p></div>`).join('')}`);
+  if (P.interests?.length) add('likes', 'Interests', '#33b5e5', G.likes, () => `<h2>Interests</h2>${P.interests.map((x) => `<div class="card"><h3 class="with-ico">${(window.UI_ICONS || {})[x.icon] || ''}${esc(x.title)}</h3><p>${esc(x.text)}</p></div>`).join('')}`);
   if (P.contact) add('contact', 'Contact', '#0d8a6a', G.contact, () => {
     const c = P.contact, links = [];
     if (c.email) links.push(`<a class="row" href="mailto:${esc(c.email)}"><strong>Email</strong><span>${esc(c.email)}</span></a>`);
