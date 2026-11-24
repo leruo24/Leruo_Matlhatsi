@@ -101,6 +101,7 @@ function draw(dt, elapsed) {
     dogs.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
     cows.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
     chickens.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
+    if (farmSound) droneSound();
     placeDogCard();
     renderer.render(scene, camera);
     drawBubbles();
@@ -158,17 +159,34 @@ const turn = (v) => { if (transition || zoom) return; yawTarget = limitYaw(v); w
 const tilt = (v) => { if (transition || zoom) return; pitchTarget = limitPitch(v); wake(); };
 const centre = () => { if (transition || zoom) return; yawTarget = 0; pitchTarget = 0; wake(); };
 
+// the drone's motor: loud only when it's in view and near the middle of the screen, panned to where it is
+const _dv = new THREE.Vector3();
+function droneSound() {
+  _dv.copy(pano.drone.position).project(camera);
+  const inView = _dv.z < 1 && Math.abs(_dv.x) < 1.2 && Math.abs(_dv.y) < 1.2;
+  farmSound.drone.x = 835 + 835 * Math.max(-1, Math.min(1, _dv.x));   // the soundscape pans in the photo's pixel space
+  farmSound.drone.near = inView ? Math.max(0, 1 - Math.hypot(_dv.x, _dv.y) / 1.4) : 0;
+  farmSound.drone.speed = pano.flight?.manual ? 40 : 10;
+}
+
 /* ---- time of day: the render that matches your clock (sunrise, day, sunset, night) ---- */
 // ?time=sunrise|day|sunset|night pins one; the chip at the top cycles through them, then back to auto
 let timeMode = TIMES.includes(params.get('time')) ? params.get('time') : 'auto';
+let farmSound = null;   // the intro's soundscape, which carries on as the farm's ambience
 const TIME_LABEL = { sunrise: 'Sunrise', day: 'Afternoon', sunset: 'Sunset', night: 'Night' };
 function currentTime() { return timeMode === 'auto' ? timeOfDay() : timeMode; }
+const clockText = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+function chipText() {
+  const t = currentTime();
+  const chip = $('#time-chip');
+  chip.textContent = timeMode === 'auto' ? `${clockText()} · ${TIME_LABEL[t]}` : `${TIME_LABEL[t]} · preview`;
+  chip.title = timeMode === 'auto' ? `Your time (${clockText()}): the farm shows ${TIME_LABEL[t].toLowerCase()}. Select to try another time of day.` : 'Select for the next time of day, then back to your time.';
+}
 function applyTime() {
   const t = currentTime();
   if (pano) { pano.setTime(t); dogs?.setTime(t); cows?.setLight(LIGHT[t].sprite); chickens?.setLight(LIGHT[t].sprite); }
-  const chip = $('#time-chip');
-  chip.textContent = `${TIME_LABEL[t]}${timeMode === 'auto' ? ' · your time' : ''}`;
-  chip.title = timeMode === 'auto' ? 'Matches the time where you are. Select to try another time of day.' : 'Select for the next time of day.';
+  if (farmSound) farmSound.timeOfDay = t;
+  chipText();
   document.body.dataset.time = t; wake();
 }
 $('#time-chip').onclick = () => {
@@ -176,7 +194,7 @@ $('#time-chip').onclick = () => {
   timeMode = order[(order.indexOf(timeMode) + 1) % order.length];
   applyTime(); say(timeMode === 'auto' ? `Back to your time: ${TIME_LABEL[currentTime()].toLowerCase()}.` : `${TIME_LABEL[timeMode]} on the farm.`);
 };
-setInterval(() => { if (timeMode === 'auto' && pano && pano.time !== timeOfDay()) applyTime(); }, 60000);
+setInterval(() => { if (timeMode === 'auto' && pano && pano.time !== timeOfDay()) applyTime(); else chipText(); }, 15000);
 
 try {
   if (params.has('nowebgl')) throw new Error('WebGL disabled for testing');
@@ -418,7 +436,8 @@ $('#help-close').onclick = () => { toggleHelp(false); $('#help-btn').focus(); };
 if (coarse) document.body.classList.add('touch');
 
 // the intro: the office, the headset, then this view
-createIntro({ view: canvas, skip: params.has('nointro'), onDone: () => { canvas.focus({ preventScroll: true }); wake(); } });
+const intro = createIntro({ view: canvas, skip: params.has('nointro'), onDone: () => { canvas.focus({ preventScroll: true }); wake(); } });
+farmSound = intro.sound; farmSound.timeOfDay = currentTime(); farmSound.scene3d = true;
 
 addEventListener('resize', resize);
 reduced.addEventListener?.('change', wake);

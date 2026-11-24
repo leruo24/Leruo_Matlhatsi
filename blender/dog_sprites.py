@@ -22,6 +22,7 @@ ELEV = math.radians(25.0)
 HEADINGS = 8
 WALK_FRAMES = 8
 IDLE_FRAMES = 4
+CARRY_FRAMES = 8     # walking with the ball in the mouth
 
 
 # ---------------------------------------------------------------- skeletons (standing)
@@ -31,6 +32,7 @@ def golden_skeleton(s=1.0, ears='up', tail='curl', leg=1.0, body=1.0):
         'hip': ((-0.30, 0, 0.50), (0.105, 0.1)), 'spine': ((-0.05, 0, 0.53), 0.13), 'chest': ((0.17, 0, 0.47), (0.15, 0.13)),
         'withers': ((0.27, 0, 0.58), 0.1), 'neck': ((0.36, 0, 0.71), 0.07), 'head': ((0.45, 0, 0.78), 0.085),
         'muzzle': ((0.56, 0, 0.75), 0.045), 'nosetip': ((0.62, 0, 0.745), 0.028),
+        'jaw': ((0.555, 0, 0.718), (0.032, 0.02)),       # lower jaw: opens for panting and carrying the ball
     }
     if tail == 'curl':
         J.update({'tail0': ((-0.38, 0, 0.55), 0.04), 'tail1': ((-0.47, 0, 0.7), 0.035), 'tail2': ((-0.40, 0, 0.83), 0.03), 'tail3': ((-0.30, 0, 0.82), 0.02)})
@@ -38,7 +40,7 @@ def golden_skeleton(s=1.0, ears='up', tail='curl', leg=1.0, body=1.0):
         J.update({'tail0': ((-0.39, 0, 0.52), 0.045), 'tail1': ((-0.52, 0, 0.45), 0.04), 'tail2': ((-0.63, 0, 0.36), 0.032), 'tail3': ((-0.70, 0, 0.27), 0.02)})
     else:   # short, carried up
         J.update({'tail0': ((-0.38, 0, 0.55), 0.035), 'tail1': ((-0.44, 0, 0.66), 0.03), 'tail2': ((-0.47, 0, 0.75), 0.022), 'tail3': ((-0.48, 0, 0.8), 0.014)})
-    E = [('hip', 'spine'), ('spine', 'chest'), ('chest', 'withers'), ('withers', 'neck'), ('neck', 'head'), ('head', 'muzzle'), ('muzzle', 'nosetip'),
+    E = [('hip', 'spine'), ('spine', 'chest'), ('chest', 'withers'), ('withers', 'neck'), ('neck', 'head'), ('head', 'muzzle'), ('muzzle', 'nosetip'), ('head', 'jaw'),
          ('hip', 'tail0'), ('tail0', 'tail1'), ('tail1', 'tail2'), ('tail2', 'tail3')]
     for sd, tag in ((1, 'l'), (-1, 'r')):
         J.update({f'fs{tag}': ((0.21, sd * 0.075, 0.45), 0.05), f'fe{tag}': ((0.21, sd * 0.075, 0.28), 0.033), f'fw{tag}': ((0.22, sd * 0.075, 0.07), 0.022), f'fp{tag}': ((0.255, sd * 0.075, 0.022), (0.034, 0.03)),
@@ -73,11 +75,11 @@ def golden_skeleton(s=1.0, ears='up', tail='curl', leg=1.0, body=1.0):
 DOGS = {
     # name: skeleton, coat(s), fur length, strands, stride (half, m), lift, ortho size (m)
     'golden': dict(skel=lambda: golden_skeleton(), coats=[('Golden short coat', 0.42, 0.78, None)], skin=(0.3, 0.16, 0.06),
-                   length=0.034, count=260000, stride=0.11, lift=0.05, size=1.25, speed=1.0),
+                   length=0.034, count=230000, stride=0.11, lift=0.05, size=1.42, speed=1.0),
     'retriever': dict(skel=lambda: golden_skeleton(1.08, ears='flop', tail='feather', body=1.18), coats=[('Retriever coat', 0.3, 0.72, None)], skin=(0.34, 0.2, 0.08),
-                      length=0.058, count=320000, stride=0.12, lift=0.05, size=1.4, speed=0.9),
+                      length=0.058, count=280000, stride=0.12, lift=0.05, size=1.58, speed=0.9),
     'terrier': dict(skel=lambda: golden_skeleton(0.62, ears='fold', tail='short', leg=0.82, body=0.95), coats=[('Terrier white coat', 0.03, 0.4, 'white'), ('Terrier tan coat', 0.45, 0.85, 'tan')],
-                    skin=(0.75, 0.7, 0.65), length=0.017, count=200000, stride=0.07, lift=0.035, size=0.85, speed=1.2),
+                    skin=(0.75, 0.7, 0.65), length=0.017, count=180000, stride=0.07, lift=0.035, size=0.96, speed=1.2),
 }
 
 LEGS = [('fl', ['fsl', 'fel', 'fwl', 'fpl'], 0.25, 'front'), ('fr', ['fsr', 'fer', 'fwr', 'fpr'], 0.75, 'front'),
@@ -99,18 +101,36 @@ def _ik(a, c, l1, l2, rest_b):
     return Vector((b2.x, (a.y + c.y) / 2, b2.y))
 
 
+def _open_jaw(J, rest, angle):
+    """Swing the lower jaw down about the head joint by `angle` (radians)."""
+    h = J['head']; v = Vector(rest['jaw'][0]) - Vector(rest['head'][0])
+    c, s_ = math.cos(angle), math.sin(angle)
+    J['jaw'] = h + Vector((v.x * c - v.z * s_, v.y, v.x * s_ + v.z * c)) + (J['muzzle'] - Vector(rest['muzzle'][0]))
+
+
+HEADS = ('head', 'muzzle', 'nosetip', 'jaw', 'eal', 'ear', 'etl', 'etr')
+
+
 def pose(rest, kind, phase, p):
-    """Joint positions for one frame. kind 'walk' (phase 0..1 of a stride) or 'idle'."""
+    """Joint positions for one frame. kind 'walk' or 'carry' (phase 0..1 of a stride) or 'idle'."""
     J = {k: Vector(v[0]) for k, v in rest.items()}
     body = [k for k in J if k[:2] not in ('fe', 'fw', 'fp', 'hk', 'hh', 'hp')]
     tail = sorted(k for k in J if k.startswith('tail'))
     two = 2 * math.pi
-    if kind == 'walk':
-        bob = -0.007 * math.cos(2 * two * phase)
+    jaw = 0.0
+    if kind in ('walk', 'carry'):
+        bob = -0.01 * math.cos(2 * two * phase)
         for k in body: J[k].z += bob
-        for k in ('head', 'muzzle', 'nosetip', 'eal', 'ear', 'etl', 'etr'):
-            if k in J: J[k].z += 0.006 * math.sin(2 * two * phase + 1.0)
-        wag = 0.05 * math.sin(two * 2 * phase)
+        # shoulders and hips roll a little with each step, the head nods, the ears bounce
+        roll = 0.007 * math.sin(two * phase)
+        for k in ('chest', 'withers'): J[k].y += roll
+        for k in ('hip', 'spine'): J[k].y -= roll
+        nod = 0.012 * math.sin(2 * two * phase + 1.0)
+        for k in HEADS:
+            if k in J: J[k].z += nod
+        for k in ('etl', 'etr'):
+            if k in J: J[k].z += 0.008 * math.sin(2 * two * phase + 2.0)
+        wag = 0.07 * math.sin(two * 2 * phase)
         for legname, chain, off, fh in LEGS:
             s0, m1, m2, paw = chain
             q = (phase + off) % 1.0
@@ -126,25 +146,36 @@ def pose(rest, kind, phase, p):
             l1 = (re - rs).length; l2 = (rw - re).length
             J[paw] = newpaw; J[m2] = newm2
             J[m1] = _ik(J[s0], newm2, l1, l2, re)
+        if kind == 'carry':
+            # head carried a little higher and prouder, mouth open round the ball
+            sc = rest['head'][0][2] / 0.78
+            for k in HEADS:
+                if k in J: J[k] += Vector((0.01, 0, 0.025)) * sc
+            jaw = 0.42
+        else:
+            jaw = 0.16 + 0.04 * math.sin(2 * two * phase)       # walking with a relaxed, open mouth
     else:
-        wag = 0.07 * math.sin(two * phase)
-        breathe = 0.003 * math.sin(two * phase)
+        # standing: panting (quick breaths, mouth open, tongue out), tail wagging, head turning
+        wag = 0.08 * math.sin(two * phase)
+        breathe = 0.006 * math.sin(2 * two * phase)
         for k in ('chest', 'withers', 'spine'): J[k].z += breathe
-        turn = 0.015 * math.sin(two * phase * 0.5)
-        for k in ('head', 'muzzle', 'nosetip', 'eal', 'ear', 'etl', 'etr'):
+        turn = 0.02 * math.sin(two * phase * 0.5)
+        for k in HEADS:
             if k in J: J[k].y += turn
+        jaw = 0.32 + 0.08 * math.sin(2 * two * phase)
+    _open_jaw(J, rest, jaw)
     for i, k in enumerate(tail):
         J[k].y += wag * (i / max(1, len(tail) - 1)) ** 1.3
     return J
 
 
 # ---------------------------------------------------------------- body + fur that follows it
-def build_body(name, rest, E, skin_rgb):
+def build_body(name, rest, E, skin_rgb, sub=2):
     """Bake the skin-modifier body once at rest (its topology changes if the skeleton moves), then
     bind it to the skeleton's segments for linear-blend skinning."""
     from animals import skin_body
     import materials as M
-    o = skin_body(name, rest, E)
+    o = skin_body(name, rest, E, sub=sub)
     o.data.materials.append(M.plain(name + ' skin', skin_rgb, rough=0.8))
     co = np.empty(len(o.data.vertices) * 3); o.data.vertices.foreach_get('co', co); co = co.reshape(-1, 3)
     o.data.calc_loop_triangles()
@@ -310,6 +341,16 @@ def render_dog(name, out, cell, samples):
     bpy.ops.mesh.primitive_uv_sphere_add(radius=rest['nosetip'][1] * 0.95, segments=16, ring_count=8)
     nose = bpy.context.active_object; nose.data.materials.append(nm); nose.scale = (1, 1.2, 0.85)
     parts.append((nose, 'nosetip', Vector((rest['nosetip'][1] * 0.6, 0, 0.004))))
+    # tongue on the lower jaw (shows when the mouth opens) and the tennis ball for the carry frames
+    sc = rest['head'][0][2] / 0.78
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.03 * sc, segments=16, ring_count=8)
+    tongue = bpy.context.active_object; tongue.scale = (1.6, 0.9, 0.3)
+    tongue.data.materials.append(M.plain('Dog tongue', (0.55, 0.12, 0.13), rough=0.25, coat=0.6))
+    parts.append((tongue, 'jaw', Vector((0.035 * sc, 0, 0.012 * sc))))
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.034, segments=24, ring_count=12)
+    ballo = bpy.context.active_object
+    ballo.data.materials.append(M.plain('Tennis ball', (0.62, 0.78, 0.08), rough=0.85, sheen=1.0))
+    parts.append((ballo, 'jaw', Vector((0.03 * sc, 0, 0.034))))
     root = bpy.data.objects.new(name + ' root', None); s.collection.objects.link(root)
     for o in [body] + [c.obj for c in coats] + [q[0] for q in parts]: o.parent = root
     # camera: orthographic, 25 deg down, framing the dog's standing height
@@ -319,7 +360,10 @@ def render_dog(name, out, cell, samples):
     cam.rotation_euler = (Vector((0, 0, tz)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
     ground_y = 0.5 + tz * math.cos(ELEV) / S        # ground point, as a fraction of the cell from the top
     os.makedirs(out, exist_ok=True)
-    frames = [('walk', i / WALK_FRAMES) for i in range(WALK_FRAMES)] + [('idle', i / IDLE_FRAMES) for i in range(IDLE_FRAMES)]
+    frames = ([('walk', i / WALK_FRAMES) for i in range(WALK_FRAMES)] + [('idle', i / IDLE_FRAMES) for i in range(IDLE_FRAMES)]
+              + [('carry', i / CARRY_FRAMES) for i in range(CARRY_FRAMES)])
+    if os.environ.get('DOGTEST'):    # quick look: one walk, one idle and one carry frame
+        frames = [f for f in frames if f[1] == 0.0]
     import time
     t0 = time.time()
     print(f'{name}: setup done', flush=True)
@@ -329,14 +373,16 @@ def render_dog(name, out, cell, samples):
         body.data.vertices.foreach_set('co', co.reshape(-1).astype(np.float32)); body.data.update()
         for c in coats: c.update(co)
         for o, jk, off in parts: o.location = Vector(J[jk]) + off
-        for h in range(HEADINGS):
+        ballo.hide_render = kind != 'carry'
+        for h in (range(HEADINGS) if not os.environ.get('DOGTEST') else (0, 6)):
             # heading 0 = facing screen right, counter-clockwise seen from above
             root.rotation_euler = (0, 0, 2 * math.pi * h / HEADINGS)
-            s.render.filepath = os.path.join(out, f'{name}_{kind}_{h}_{fi if kind == "walk" else fi - WALK_FRAMES}.png')
+            idx = fi if kind == 'walk' else fi - WALK_FRAMES if kind == 'idle' else fi - WALK_FRAMES - IDLE_FRAMES
+            s.render.filepath = os.path.join(out, f'{name}_{kind}_{h}_{idx}.png')
             tr = time.time(); bpy.ops.render.render(write_still=True)
             pass
         print(f'{name} frame {fi + 1}/{len(frames)} {time.time() - t0:.0f}s', flush=True)
-    meta = dict(size=S, groundY=ground_y, elev=25, headings=HEADINGS, walk=WALK_FRAMES, idle=IDLE_FRAMES, stride=p['stride'] * 2, speed=p['speed'])
+    meta = dict(size=S, groundY=ground_y, elev=25, headings=HEADINGS, walk=WALK_FRAMES, idle=IDLE_FRAMES, carry=CARRY_FRAMES, stride=p['stride'] * 2, speed=p['speed'])
     json.dump(meta, open(os.path.join(out, f'{name}.json'), 'w'))
 
 

@@ -167,13 +167,19 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
   ballShadow.rotation.x = -Math.PI / 2; ballShadow.visible = false; group.add(ballShadow);
 
   Promise.all([fetch(DIR + 'dogs.json').then((r) => r.json()), fetch(DIR + 'nav.json').then((r) => r.json())]).then(([meta, nav]) => {
-    state.nav = new NavGrid(nav);
+    state.nav = new NavGrid(nav, 0.3);   // a little wider than the body, so they keep off walls and furniture
     const loader = new THREE.TextureLoader();
     let pending = 0;
     for (const [name, m] of Object.entries(meta)) {
       pending++;
       const tex = loader.load(DIR + (coarse ? m.half : m.file), () => { if (--pending === 0) { state.ready = true; onChange(); } });
       tex.colorSpace = THREE.NoColorSpace; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.anisotropy = 4;
+      // walking with the ball in its mouth (mouth open round it): a separate atlas
+      let carryTex = null;
+      if (m.carryFile) {
+        carryTex = loader.load(DIR + (coarse ? m.carryHalf : m.carryFile));
+        carryTex.colorSpace = THREE.NoColorSpace; carryTex.generateMipmaps = true; carryTex.minFilter = THREE.LinearMipmapLinearFilter; carryTex.anisotropy = 4;
+      }
       const mat = new THREE.ShaderMaterial({ uniforms: { tAtlas: { value: tex }, uCell: { value: new THREE.Vector4(0, 0, 1, 1) }, uDepth: { value: 0.5 }, uTint: { value: 1 } },
         vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: true });
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(m.size, m.size), mat);
@@ -181,7 +187,7 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
       let [x, y, h] = START[name] || [0, 2, 0];
       if (!state.nav.isFree(x, y)) [x, y] = state.nav.nearestFree(x, y) || [x, y];   // their photo spots hug the furniture
       state.dogs.push({ name, m, mesh, x, y, heading: h * Math.PI / 180, phase: Math.random(), idle: Math.random(), mode: 'idle',
-        timer: 1.5 + Math.random() * 4, path: null, speed: SPEED[name] || 0.8, carry: false, bubble: 0 });
+        timer: 1.5 + Math.random() * 4, path: null, speed: SPEED[name] || 0.8, carry: false, bubble: 0, tex, carryTex });
     }
   }).catch((e) => console.warn('Dogs unavailable', e));
 
@@ -189,10 +195,10 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
   function pickWander(d) {
     const nav = state.nav;
     for (let k = 0; k < 40; k++) {
-      // mostly inside the workshop, sometimes out into the yard in front
-      // mostly in the front half of the workshop (the part you see first), sometimes the back or the yard
-      const r = Math.random(), inside = r < 0.8;
-      const x = inside ? rand(-4.7, 3.9) : rand(-4.5, 6.0), y = r < 0.55 ? rand(1.2, 4.2) : inside ? rand(-3.0, 1.2) : rand(4.8, 9.5);
+      // mostly inside the workshop (the front half, the part you see first), now and then the yard,
+      // keeping well clear of the glass
+      const r = Math.random(), inside = r < 0.9;
+      const x = inside ? rand(-4.5, 3.7) : rand(-2.0, 6.0), y = inside ? (r < 0.6 ? rand(1.2, 4.0) : rand(-2.8, 1.2)) : rand(6.0, 9.5);
       if (!nav.isFree(x, y) || Math.hypot(x - d.x, y - d.y) < 1.2) continue;
       const p = nav.path(d.x, d.y, x, y);
       if (p) return p;
@@ -234,7 +240,21 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
     if (!state.nav || !state.ready) return false;
     let tx, ty;
     if (target) [tx, ty] = target; else { [tx, ty] = frontSpot(rand(1.0, 3.0)); const [rx, ry] = [ty, -tx]; const s = rand(-0.6, 0.6) / Math.hypot(tx, ty); tx += rx * s; ty += ry * s; }
-    const t = state.nav.nearestFree(tx, ty, 25); if (!t) return false;
+    // the ball can't fly through the walls or the glass: keep the landing spot inside the room,
+    // shortening the throw along its line if it would leave
+    const X0 = -4.6, X1 = 3.8, Y0 = -3.0, Y1 = 4.0, sx = 0.15, sy = 0.45;
+    let u = 1;
+    if (tx > X1) u = Math.min(u, (X1 - sx) / (tx - sx)); if (tx < X0) u = Math.min(u, (X0 - sx) / (tx - sx));
+    if (ty > Y1) u = Math.min(u, (Y1 - sy) / (ty - sy)); if (ty < Y0) u = Math.min(u, (Y0 - sy) / (ty - sy));
+    tx = sx + (tx - sx) * u; ty = sy + (ty - sy) * u;
+    // land on free floor inside: step back along the throw until there is some
+    const inside = (p) => p && p[0] > X0 - 0.2 && p[0] < X1 + 0.2 && p[1] > Y0 - 0.2 && p[1] < Y1 + 0.2;
+    let t = null;
+    for (let k = 0; k <= 12 && !inside(t); k++) {
+      const f = 1 - k / 12;
+      t = state.nav.nearestFree(sx + (tx - sx) * f, sy + (ty - sy) * f, 8);
+    }
+    if (!inside(t)) return false;
     [tx, ty] = t;
     state.ball = { x0: 0.15, y0: 0.45, z0: 1.25, x: tx, y: ty, t: 0, dur: 0.75 + 0.08 * Math.hypot(tx, ty), mode: 'flying', holder: null };
     ball.visible = ballShadow.visible = true;
@@ -289,6 +309,7 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
       b.px = d.x + Math.cos(d.heading) * mx; b.py = d.y + Math.sin(d.heading) * mx; b.pz = nav.groundAt(d.x, d.y) + mz - 0.04;
     }
     toThree(b.px, b.py, b.pz, ball.position);
+    ball.visible = !(b.mode === 'held' && b.holder?.carryTex);
     toThree(b.px, b.py, nav.groundAt(b.px, b.py) + 0.012, ballShadow.position);
     ballShadow.material.opacity = b.mode === 'flying' ? 0.4 : 1;
   }
@@ -355,10 +376,19 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
     const walking = d.moved > 0;
     if (walking) d.phase = (d.phase + d.moved / (m.stride / 0.62)) % 1;
     else d.idle = (d.idle + dt * (reduced ? 0 : 0.9)) % 1;
-    const col = walking ? Math.floor(d.phase * m.walk) % m.walk : m.walk + (Math.floor(d.idle * m.idle) % m.idle);
+    const holding = !!(d.carryTex && state.ball && state.ball.mode === 'held' && state.ball.holder === d);
     const row = spriteHeading(d.x, d.y, d.heading, m.headings);
-    const du = 1 / m.cols, dv = 1 / m.rows;
-    mesh.material.uniforms.uCell.value.set(col * du, 1 - (row + 1) * dv, du, dv);
+    const dv = 1 / m.rows;
+    if (holding) {
+      // the carry walk; standing still with the ball, it holds the first frame
+      const col = walking ? Math.floor(d.phase * m.carryCols) % m.carryCols : 0, du = 1 / m.carryCols;
+      mesh.material.uniforms.tAtlas.value = d.carryTex;
+      mesh.material.uniforms.uCell.value.set(col * du, 1 - (row + 1) * dv, du, dv);
+    } else {
+      const col = walking ? Math.floor(d.phase * m.walk) % m.walk : m.walk + (Math.floor(d.idle * m.idle) % m.idle), du = 1 / m.cols;
+      mesh.material.uniforms.tAtlas.value = d.tex;
+      mesh.material.uniforms.uCell.value.set(col * du, 1 - (row + 1) * dv, du, dv);
+    }
     const gz = state.nav.groundAt(d.x, d.y);
     toThree(d.x, d.y, gz, mesh.position);
     mesh.lookAt(0, 0, 0);

@@ -834,7 +834,7 @@ def _city_mat(name, a, b, lit_level=True, glass=False):
     tone.inputs['A'].default_value = (*a, 1); tone.inputs['B'].default_value = (*b, 1)
     nt.links.new(br.outputs['Fac'], tone.inputs['Factor'])
     nt.links.new(tone.outputs['Result'], bs.inputs['Base Color'])
-    M._set(bs, rough=0.25 if glass else 0.55, metal=0.25 if glass else 0.0)
+    M._set(bs, rough=0.35 if glass else 0.6, metal=0.15 if glass else 0.0)
     em = nt.nodes.new('ShaderNodeEmission'); em.inputs['Color'].default_value = (1.0, 0.80, 0.55, 1)
     sm = nt.nodes.new('ShaderNodeMath'); sm.operation = 'MULTIPLY'; sm.name = 'City lights level'; sm.inputs[1].default_value = 0.0
     nt.links.new(win.outputs[0], sm.inputs[0]); nt.links.new(sm.outputs[0], em.inputs['Strength'])
@@ -842,7 +842,7 @@ def _city_mat(name, a, b, lit_level=True, glass=False):
     out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
     nt.links.new(bs.outputs['BSDF'], add.inputs[0]); nt.links.new(em.outputs['Emission'], add.inputs[1])
     nt.links.new(add.outputs[0], out.inputs['Surface'])
-    return M.add_haze(m, color=(0.62, 0.66, 0.78), distance=18000.0, strength=0.25)
+    return M.add_haze(m, color=(0.62, 0.66, 0.78), distance=13000.0, strength=0.25)
 
 
 def city(m, extra):
@@ -851,24 +851,24 @@ def city(m, extra):
     crowns and spires, mid-rise blocks around it, and a telecom tower. No real landmarks."""
     rnd = random.Random(23)
     mats = [_city_mat('City glass blue', (0.10, 0.16, 0.22), (0.05, 0.07, 0.09), glass=True),
-            _city_mat('City glass grey', (0.30, 0.32, 0.34), (0.12, 0.13, 0.14), glass=True),
-            _city_mat('City concrete', (0.58, 0.55, 0.50), (0.30, 0.28, 0.26)),
-            _city_mat('City stone', (0.70, 0.66, 0.58), (0.38, 0.35, 0.30)),
+            _city_mat('City glass grey', (0.18, 0.21, 0.25), (0.08, 0.09, 0.11), glass=True),
+            _city_mat('City concrete', (0.40, 0.38, 0.35), (0.20, 0.19, 0.18)),
+            _city_mat('City stone', (0.50, 0.46, 0.40), (0.26, 0.24, 0.21)),
             _city_mat('City dark glass', (0.03, 0.04, 0.05), (0.01, 0.01, 0.015), glass=True)]
     spire = M.plain('City spire', (0.6, 0.6, 0.62), rough=0.3, metal=1.0)
     def place(az, r):
         a = math.radians(az); return math.sin(a) * r, math.cos(a) * r
     # mid-rise and low-rise blocks spreading out from the core
-    for i in range(170):
-        az = rnd.gauss(70, 7); r = rnd.uniform(4600, 7200)
+    for i in range(280):
+        az = rnd.gauss(70, 9); r = rnd.uniform(4600, 7600)
         x, y = place(az, r); w = rnd.uniform(25, 70); h = rnd.uniform(15, 70)
         box('Block', (w, w * rnd.uniform(0.6, 1.4), h), (x, y, h / 2 - 8), rnd.choice(mats[2:4] + mats[1:2]), rot=(0, 0, rnd.uniform(0, math.pi)), bevel=0)
     # the core: towers with setbacks, round and tapered ones
-    for i in range(70):
-        az = rnd.gauss(70, 3.2); r = rnd.uniform(5000, 6600)
+    for i in range(115):
+        az = rnd.gauss(70, 4.4); r = rnd.uniform(4900, 6900)
         x, y = place(az, r)
         core = math.exp(-((az - 70) / 3.5) ** 2)
-        h = rnd.uniform(80, 150) + core * rnd.uniform(60, 200)
+        h = rnd.uniform(60, 140) + core * rnd.uniform(60, 240)
         w = rnd.uniform(28, 55); mat = rnd.choice(mats); rot = rnd.uniform(0, math.pi)
         kind = rnd.random()
         if kind < 0.18:                                         # round tower
@@ -888,6 +888,13 @@ def city(m, extra):
                 z += 10
             if rnd.random() < 0.35:
                 cyl('Spire', 1.2, rnd.uniform(25, 60), (x, y, z + 20), spire, r2=0.3, seg=8)
+    # three supertall towers that give the skyline its peaks
+    for az, r, h, w in ((69.0, 5800, 420, 44), (71.6, 6100, 360, 40), (67.2, 6300, 330, 38)):
+        x, y = place(az, r)
+        box('Supertall', (w, w, h * 0.7), (x, y, h * 0.35 - 8), mats[0], rot=(0, 0, 0.3), bevel=0)
+        box('Supertall top', (w * 0.7, w * 0.7, h * 0.25), (x, y, h * 0.7 + h * 0.125 - 8), mats[0], rot=(0, 0, 0.3), bevel=0)
+        box('Supertall crown', (w * 0.45, w * 0.45, h * 0.05), (x, y, h * 0.95 + h * 0.025 - 8), mats[4], rot=(0, 0, 0.3), bevel=0)
+        cyl('Supertall spire', 1.5, 60, (x, y, h + 22), spire, r2=0.3, seg=8)
     # a telecom tower: a tapering shaft with a pod near the top
     x, y = place(73.5, 5600)
     cyl('Telecom shaft', 11, 260, (x, y, 122), mats[2], r2=6, seg=16)

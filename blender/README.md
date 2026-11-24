@@ -62,6 +62,10 @@ Sixth pass (23 November 2026): a modern farm office, the farm around it, and fou
   - `city()`: rewritten (setbacks, round and tapered towers, crowns, spires, mid-rise blocks, a telecom tower).
   - A rebalanced `day` preset.
   - Cows: a smoother spine, slimmer lower legs, darker coats and daylight sprite lighting. `COWTEST=1` renders a single test frame.
+- **Third round (24 November).**
+  - `cow_sprites.build_cow_body()`: a lofted barrel (`TORSO` sections) joined with the skin limbs, then voxel remesh plus smooth. The patches are a continuous vertex field thresholded in the shader.
+  - `dog_sprites`: a `jaw` joint (`_open_jaw`), a tongue, panting idle frames, and `carry` frames with a tennis ball in the mouth. `make_dog_atlases.py` writes those to a separate carry atlas. `DOGTEST=1` renders a quick check.
+  - `city()`: denser, darker, with three supertall towers.
 - **Limits.**
   - The crops are shading, not plants, so they read as fields from the office but go flat close up.
   - The hens are small skin-modifier sprites, readable at the coop's distance but not up close.

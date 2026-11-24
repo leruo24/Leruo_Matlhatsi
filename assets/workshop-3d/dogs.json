@@ -1,47 +1,59 @@
 {
  "golden": {
-  "size": 1.25,
+  "size": 1.42,
   "groundY": 0.880649270555393,
   "elev": 25,
   "headings": 8,
   "walk": 8,
   "idle": 4,
+  "carry": 8,
   "stride": 0.22,
   "speed": 1.0,
   "cols": 12,
   "rows": 8,
   "cell": 320,
   "file": "dog-golden.webp",
-  "half": "dog-golden-half.webp"
+  "half": "dog-golden-half.webp",
+  "carryFile": "dog-golden-carry.webp",
+  "carryHalf": "dog-golden-carry-half.webp",
+  "carryCols": 8
  },
  "retriever": {
-  "size": 1.4,
-  "groundY": 0.880649270555393,
+  "size": 1.58,
+  "groundY": 0.8806492705553929,
   "elev": 25,
   "headings": 8,
   "walk": 8,
   "idle": 4,
+  "carry": 8,
   "stride": 0.24,
   "speed": 0.9,
   "cols": 12,
   "rows": 8,
   "cell": 320,
   "file": "dog-retriever.webp",
-  "half": "dog-retriever-half.webp"
+  "half": "dog-retriever-half.webp",
+  "carryFile": "dog-retriever-carry.webp",
+  "carryHalf": "dog-retriever-carry-half.webp",
+  "carryCols": 8
  },
  "terrier": {
-  "size": 0.85,
+  "size": 0.96,
   "groundY": 0.880649270555393,
   "elev": 25,
   "headings": 8,
   "walk": 8,
   "idle": 4,
+  "carry": 8,
   "stride": 0.14,
   "speed": 1.2,
   "cols": 12,
   "rows": 8,
   "cell": 320,
   "file": "dog-terrier.webp",
-  "half": "dog-terrier-half.webp"
+  "half": "dog-terrier-half.webp",
+  "carryFile": "dog-terrier-carry.webp",
+  "carryHalf": "dog-terrier-carry-half.webp",
+  "carryCols": 8
  }
 }

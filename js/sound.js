@@ -15,6 +15,9 @@ export class Sound {
     this.view = { cx: 835, hw: 835 };
     this.drone = { x: 1035, y: 173, near: 0, speed: 0 };
     this.nature = 0;
+    // the 3D page sets these: no sprinklers there, and the ambience follows the time of day
+    this.scene3d = false;
+    this.timeOfDay = 'sunset';
   }
 
   start() {
@@ -160,19 +163,21 @@ export class Sound {
     const lvl = (node, v, tc = 0.4) => node && node.gain.setTargetAtTime(v, t, tc);
     const N = this.nature; // crossfade office -> nature when the headset goes on
     if (this.wind) lvl(this.wind.g, N * (0.10 + 0.30 * this.gust) * (f === "monitor" ? 0.4 : 1), 0.6);
-    if (this.crickets) lvl(this.crickets.g, N * (f === "monitor" ? 0.012 : 0.03), 1);
+    const tod = this.scene3d ? this.timeOfDay : 'sunset';
+    const crick = { night: 1.6, sunset: 0.9, sunrise: 0.3, day: 0.12 }[tod] ?? 1;
+    if (this.crickets) lvl(this.crickets.g, N * crick * (f === "monitor" ? 0.012 : 0.03), 1);
     // the lapping swells and settles slowly
     const lap = 0.6 + 0.4 * Math.sin(t * 0.9) * Math.sin(t * 0.37 + 1);
     lvl(this.river.out, N * lap * (f === "monitor" ? 0.25 : 1), 0.5);
     if (this.river.pan) this.river.pan.pan.setTargetAtTime(this.panAt(1400), t, 0.3);
-    lvl(this.sprinklers.out, N * (0.35 + .15 * Math.sin((this.sprinklerMotion || 0) * .43)) * (f === "monitor" ? .2 : 1), .5);
+    lvl(this.sprinklers.out, this.scene3d ? 0 : N * (0.35 + .15 * Math.sin((this.sprinklerMotion || 0) * .43)) * (f === "monitor" ? .2 : 1), .5);
     if(this.sprinklers.pan)this.sprinklers.pan.pan.setTargetAtTime(this.panAt(900),t,.3);
     lvl(this.office.out, (1 - N) * 1.0, N > 0.02 ? 0.6 : 0.15);
     // voices come and go in waves
     this.babble.forEach((b, i) => b.g.gain.setTargetAtTime(Math.max(0, Math.sin(t * (0.21 + i * 0.07) + i * 1.7)) * 0.03, t, 0.5));
     lvl(this.rustle.out, N * (0.15 + 0.85 * this.gust * this.gust) * (f === "monitor" ? 0.3 : 1), 0.4);
     if (this.droneSnd) {
-      lvl(this.droneSnd.out, N * (0.1 + 0.9 * this.drone.near) * 0.5 * (f === "monitor" ? 0.2 : 1), 0.3);
+      lvl(this.droneSnd.out, N * ((this.scene3d ? 0 : 0.1) + 0.9 * this.drone.near) * 0.5 * (f === "monitor" ? 0.2 : 1), 0.3);
       this.droneSnd.p.pan.setTargetAtTime(this.panAt(this.drone.x), t, 0.2);
       const pitch = 1 + (this.drone.speed || 0) * 0.004;
       this.droneSnd.oscs.forEach((o, i) => o.frequency.setTargetAtTime([180, 183.5, 361][i] * pitch, t, 0.2));
@@ -191,10 +196,11 @@ export class Sound {
       }
       return;
     }
+    if (t > this.nextBird && tod === 'night') this.nextBird = t + 20;      // no birdsong at night
     if (t > this.nextBird) {
       const n = ["birds1", "birds2", "birds3"][Math.floor(Math.random() * 3)];
       this.play(n, { gain: (0.10 + Math.random() * 0.16) * (f === "monitor" ? 0.35 : 1), pan: Math.random() * 1.6 - 0.8, lp: 3000 + Math.random() * 6000, bus: this.amb, rate: 0.96 + Math.random() * 0.08 });
-      this.nextBird = t + 6 + Math.random() * 10;
+      this.nextBird = t + (tod === 'sunrise' ? 3 + Math.random() * 5 : 6 + Math.random() * 10);   // a dawn chorus at sunrise
     }
     // wind chimes: a few soft notes when a gust picks up
     if (t > this.nextChime) {
@@ -209,8 +215,8 @@ export class Sound {
       this.nextFarm = t + 14 + Math.random() * 20;
     }
     if (t > this.nextRooster) {
-      this.play("rooster", { gain: 0.07, pan: this.panAt(940), lp: 2200, bus: this.amb });
-      this.nextRooster = t + 90 + Math.random() * 120;
+      if (tod !== 'night') this.play("rooster", { gain: 0.07, pan: this.panAt(940), lp: 2200, bus: this.amb });
+      this.nextRooster = t + (tod === 'sunrise' ? 35 + Math.random() * 40 : 90 + Math.random() * 120);
     }
   }
 

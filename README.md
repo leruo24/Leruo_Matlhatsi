@@ -143,6 +143,29 @@ Since 22 November 2026 the page shows a 360° render of the Blender scene in `bl
   - The 40 unit tests pass.
   - Not yet checked on a real phone or GPU.
 
+**24 November 2026, third round:**
+- **Time chip.** It now shows the viewer's own clock and the matching scene (for example "13:30 · Afternoon"), updated every 15 seconds (24-hour clock). A pinned time reads "Sunset · preview".
+- **City.** A denser, taller and darker skyline:
+  - about 115 core towers and 280 lower blocks;
+  - three supertall towers with crowns and spires;
+  - blue-grey glass that reflects less sky, and more haze at distance.
+
+  Only the band of the panorama the city sits in (latitude 0–11.25°) was re-rendered for each time of day.
+- **Cows.** The body is now a smooth lofted barrel fused with the skin-modifier legs, neck, head and tail by a voxel remesh. That gets rid of the lumps, the creases and the boxy rump. Patches are a smooth noise field with ragged edges instead of hard per-vertex steps.
+- **Dogs.**
+  - Each dog now has a lower jaw. Standing, it pants with its mouth open and its tongue out.
+  - There is a new carry walk: head up, mouth open round the tennis ball. While a dog holds the ball the page switches to that atlas (`dog-<name>-carry.webp`) and hides the separate 3D ball.
+  - The walk has more head nod, shoulder and hip roll, ear bounce and tail wag.
+  - The sprites are framed 12% wider, so noses and the ball stay inside the frame.
+  - They keep 30 cm (was 22 cm) clear of walls and furniture.
+  - They mostly wander inside. When they go out to the yard, they stay more than 1.5 m from the glass.
+  - A thrown ball now always lands inside the room. It used to fly through the glass, sending the dogs out of the door and round the outside to fetch it.
+- **Sound** on the 3D page:
+  - There are no sprinklers here, so their hiss is off.
+  - Crickets follow the time of day: loud at night, faint by day.
+  - No birdsong or rooster at night, and a dawn chorus at sunrise.
+  - The drone's motor is only heard when the drone is in view, panned to where it is.
+
 How it's built (`js/pano-view.js`, `js/look-around.js`):
 - **One eye, turning only.** The 360° image is rendered in Blender from the same eye as the photo-matched camera. The page shows it on a sphere around the camera. The camera only turns, so anything placed at its real position in the scene lines up with the render exactly.
 - **Loading.** A 2048 × 1024 preview appears first. Then the sharp version loads: 8192 × 4096 in four 2048 × 4096 quarters on desktops, or 4096 × 2048 in two halves on touch devices and GPUs limited to 4096 px textures.
