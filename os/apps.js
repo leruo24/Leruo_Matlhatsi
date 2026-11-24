@@ -133,7 +133,7 @@
     function openPaint() {
       SFX.open();
       openWindow("paint", {
-        title: "untitled — Paint", icon: "paint", width: 860, height: 600, menubar: true,
+        title: "untitled - Paint", icon: "paint", width: 860, height: 600, menubar: true,
         render: (body) => {
           const COLORS = ["#000000", "#808080", "#800000", "#808000", "#008000", "#008080", "#000080", "#800080", "#808040", "#004040", "#0080ff", "#004080", "#8000ff", "#804000",
             "#ffffff", "#c0c0c0", "#ff0000", "#ffff00", "#00ff00", "#00ffff", "#0000ff", "#ff00ff", "#ffff80", "#00ff80", "#80ffff", "#8080ff", "#ff0080", "#ff8040"];
@@ -315,7 +315,7 @@
       openWindow("music", {
         title: "LeruAmp", icon: "music", width: 380, height: 330,
         render: (body, el) => {
-          body.innerHTML = `<div class="amp"><div class="amp-screen"><div class="amp-title">—</div><div class="amp-time">0:00</div><canvas class="amp-vis" width="320" height="60"></canvas></div>
+          body.innerHTML = `<div class="amp"><div class="amp-screen"><div class="amp-title">-</div><div class="amp-time">0:00</div><canvas class="amp-vis" width="320" height="60"></canvas></div>
             <div class="amp-ctrl"><button data-a="prev">⏮</button><button data-a="play">▶</button><button data-a="next">⏭</button><input type="range" min="0" max="100" value="70" aria-label="Volume"></div>
             <ol class="amp-list">${TRACKS.map((t, i) => `<li data-i="${i}">${esc(t.name)} <small>${t.bpm} bpm · original</small></li>`).join("")}</ol></div>`;
           const ctx = SFX.ctx; if (!ctx) return;
@@ -396,10 +396,10 @@
           const print = (s = "", cls = "") => { const d = document.createElement("div"); if (cls) d.className = cls; d.textContent = s; out.appendChild(d); term.scrollTop = term.scrollHeight; };
           const CMDS = {
             help: () => ["Commands:", "  whoami      who's using this computer", "  about       a short bio", "  skills      what I work with", "  projects    things I've built", "  experience  where I've worked", "  contact     how to reach me", "  open <app>  portfolio, resume, paint, solitaire, music, game, mines", "  neofetch    system info", "  dogs        meet the crew", "  date, ls, cat readme.txt, echo <text>, color <0-9>, matrix, clear, exit"].forEach((l) => print(l)),
-            whoami: () => print(`${P.name.toLowerCase().replace(" ", "\\")} — ${P.title}`),
+            whoami: () => print(`${P.name.toLowerCase().replace(" ", "\\")}: ${P.title}`),
             about: () => [].concat(P.about && P.about.paragraphs ? P.about.paragraphs : [P.tagline]).forEach((l) => print(String(l))),
             skills: () => (P.skills || []).forEach((g) => print(`${g.group.padEnd(14)} ${g.items.join(", ")}`)),
-            projects: () => (P.projects || []).forEach((p) => print(`${(p.year || "").padEnd(6)}${p.name} — ${p.subtitle || ""}`)),
+            projects: () => (P.projects || []).forEach((p) => print(`${(p.year || "").padEnd(6)}${p.name}: ${p.subtitle || ""}`)),
             experience: () => (P.experience || []).forEach((x) => print(`• ${x.role}, ${x.org}`)),
             contact: () => { print(`email     ${P.contact.email}`); print(`linkedin  ${P.contact.linkedin}`); print(`github    ${P.contact.github}`); },
             neofetch: () => ["        _.._        " + P.name, "      .' .-'`       ------------------", "     /  /           OS: LeruOS XP (Portfolio Edition)", "     |  |           Host: the workshop, golden hour", "     \\  '.___.;     Shell: curiosity", "      '._  _.'      Uptime: always learning", "         ``         Pets: 3 dogs", "                    Vehicle: Land Cruiser"].forEach((l) => print(l, "term-acc")),
@@ -407,7 +407,7 @@
             date: () => print(new Date().toString()),
             ls: () => print("Desktop  Documents  Projects  Resume.pdf  readme.txt  dogs.jpg"),
             dir: () => CMDS.ls(),
-            cat: (a) => (a[0] && a[0].toLowerCase() === "readme.txt" ? print("Hi! Type 'help' to see what I can do. — Leruo") : print(`The system cannot find the file specified.`)),
+            cat: (a) => (a[0] && a[0].toLowerCase() === "readme.txt" ? print("Hi! Type 'help' to see what I can do. Leruo") : print(`The system cannot find the file specified.`)),
             type: (a) => CMDS.cat(a),
             echo: (a) => print(a.join(" ")),
             color: (a) => { const c = ["#c0c0c0", "#3b78ff", "#16c60c", "#61d6d6", "#e74856", "#b4009e", "#f9f1a5", "#f2f2f2", "#ffb000", "#9be37d"][+a[0]] || "#c0c0c0"; term.style.color = c; },

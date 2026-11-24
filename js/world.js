@@ -781,7 +781,7 @@ function updateIntro() {
   sound.nature = span(t, 1.8, 4.4);
   if (t > 4.6) finishIntro();
 }
-// first click: the office (and its noise) comes to life — browsers only allow sound after a click
+// first click: the office (and its noise) comes to life; browsers only allow sound after a click
 const vrGate = $("#vr-gate");
 vr.classList.add("gated");
 $("#vr-enter").onclick = (e) => {
@@ -837,7 +837,7 @@ manager.onLoad = () => {
   target = homeView();
   drawScreen();
 };
-manager.onError = (url) => { if (!/tex\//.test(url)) { ldText.textContent = "Couldn't load the workshop — opening the simple version"; setTimeout(() => location.replace("os/index.html"), 1500); } };
+manager.onError = (url) => { if (!/tex\//.test(url)) { ldText.textContent = "Couldn't load the workshop, so opening the simple version"; setTimeout(() => location.replace("os/index.html"), 1500); } };
 wallpaper.onload = () => drawScreen();
 
 /* ------------------------------------------------------------------ *

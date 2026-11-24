@@ -19,7 +19,7 @@
   const isTodo = (s) => !s || /TODO/.test(s);
   const toHost = (action) => embedded && window.parent.postMessage({ type: "os", action }, "*");
 
-  document.title = `LeruOS — ${P.name}`;
+  document.title = `LeruOS - ${P.name}`;
   if ($("#ti-vol")) $("#ti-vol").innerHTML = UI.volume || "";
   if ($("#ti-net")) $("#ti-net").innerHTML = UI.network || "";
 
@@ -155,7 +155,7 @@
   function openShowcase(page = "home") {
     const desk = $("#desktop").getBoundingClientRect();
     const w = openWindow("showcase", {
-      title: `${P.name} — Portfolio`,
+      title: `${P.name} - Portfolio`,
       icon: "showcase",
       width: Math.min(980, desk.width - 120),
       height: desk.height - 40,
@@ -167,7 +167,7 @@
       render: (body) => {
         body.innerHTML = `
           <div class="showcase">
-            <nav class="sc-nav" aria-label="Showcase">
+            <nav class="sc-nav" aria-label="Portfolio">
               <div class="me">${esc(P.name)}</div>
               <div class="role">${esc(P.title)}</div>
               ${["home", "about", "experience", "projects", "contact"]
@@ -302,7 +302,7 @@
         `<a href="${esc(href)}" ${ext ? 'target="_blank" rel="noopener"' : ""}><span class="c-ico">${UI[label] || ""}</span><span><b>${txt(value)}</b></span></a>`;
       return `
         <h2>Get in touch</h2>
-        <p>I'm open to graduate roles and internships in software development, agritech and information systems — in Johannesburg, Cape Town or remote.</p>
+        <p>I'm open to graduate roles and internships in software development, agritech and information systems, in Johannesburg, Cape Town or remote.</p>
         <div class="contact-grid">
           ${item("mailto:" + c.email, "mail", c.email)}
           ${item(c.linkedin, "linkedin", "LinkedIn" + (isTodo(c.linkedin) ? " (TODO: add your URL)" : ""), true)}
@@ -381,7 +381,7 @@
         $("form", body).addEventListener("submit", (e) => {
           e.preventDefault();
           const f = new FormData(e.target);
-          const bodyText = `${f.get("msg")}\n\n— ${f.get("name")}`;
+          const bodyText = `${f.get("msg")}\n\n${f.get("name")}`;
           window.open(
             `mailto:${P.contact.email}?subject=${encodeURIComponent(f.get("subject"))}&body=${encodeURIComponent(bodyText)}`,
             "_blank"
@@ -393,7 +393,7 @@
 
   function openReadme() {
     openWindow("readme", {
-      title: "Read Me.txt — Notepad",
+      title: "Read Me.txt - Notepad",
       icon: "readme",
       width: 500,
       height: 380,
@@ -404,10 +404,10 @@
           `Welcome to LeruOS XP!`,
           ``,
           `You're using ${P.name}'s computer. Have a look around:`,
-          `  • Portfolio  — projects, experience and contact`,
-          `  • Resume — my CV`,
-          `  • Overland Run — a 4x4 game: jump rocks, collect water`,
-          `  • Minesweeper — because every OS needs one`,
+          `  • Portfolio: projects, experience and contact`,
+          `  • Resume: my CV`,
+          `  • Overland Run: a 4x4 game. Jump rocks, collect water`,
+          `  • Minesweeper: because every OS needs one`,
           ``,
           embedded ? `Press Esc or use 'Back to the workshop' to step out.` : `Go back to the main page for the workshop.`,
           ``,
