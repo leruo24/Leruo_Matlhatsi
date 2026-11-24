@@ -11,7 +11,7 @@ import { spring, blend } from './motion.js';
  *
  * The same goes for the laptop and the old Android tablet on the desk (screens.json).
  *
- * The panorama also writes depth: a distance map rendered from the same eye (depth.png, from
+ * The panorama also writes depth: a distance map rendered from the same eye (depth.webp, from
  * blender/render_depth.py) sets each sky-sphere pixel's depth to the real distance of what the
  * render shows there. Anything drawn live (the drone, the walking dogs, the ball) is then hidden
  * by nearer walls, furniture and tree trunks, exactly as if it were in the scene.
@@ -56,7 +56,7 @@ export function dirToUv(x, y, z) {
 }
 
 // the distance map: latitude -90 deg up to DEPTH_TOP, distance d = 0.2 * 150000^t (t in 16 bits: r = high byte)
-export const DEPTH = Object.freeze({ file: 'depth.png', top: 40 * Math.PI / 180, near: 0.2, far: 30000 });
+export const DEPTH = Object.freeze({ file: 'depth.webp', top: 40 * Math.PI / 180, near: 0.2, far: 30000 });
 export function decodeDepth(r, g) { const t = (r * 256 + g) / 65535; return t >= 0.99999 ? Infinity : DEPTH.near * Math.pow(DEPTH.far / DEPTH.near, t); }
 
 /** Drone flight coordinates -> direction. x, y are the remote's units (photo pixels at the centre of
@@ -87,8 +87,21 @@ export function homeView(aspect) {
 
 const SKY_VERT = /* glsl */ `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position.z = gl_Position.w; }`;
 const SKY_FRAG = /* glsl */ `precision highp float;
-  uniform sampler2D tLow, t0, t1, t2, t3, tDepth; uniform float uTiles, uDepthOn, uDepthTop; uniform mat4 uProj, uView; varying vec3 vDir;
+  uniform sampler2D tLow, t0, t1, t2, t3, tDepth; uniform float uTiles, uDepthOn, uDepthTop; uniform vec2 uTileSize; uniform mat4 uProj, uView; varying vec3 vDir;
   const float PI = 3.141592653589793;
+  // Catmull-Rom (bicubic) sampling in 9 taps: noticeably crisper than plain bilinear when the
+  // panorama is magnified, which it nearly always is on a laptop or phone screen
+  vec3 crisp(sampler2D t, vec2 uv, vec2 size){
+    vec2 p = uv * size - 0.5, i = floor(p), f = p - i;
+    if (p.x < 1.5 || p.x > size.x - 2.5) return texture2D(t, uv).rgb;   // near a tile edge: plain sampling
+    vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f)), w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+    vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f)), w3 = f * f * (-0.5 + 0.5 * f);
+    vec2 w12 = w1 + w2, a = (i - 0.5) / size, b = (i + 0.5 + w2 / w12) / size, c = (i + 2.5) / size;
+    vec3 r = (texture2D(t, vec2(a.x, a.y)).rgb * w0.x + texture2D(t, vec2(b.x, a.y)).rgb * w12.x + texture2D(t, vec2(c.x, a.y)).rgb * w3.x) * w0.y
+           + (texture2D(t, vec2(a.x, b.y)).rgb * w0.x + texture2D(t, vec2(b.x, b.y)).rgb * w12.x + texture2D(t, vec2(c.x, b.y)).rgb * w3.x) * w12.y
+           + (texture2D(t, vec2(a.x, c.y)).rgb * w0.x + texture2D(t, vec2(b.x, c.y)).rgb * w12.x + texture2D(t, vec2(c.x, c.y)).rgb * w3.x) * w3.y;
+    return clamp(r, 0.0, 1.0);
+  }
   void main(){
     vec3 d = normalize(vDir);
     float u = fract(0.5 + atan(d.x, -d.z) / (2.0 * PI));
@@ -97,8 +110,9 @@ const SKY_FRAG = /* glsl */ `precision highp float;
     if (uTiles < 1.5) c = texture2D(tLow, vec2(u, v)).rgb;
     else {
       float k = u * uTiles, i = floor(k); vec2 q = vec2(k - i, v);
-      if (i < 0.5) c = texture2D(t0, q).rgb; else if (i < 1.5) c = texture2D(t1, q).rgb;
-      else if (i < 2.5) c = texture2D(t2, q).rgb; else c = texture2D(t3, q).rgb;
+      vec2 sz = uTileSize;
+      if (i < 0.5) c = crisp(t0, q, sz); else if (i < 1.5) c = crisp(t1, q, sz);
+      else if (i < 2.5) c = crisp(t2, q, sz); else c = crisp(t3, q, sz);
     }
     gl_FragColor = vec4(c, 1.0);
     // depth of what the render shows here (sky and anything past 190 m: the far plane)
@@ -117,7 +131,7 @@ export function createPanoView({ scene, loader, renderer, camera, onChange = () 
   const dir = () => PANO_DIR + time + '/';
   const prep = (t) => { t.colorSpace = THREE.NoColorSpace; t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 1; return t; };
   const blank = new THREE.DataTexture(new Uint8Array([24, 30, 24, 255]), 1, 1); blank.needsUpdate = true;
-  const uniforms = { tLow: { value: blank }, t0: { value: blank }, t1: { value: blank }, t2: { value: blank }, t3: { value: blank }, uTiles: { value: 1 },
+  const uniforms = { tLow: { value: blank }, t0: { value: blank }, t1: { value: blank }, t2: { value: blank }, t3: { value: blank }, uTiles: { value: 1 }, uTileSize: { value: new THREE.Vector2(2048, 4096) },
     tDepth: { value: blank }, uDepthOn: { value: 0 }, uDepthTop: { value: DEPTH.top }, uProj: { value: camera.projectionMatrix }, uView: { value: camera.matrixWorldInverse } };
   const sky = new THREE.Mesh(new THREE.SphereGeometry(50, 96, 48), new THREE.ShaderMaterial({ uniforms, vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: true }));   // writes the depth map's depth (see SKY_FRAG)
   sky.renderOrder = -1; sky.frustumCulled = false; scene.add(sky);
@@ -128,6 +142,9 @@ export function createPanoView({ scene, loader, renderer, camera, onChange = () 
   // screen, so the 4K set looked soft there. 4K only where 4096 px textures aren't supported.
   const set = maxTex >= 4096 ? PANO.high : PANO.mid;
   let loadId = 0;
+  // callbacks for when the sharp tiles are on screen (the page holds back less urgent downloads until then)
+  const sharp = []; let isSharp = false;
+  const whenSharp = (cb) => { if (isSharp) cb(); else sharp.push(cb); };
   function loadSet() {
     const id = ++loadId;
     const L = id === 1 ? loader : new THREE.TextureLoader();   // only the first load counts toward 'Ready'
@@ -135,7 +152,7 @@ export function createPanoView({ scene, loader, renderer, camera, onChange = () 
     let loaded = 0;
     const tiles = set.map((name) => new THREE.TextureLoader().load(dir() + name, () => {
       if (id !== loadId) return;
-      if (++loaded === set.length) { tiles.forEach((t, j) => { uniforms['t' + j].value = prep(t); }); uniforms.uTiles.value = set.length; onChange(); }
+      if (++loaded === set.length) { tiles.forEach((t, j) => { uniforms['t' + j].value = prep(t); }); uniforms.uTileSize.value.set(tiles[0].image.width, tiles[0].image.height); uniforms.uTiles.value = set.length; onChange(); if (!isSharp) { isSharp = true; sharp.splice(0).forEach((cb) => cb()); } }
     }));
   }
   loadSet();
@@ -237,7 +254,7 @@ export function createPanoView({ scene, loader, renderer, camera, onChange = () 
 
   let clock = 0;
   return {
-    sky, drone, birds, devices, focus, flight, quality, screensReady,
+    sky, drone, birds, devices, focus, flight, quality, screensReady, whenSharp,
     get time() { return time; },
     /** switch to another lighting set (sunrise, day, sunset, night) */
     setTime(t) { if (!TIMES.includes(t) || t === time) return; time = t; applyLight(); loadSet(); onChange(); },

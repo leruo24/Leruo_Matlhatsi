@@ -81,7 +81,7 @@ test('every panorama file the viewer asks for is in the repository, for each tim
   for (const t of TIMES) for (const f of [PANO.low, ...PANO.mid, ...PANO.high]) {
     assert.ok(existsSync(new URL(`../assets/workshop-3d/${t}/${f}`, import.meta.url)), `${t}/${f}`);
   }
-  for (const f of ['depth.png', 'nav.json', 'dogs.json', 'cows.json', 'chickens.json', 'pen.json', ...Object.values(SCREENS).map((s) => s.mask)]) {
+  for (const f of ['depth.webp', 'nav.json', 'dogs.json', 'cows.json', 'chickens.json', 'pen.json', ...Object.values(SCREENS).map((s) => s.mask)]) {
     assert.ok(existsSync(new URL('../assets/workshop-3d/' + f, import.meta.url)), f);
   }
 });

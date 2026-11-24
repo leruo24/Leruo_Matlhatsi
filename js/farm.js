@@ -5,7 +5,7 @@ import * as THREE from "three";
 export function createFarm({ scene, loader, uniforms, keepAlpha, depthAt, depthTexture }) {
   const blend = { transparent: true, depthTest: false, depthWrite: false,
     ...keepAlpha, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor };
-  const texture = loader.load("assets/cow.png");
+  const texture = loader.load("assets/cow.webp");
   texture.colorSpace = THREE.NoColorSpace;
   const animals = [
     { x: 715, y: 338, w: 49, h: 25, phase: 1.3, next: 4, target: 0, pose: 0 },

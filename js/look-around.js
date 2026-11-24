@@ -13,9 +13,10 @@ const canvas = $('#view'), status = $('#status'), screen = $('#screen'), device 
 const params = new URLSearchParams(location.search);
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const coarse = matchMedia('(pointer: coarse)').matches;
-// phones have dense screens: render at up to 2x and never below 1:1, or the room looks soft
-const maxRatio = Math.min(devicePixelRatio, coarse ? 2 : 1.5);
-const budget = new FrameBudget(maxRatio, maxRatio, coarse ? Math.min(devicePixelRatio, 1) : .6);
+// dense screens (phones, high-DPI laptops): render at up to 2x
+const maxRatio = Math.min(devicePixelRatio, 2);
+// never below 1:1: dropping to 0.6 when the frame rate dipped is what made the room look smeared
+const budget = new FrameBudget(maxRatio, maxRatio, Math.min(devicePixelRatio, 1));
 let ratio = maxRatio, readout = '', paused = false;
 
 // look state: yaw/pitch are offsets from the home view, which frames the scene like the main experience's photo
@@ -100,8 +101,8 @@ function draw(dt, elapsed) {
     renderer.info.reset();
     pano.update(animating() ? dt : 0, reduced.matches);
     dogs.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
-    cows.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
-    chickens.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
+    cows?.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
+    chickens?.update(animating() ? dt : 0, reduced.matches, pano.depthReady);
     if (farmSound) droneSound();
     placeDogCard();
     renderer.render(scene, camera);
@@ -210,8 +211,15 @@ try {
   const loader = new THREE.TextureLoader(manager);
   pano = createPanoView({ scene, loader, renderer, camera, onChange: wake, time: currentTime() });
   dogs = createDogs({ scene, camera, renderer, onChange: wake, sound, time: currentTime() });
-  cows = createCows({ scene, camera, onChange: wake });
-  chickens = createChickens({ scene, camera, onChange: wake });
+  // the cows and hens are far away: their sprite sheets wait until the room is sharp (or 6 s),
+  // so the panorama and the dogs get the bandwidth first
+  const farAnimals = () => {
+    if (cows) return;
+    cows = createCows({ scene, camera, onChange: wake });
+    chickens = createChickens({ scene, camera, onChange: wake });
+    const t = currentTime(); cows.setLight(LIGHT[t].sprite); chickens.setLight(LIGHT[t].sprite);
+  };
+  pano.whenSharp(farAnimals); setTimeout(farAnimals, 6000);
   applyTime();
   resize();
   for (const id of ['#drone-btn', '#pause', '#ball', '#dog-btn']) $(id).hidden = false;

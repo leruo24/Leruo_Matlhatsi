@@ -1,4 +1,4 @@
-# Leruo Matlhatsi · Step into my workshop
+# Leruo Matlhatsi · Personal Portfolio
 
 An interactive look into my world: the projects I build, the problems I solve, and how I bring software, hardware and business thinking together.
 
@@ -175,7 +175,7 @@ How it's built (`js/pano-view.js`, `js/look-around.js`):
 - **Monitor, laptop and tablet.** Each screen's lock screen is drawn live on a flat panel at the screen's real position, from `assets/workshop-3d/screens.json`. A Blender-rendered visibility mask (`mask-<screen>.png`) keeps the chair and anything else in front of them; `blender/export_screens.py` writes both.
   - The monitor and the open laptop show LeruOS's lock screen (live time and date). Select either, or press Enter computer, to turn and zoom to it and open LeruOS.
   - The tablet is an old 10-inch Android-style tablet (thick black bezel, silver rim, front camera, folio cover) showing its lock screen. On a phone the main button reads **Open tablet**. Selecting the tablet zooms in and opens `tablet/`, a 2012-style tablet home screen (Holo look, system bar with back, home and recents keys, no logos) inside a tablet bezel. Its apps (About me, Projects, Experience, Skills, Education, Interests, Contact) are built from `os/content.js`, the same file the computer uses, and empty sections are left out.
-- **Depth.** The panorama also writes depth. `assets/workshop-3d/depth.png` comes from `blender/render_depth.py`: a Cycles render from the same eye, with every surface replaced by a shader that writes its distance (16 bits, logarithmic between 0.2 m and 30 km). The sky sphere sets each pixel's depth from it. Live objects (the drone, the dogs, the ball) are then hidden by nearer walls, furniture and tree trunks. Leaf cards and grass are left out of the map because they're mostly holes, so the drone is not hidden by foliage.
+- **Depth.** The panorama also writes depth. `assets/workshop-3d/depth.webp` (lossless WebP, converted from the PNG) comes from `blender/render_depth.py`: a Cycles render from the same eye, with every surface replaced by a shader that writes its distance (16 bits, logarithmic between 0.2 m and 30 km). The sky sphere sets each pixel's depth from it. Live objects (the drone, the dogs, the ball) are then hidden by nearer walls, furniture and tree trunks. Leaf cards and grass are left out of the map because they're mostly holes, so the drone is not hidden by foliage.
 - **Walking dogs.** The three dogs are no longer in the render; they walk about live (`js/dogs.js`).
   - Each is a set of sprite frames rendered in Blender (`blender/dog_sprites.py`): 8 headings × an 8-frame walk cycle (a four-beat walk), plus a 4-frame idle with a wagging tail.
   - They are the scene's skin-modifier dogs rebuilt standing. Every frame moves the skeleton, skins the body to it, and carries each fur strand with the triangle it grows from.
@@ -196,7 +196,7 @@ How it's built (`js/pano-view.js`, `js/look-around.js`):
   - The scene: `python build_scene.py` (the bench's printed textures come from `python3 gen_textures.py`).
   - The 360 renders, one per time of day: `TIME=<time> NODOGS=1 NOCOWS=1 python render.py pano renders/<time>_<i>.png 8192 6 <i>/16` for i = 0–15. Each strip is a narrow band of latitude, because a full 8192-wide frame ran out of memory on the 7 GB build machine. Then run `TIME=<time> python3 make_pano_assets.py renders/<time>_{0..15}.png`. On the build machine (2 CPU cores) a time of day took about 28 minutes at 6 samples (denoised).
   - The screens and their masks: `python export_screens.py ../assets/workshop-3d`.
-  - The depth map: `python render_depth.py ../assets/workshop-3d/depth.png 4096 40`.
+  - The depth map: `python render_depth.py /tmp/depth.png 4096 40`, then save it as lossless WebP: `python3 -c "from PIL import Image; Image.open('/tmp/depth.png').save('assets/workshop-3d/depth.webp', lossless=True, method=6)"`.
   - The floor grid (workshop, yard and coop) and the cow pen heights: `python nav_grid.py ../assets/workshop-3d/nav.json`.
   - The dogs: `python dog_sprites.py <dir> 320 24`. The cows: `python cow_sprites.py <dir> 256 16`. The hens: `python chicken_sprites.py <dir> 192 16`. Then run `python3 make_dog_atlases.py <dir>` for each folder.
 
@@ -216,6 +216,11 @@ The old room modules (`js/room.js`, `js/room-seam.js`, `js/room-detail.js` and t
 - **Headset intro on portrait phones.** The office photo is no longer cover-cropped to its middle quarter: the headset fills about 80% of the width, the photo's edges fade into a soft copy of itself, and the hands-and-headset photo is shown wide enough for both lenses and hands.
 - **LeruOS** opens straight to the desktop (no boot or log-on screen; Log Off still shows it). Showcase is removed. The title is "Business Analyst · Software Developer".
 - **Icons.** Emoji in LeruOS (contact links, interests, awards, Paint tools, Minesweeper, the tray and Overland Run) are replaced with SVG icons drawn for the site in `os/icons.js`. LinkedIn and GitHub use generic profile-card and code icons, not their logos.
+
+### Faster start, sharper room (24 November 2026)
+- **Start-up.** The intro photos are WebP now (the office photo went from 2.0 MB to 120 KB, the walker from 1.2 MB to 29 KB), the main page's cow sprite from 1.2 MB to 25 KB, and the room's depth map is lossless WebP (1.2 MB to 565 KB, pixel-identical). The look-around page fetches the panorama first, then the dogs; the cows and hens wait until the room is sharp (or 6 s) and the ball-carrying sheets come 3 s after the dogs. Measured locally: the main page downloads 2.8 MB instead of 6.9 MB, the look-around page 16.3 MB instead of 19.2 MB.
+- **Sharpness.** The room never renders below 1:1 any more (it used to drop to 0.6 when the frame rate dipped) and goes up to 2x on high-DPI screens, desktop included. The panorama is sampled with a bicubic (Catmull-Rom) filter instead of plain bilinear, and the tiles are re-made from the renders with a light unsharp mask at JPEG quality 90 (was 84). An 8K set is now about 2.5-3 MB instead of 1.6-2.2 MB.
+- The panorama is still 8192 px around; on a large high-DPI screen it is magnified about 2x, so it cannot be pin-sharp without a bigger render.
 
 ### Asset sources and licences
 

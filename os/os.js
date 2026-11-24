@@ -19,7 +19,7 @@
   const isTodo = (s) => !s || /TODO/.test(s);
   const toHost = (action) => embedded && window.parent.postMessage({ type: "os", action }, "*");
 
-  document.title = `LeruOS - ${P.name}`;
+  document.title = `${P.name} · Personal Portfolio`;
   if ($("#ti-vol")) $("#ti-vol").innerHTML = UI.volume || "";
   if ($("#ti-net")) $("#ti-net").innerHTML = UI.network || "";
 
@@ -155,7 +155,7 @@
   function openShowcase(page = "home") {
     const desk = $("#desktop").getBoundingClientRect();
     const w = openWindow("showcase", {
-      title: `${P.name} - Portfolio`,
+      title: `${P.name} - Personal Portfolio`,
       icon: "showcase",
       width: Math.min(980, desk.width - 120),
       height: desk.height - 40,

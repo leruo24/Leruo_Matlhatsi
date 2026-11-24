@@ -2,8 +2,8 @@
 export class OfficeMotion {
   constructor(canvas) {
     this.canvas=canvas; this.ctx=canvas.getContext("2d", { alpha:false });
-    this.photo=new Image(); this.photo.src="assets/intro-office-clean.png";
-    this.person=new Image(); this.person.src="assets/office-walker.png";
+    this.photo=new Image(); this.photo.src="assets/intro-office-clean.webp";
+    this.person=new Image(); this.person.src="assets/office-walker.webp";
     this.time=0; this.next=2; this.walk=null; this.dirty=true;
     this.photo.onload=()=>{this.src=null;this.dirty=true;};
     this.photo.onerror=()=>{if(!this.photo.src.endsWith("intro-office.jpg"))this.photo.src="assets/intro-office.jpg";};

@@ -80,7 +80,7 @@ window.PORTFOLIO = {
       dates: "Nov 2025 to present",
       points: [
         "Gathering client requirements, analysing processes and translating stakeholder needs into system requirements and digital solution recommendations.",
-        "Clients include Venture54, Fa8th and Beyond Church.",
+        "Clients include Venture54 and Fa8th.",
       ],
     },
     {
@@ -185,23 +185,6 @@ window.PORTFOLIO = {
         "Worked with a 15,000-row BigQuery transaction dataset; Gemini on Vertex AI powered OCR and grounded recipe generation.",
         "Kept a hard rule: the AI never decides what's healthy; that comes from the food catalogue.",
         "Delivered the 5-minute demo pitch.",
-      ],
-      links: [],
-    },
-    {
-      id: "attendance",
-      name: "Attendance Register",
-      subtitle: "Full-stack ASP.NET Core app, built with AI-assisted development",
-      year: "2026",
-      tags: ["ASP.NET Core", "Razor Pages", "EF Core", "SQLite", "Identity", "Chart.js"],
-      summary:
-        "A lecture attendance system for UCT's INF3003W class, built with Claude as the coding assistant while I made the architectural decisions.",
-      role: "Sole developer and architect.",
-      points: [
-        "Role-based login for lecturers and students with ASP.NET Core Identity.",
-        "CSV import of the class list with a preview/confirm step and safe, repeatable (idempotent) updates.",
-        "QR-code check-ins and Chart.js attendance dashboards.",
-        "Built across eight sprints, with structured logging (Serilog) and no hard-coded configuration.",
       ],
       links: [],
     },

@@ -168,17 +168,22 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
   Promise.all([fetch(DIR + 'dogs.json').then((r) => r.json()), fetch(DIR + 'nav.json').then((r) => r.json())]).then(([meta, nav]) => {
     state.nav = new NavGrid(nav, 0.3);   // a little wider than the body, so they keep off walls and furniture
     const loader = new THREE.TextureLoader();
+    // the ball-carrying sheets, fetched once the walking sheets are in (they are only needed on a throw)
+    const loadCarry = () => {
+      for (const d of state.dogs) {
+        const m = meta[d.name]; if (!m || !m.carryFile || d.carryTex) continue;
+        const t = loader.load(DIR + m.carryFile, () => { d.carryTex = t; onChange(); });
+        t.colorSpace = THREE.NoColorSpace; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4;
+      }
+    };
     let pending = 0;
     for (const [name, m] of Object.entries(meta)) {
       pending++;
-      const tex = loader.load(DIR + m.file, () => { if (--pending === 0) { state.ready = true; onChange(); } });
+      const tex = loader.load(DIR + m.file, () => { if (--pending === 0) { state.ready = true; onChange(); setTimeout(loadCarry, 3000); } });
       tex.colorSpace = THREE.NoColorSpace; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.anisotropy = 4;
       // walking with the ball in its mouth (mouth open round it): a separate atlas
-      let carryTex = null;
-      if (m.carryFile) {
-        carryTex = loader.load(DIR + m.carryFile);
-        carryTex.colorSpace = THREE.NoColorSpace; carryTex.generateMipmaps = true; carryTex.minFilter = THREE.LinearMipmapLinearFilter; carryTex.anisotropy = 4;
-      }
+      // (loaded a few seconds after the walking sheets: until then a fetched ball is drawn in 3D as before)
+      const carryTex = null;
       const mat = new THREE.ShaderMaterial({ uniforms: { tAtlas: { value: tex }, uCell: { value: new THREE.Vector4(0, 0, 1, 1) }, uDepth: { value: 0.5 }, uTint: { value: 1 } },
         vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: true });
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(m.size, m.size), mat);
