@@ -124,8 +124,9 @@ export function createPanoView({ scene, loader, renderer, camera, onChange = () 
 
   // low-resolution panorama first, then the sharp tiles for this device (one lighting set at a time)
   const maxTex = renderer.capabilities.maxTextureSize;
-  const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-  const set = maxTex >= 4096 && !coarse ? PANO.high : PANO.mid;
+  // 8K wherever the GPU allows it, phones included: a phone shows a narrow slice of the room on a dense
+  // screen, so the 4K set looked soft there. 4K only where 4096 px textures aren't supported.
+  const set = maxTex >= 4096 ? PANO.high : PANO.mid;
   let loadId = 0;
   function loadSet() {
     const id = ++loadId;

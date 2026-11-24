@@ -101,7 +101,6 @@
     };
 
     const myDocs = () => explorer("mydocs", "My Documents", "mydocs", [
-      { icon: "gallery", label: "My Pictures", sub: "Highlights", open: APPS.showcase },
       { icon: "folder", label: "Projects", open: APPS.projects },
       { icon: "resume", label: "Resume.pdf", open: APPS.resume },
       { icon: "readme", label: "Read Me.txt", open: APPS.readme },
@@ -111,7 +110,6 @@
     const myComputer = () => explorer("mycomputer", "My Computer", "mycomputer", [
       { icon: "drive", label: "Local Disk (C:)", sub: "Projects & experience", open: APPS.portfolio },
       { icon: "mydocs", label: "My Documents", open: myDocs },
-      { icon: "gallery", label: "Showcase", sub: "Highlights", open: APPS.showcase },
       { icon: "drive", label: "Games (D:)", sub: "Overland Run, Solitaire…", open: () => explorer("games", "Games (D:)", "drive", [
         { icon: "game", label: "Overland Run", open: APPS.game }, { icon: "cards", label: "Solitaire", open: openSolitaire }, { icon: "mines", label: "Minesweeper", open: APPS.mines },
       ]) },
@@ -139,9 +137,10 @@
         render: (body) => {
           const COLORS = ["#000000", "#808080", "#800000", "#808000", "#008000", "#008080", "#000080", "#800080", "#808040", "#004040", "#0080ff", "#004080", "#8000ff", "#804000",
             "#ffffff", "#c0c0c0", "#ff0000", "#ffff00", "#00ff00", "#00ffff", "#0000ff", "#ff00ff", "#ffff80", "#00ff80", "#80ffff", "#8080ff", "#ff0080", "#ff8040"];
-          const TOOLS = [["pencil", "✏️", "Pencil"], ["brush", "🖌️", "Brush"], ["spray", "💨", "Airbrush"], ["eraser", "🧽", "Eraser"], ["fill", "🪣", "Fill"], ["line", "╱", "Line"], ["rect", "▭", "Rectangle"], ["ellipse", "◯", "Ellipse"]];
+          const UI = window.UI_ICONS || {};
+          const TOOLS = [["pencil", "Pencil"], ["brush", "Brush"], ["spray", "Airbrush"], ["eraser", "Eraser"], ["fill", "Fill"], ["line", "Line"], ["rect", "Rectangle"], ["ellipse", "Ellipse"]];
           body.innerHTML = `<div class="paint">
-              <div class="pt-tools">${TOOLS.map(([k, ico, n]) => `<button data-t="${k}" title="${n}" class="${k === "brush" ? "on" : ""}">${ico}</button>`).join("")}
+              <div class="pt-tools">${TOOLS.map(([k, n]) => `<button data-t="${k}" title="${n}" aria-label="${n}" class="${k === "brush" ? "on" : ""}">${UI[k] || n[0]}</button>`).join("")}
                 <div class="pt-sizes">${[2, 5, 10, 18].map((s) => `<button data-s="${s}" class="${s === 5 ? "on" : ""}"><i style="width:${Math.min(16, s)}px;height:${Math.min(16, s)}px"></i></button>`).join("")}</div></div>
               <div class="pt-canvaswrap"><canvas class="pt-canvas"></canvas></div>
               <div class="pt-bottom"><div class="pt-cur"><i class="c1"></i><i class="c2"></i></div><div class="pt-pal">${COLORS.map((c) => `<button style="background:${c}" data-c="${c}"></button>`).join("")}</div>
@@ -285,7 +284,7 @@
             }
             table.innerHTML = h;
             $(".sol-score", body).textContent = "Score: " + score; $(".sol-moves", body).textContent = "Moves: " + moves;
-            if (S.found.every((f) => f.length === 13)) { SFX.startup(); table.insertAdjacentHTML("beforeend", `<div class="sol-win">You win! 🎉<br><button class="xbtn">Deal again</button></div>`); $(".sol-win .xbtn", table).onclick = deal; }
+            if (S.found.every((f) => f.length === 13)) { SFX.startup(); table.insertAdjacentHTML("beforeend", `<div class="sol-win">You win!<br><button class="xbtn">Deal again</button></div>`); $(".sol-win .xbtn", table).onclick = deal; }
           }
           table.addEventListener("click", (e) => {
             const el = e.target.closest("[data-p]"); if (!el) { sel = null; return draw(); }
@@ -396,7 +395,7 @@
           const hist = []; let hi = 0;
           const print = (s = "", cls = "") => { const d = document.createElement("div"); if (cls) d.className = cls; d.textContent = s; out.appendChild(d); term.scrollTop = term.scrollHeight; };
           const CMDS = {
-            help: () => ["Commands:", "  whoami      who's using this computer", "  about       a short bio", "  skills      what I work with", "  projects    things I've built", "  experience  where I've worked", "  contact     how to reach me", "  open <app>  showcase, portfolio, resume, paint, solitaire, music, game, mines", "  neofetch    system info", "  dogs        meet the crew", "  date, ls, cat readme.txt, echo <text>, color <0-9>, matrix, clear, exit"].forEach((l) => print(l)),
+            help: () => ["Commands:", "  whoami      who's using this computer", "  about       a short bio", "  skills      what I work with", "  projects    things I've built", "  experience  where I've worked", "  contact     how to reach me", "  open <app>  portfolio, resume, paint, solitaire, music, game, mines", "  neofetch    system info", "  dogs        meet the crew", "  date, ls, cat readme.txt, echo <text>, color <0-9>, matrix, clear, exit"].forEach((l) => print(l)),
             whoami: () => print(`${P.name.toLowerCase().replace(" ", "\\")} — ${P.title}`),
             about: () => [].concat(P.about && P.about.paragraphs ? P.about.paragraphs : [P.tagline]).forEach((l) => print(String(l))),
             skills: () => (P.skills || []).forEach((g) => print(`${g.group.padEnd(14)} ${g.items.join(", ")}`)),
@@ -414,11 +413,11 @@
             color: (a) => { const c = ["#c0c0c0", "#3b78ff", "#16c60c", "#61d6d6", "#e74856", "#b4009e", "#f9f1a5", "#f2f2f2", "#ffb000", "#9be37d"][+a[0]] || "#c0c0c0"; term.style.color = c; },
             clear: () => (out.innerHTML = ""),
             cls: () => CMDS.clear(),
-            open: (a) => { const k = (a[0] || "").toLowerCase(); const map = { showcase: APPS.showcase, gallery: APPS.showcase, portfolio: APPS.portfolio, resume: APPS.resume, cv: APPS.resume, paint: openPaint, solitaire: openSolitaire, music: openMusic, game: APPS.game, mines: APPS.mines, help: APPS.help }; if (map[k]) { print(`Opening ${k}…`); map[k](); } else print(`'${k}' is not recognised. Try: showcase, portfolio, resume, paint, solitaire, music, game, mines`); },
+            open: (a) => { const k = (a[0] || "").toLowerCase(); const map = { portfolio: APPS.portfolio, resume: APPS.resume, cv: APPS.resume, paint: openPaint, solitaire: openSolitaire, music: openMusic, game: APPS.game, mines: APPS.mines, help: APPS.help }; if (map[k]) { print(`Opening ${k}…`); map[k](); } else print(`'${k}' is not recognised. Try: portfolio, resume, paint, solitaire, music, game, mines`); },
             sudo: () => print("Nice try. This incident will be reported to the dogs."),
             matrix: () => { let n = 0; const id = setInterval(() => { print(Array.from({ length: 64 }, () => (Math.random() < 0.5 ? "0" : "1")).join(""), "term-acc"); if (++n > 18) clearInterval(id); }, 60); },
             exit: () => $(".close", body.closest(".win")).click(),
-            coffee: () => print("☕ Brewing… done. Productivity +10."),
+            coffee: () => print("Brewing… done. Productivity +10."),
           };
           print("LeruOS XP [Version 5.1.2600]");
           print("(C) Leruo Matlhatsi. All rights reserved.");

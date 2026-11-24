@@ -10,7 +10,7 @@
 </head>
 <body>
   <!-- boot screen -->
-  <div id="splash">
+  <div id="splash" hidden>
     <div class="splash-logo">
       <svg viewBox="0 0 32 32" width="64" height="64" aria-hidden="true"><path d="M16 3c-6 5-8.5 11-6 17 1.2 3.4 3.5 5.6 6 7 2.5-1.4 4.8-3.6 6-7 2.5-6 0-12-6-17z" fill="#7ed957"/><path d="M16 9v18" stroke="#000" stroke-width="1.6"/></svg>
       <div class="splash-name">Leru<b>OS</b><span>xp</span></div>
@@ -52,7 +52,7 @@
   <div id="balloon" hidden role="status">
     <button aria-label="Close">✕</button>
     <b><svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="7" fill="#3b78d1"/><rect x="7" y="7" width="2" height="5" fill="#fff"/><rect x="7" y="4" width="2" height="2" fill="#fff"/></svg>Welcome to LeruOS</b>
-    <span>Double-click an icon to open it. <b style="display:inline">Showcase</b> has my highlights, <b style="display:inline">Portfolio</b> my projects, and <b style="display:inline">Help</b> explains everything.</span>
+    <span>Double-click an icon to open it. <b style="display:inline">Portfolio</b> has my projects and experience, <b style="display:inline">Resume</b> my CV, and <b style="display:inline">How this works</b> explains everything.</span>
   </div>
 
   <nav id="start-menu" hidden>
@@ -73,12 +73,13 @@
       start
     </button>
     <div id="tasks"></div>
-    <div class="tray"><span class="ti" title="Volume">🔊</span><span class="ti" title="Network">🖧</span><span id="clock"></span></div>
+    <div class="tray"><span class="ti" title="Volume" id="ti-vol"></span><span class="ti" title="Network" id="ti-net"></span><span id="clock"></span></div>
   </footer>
 
   <div id="crt" aria-hidden="true"></div>
 
   <script src="content.js"></script>
+  <script src="icons.js"></script>
   <script src="apps.js"></script>
   <script src="os.js"></script>
 </body>

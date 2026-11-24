@@ -395,3 +395,17 @@ body.crt #crt { display: block; position: fixed; inset: 0; z-index: 200; pointer
 .term-acc { color: #9be37d; }
 .term-line { display: flex; }
 .term-in { flex: 1; background: none; border: 0; outline: none; color: inherit; font: inherit; padding: 0; caret-color: #c0c0c0; }
+
+/* ---------- drawn icons (os/icons.js), in place of emoji ---------- */
+#splash[hidden] { display: none; }
+.ui-ico { display: block; width: 100%; height: 100%; }
+.contact-grid .c-ico { flex: none; width: 28px; height: 28px; }
+.interest .i-ico { display: block; width: 30px; height: 30px; font-size: 0; }
+li.award { list-style: none; display: flex; align-items: flex-start; gap: 8px; margin-left: -18px; }
+li.award .ui-ico { flex: none; width: 18px; height: 18px; margin-top: 1px; }
+.pt-tools button { display: grid; place-items: center; }
+.pt-tools button .ui-ico { width: 18px; height: 18px; }
+.smiley { display: grid; place-items: center; }
+.smiley .ui-ico { width: 24px; height: 24px; }
+.mines-grid .cell .ui-ico { width: 16px; height: 16px; margin: auto; }
+.tray .ti .ui-ico { width: 16px; height: 16px; }

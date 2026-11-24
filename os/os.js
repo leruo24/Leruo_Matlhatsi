@@ -2,6 +2,7 @@
 (function () {
   "use strict";
   const P = window.PORTFOLIO;
+  const UI = window.UI_ICONS || {};
   const params = new URLSearchParams(location.search);
   const embedded = params.has("embedded") || window.top !== window.self;
   if (embedded) document.body.classList.add("embedded");
@@ -19,6 +20,8 @@
   const toHost = (action) => embedded && window.parent.postMessage({ type: "os", action }, "*");
 
   document.title = `LeruOS — ${P.name}`;
+  if ($("#ti-vol")) $("#ti-vol").innerHTML = UI.volume || "";
+  if ($("#ti-net")) $("#ti-net").innerHTML = UI.network || "";
 
   /* ---------------- icons (inline SVG) ---------------- */
   const ICONS = {
@@ -31,7 +34,6 @@
     mines: `<svg viewBox="0 0 32 32"><g stroke="#000" stroke-width="2"><path d="M16 4v24M4 16h24M7.5 7.5l17 17M24.5 7.5l-17 17"/></g><circle cx="16" cy="16" r="8" fill="#111"/><circle cx="13" cy="13" r="2.2" fill="#fff"/></svg>`,
     readme: `<svg viewBox="0 0 32 32"><path d="M7 2h18v28H7z" fill="#fff" stroke="#333"/><rect x="7" y="2" width="18" height="4" fill="#2f8f4e"/><path d="M10 10h12M10 13h12M10 16h12M10 19h8M10 22h10" stroke="#555"/></svg>`,
     game: `<svg viewBox="0 0 32 32"><rect x="1" y="1" width="30" height="30" rx="3" fill="#f0a64a"/><path d="M0 24c6-5 10 1 16-3s10-2 16 1v10H0z" fill="#7a5a32"/><rect x="7" y="13" width="15" height="6" fill="#c9b48f" stroke="#3a2a1a"/><rect x="11" y="9" width="8" height="5" fill="#c9b48f" stroke="#3a2a1a"/><rect x="10" y="7" width="10" height="2" fill="#3e4a3f"/><circle cx="10" cy="20" r="2.6" fill="#222"/><circle cx="19" cy="20" r="2.6" fill="#222"/></svg>`,
-    gallery: `<svg viewBox="0 0 32 32"><rect x="5" y="3" width="22" height="18" rx="1" fill="#fff" stroke="#555" transform="rotate(-8 16 12)"/><rect x="3" y="8" width="26" height="20" rx="1" fill="#fff" stroke="#333"/><rect x="5" y="10" width="22" height="13" fill="#7cc4f2"/><path d="M5 23l7-7 4 4 3-3 8 6z" fill="#3f9b3f"/><circle cx="22" cy="14" r="2" fill="#ffd54a"/></svg>`,
     help: `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="#2f6fd6" stroke="#0e3a8c"/><circle cx="16" cy="16" r="10.5" fill="none" stroke="#7fb1ff" stroke-width="1"/><text x="16" y="22" font-size="17" font-family="Georgia" font-weight="bold" fill="#fff" text-anchor="middle">?</text></svg>`,
     power: `<svg viewBox="0 0 32 32"><rect x="3" y="5" width="26" height="22" fill="#d8cfba" stroke="#333"/><circle cx="16" cy="16" r="7" fill="none" stroke="#c62828" stroke-width="2.5"/><path d="M16 7v8" stroke="#c62828" stroke-width="2.5"/></svg>`,
   };
@@ -232,7 +234,7 @@
       ${
         P.interests
           ? `<h3>When I'm not coding</h3><div class="interests">${P.interests
-              .map((i) => `<div class="interest"><span class="i-ico">${i.icon}</span><b>${esc(i.title)}</b><small>${esc(i.text)}</small></div>`)
+              .map((i) => `<div class="interest"><span class="i-ico">${UI[i.icon] || esc(i.icon)}</span><b>${esc(i.title)}</b><small>${esc(i.text)}</small></div>`)
               .join("")}</div>`
           : ""
       }
@@ -254,7 +256,7 @@
         ${P.experience.map(block).join("")}
         <h2 style="margin-top:34px">Education</h2>
         ${P.education.map(block).join("")}
-        ${P.awards && P.awards.length ? `<h2 style="margin-top:34px">Awards</h2><ul>${P.awards.map((a) => `<li>🏆 ${esc(a)}</li>`).join("")}</ul>` : ""}`;
+        ${P.awards && P.awards.length ? `<h2 style="margin-top:34px">Awards</h2><ul>${P.awards.map((a) => `<li class="award">${UI.trophy || ""}<span>${esc(a)}</span></li>`).join("")}</ul>` : ""}`;
     },
 
     projects: (id) => {
@@ -297,14 +299,14 @@
     contact: () => {
       const c = P.contact;
       const item = (href, label, value, ext) =>
-        `<a href="${esc(href)}" ${ext ? 'target="_blank" rel="noopener"' : ""}><span style="font-size:22px">${label}</span><span><b>${txt(value)}</b></span></a>`;
+        `<a href="${esc(href)}" ${ext ? 'target="_blank" rel="noopener"' : ""}><span class="c-ico">${UI[label] || ""}</span><span><b>${txt(value)}</b></span></a>`;
       return `
         <h2>Get in touch</h2>
         <p>I'm open to graduate roles and internships in software development, agritech and information systems — in Johannesburg, Cape Town or remote.</p>
         <div class="contact-grid">
-          ${item("mailto:" + c.email, "✉️", c.email)}
-          ${item(c.linkedin, "💼", "LinkedIn" + (isTodo(c.linkedin) ? " (TODO: add your URL)" : ""), true)}
-          ${item(c.github, "🐙", c.github.replace(/^https?:\/\//, ""), true)}
+          ${item("mailto:" + c.email, "mail", c.email)}
+          ${item(c.linkedin, "linkedin", "LinkedIn" + (isTodo(c.linkedin) ? " (TODO: add your URL)" : ""), true)}
+          ${item(c.github, "github", c.github.replace(/^https?:\/\//, ""), true)}
         </div>
         <div class="home-links"><button class="pill solid" data-open="contact">Write me a message</button></div>`;
     },
@@ -328,7 +330,6 @@
               ${Hp.tips ? `<h4>Tips</h4><ul>${Hp.tips.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
               <h4>On this computer</h4>
               <div class="help-links">
-                <button data-a="showcase">${ICONS.gallery}<span><b>Showcase</b>Highlights in photos</span></button>
                 <button data-a="portfolio">${ICONS.showcase}<span><b>Portfolio</b>Projects, experience, contact</span></button>
                 <button data-a="resume">${ICONS.resume}<span><b>Resume</b>My CV</span></button>
                 <button data-a="game">${ICONS.game}<span><b>Overland Run</b>A 4x4 game</span></button>
@@ -336,76 +337,6 @@
             </div>
           </div>`;
         body.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", () => APPS[b.dataset.a]()));
-      },
-    });
-  }
-
-  /* ---------------- Showcase: a gallery of highlights ---------------- */
-  function openGallery() {
-    const G = (P.gallery || []).filter(g => g.src && !/TODO/.test(g.title + " " + g.text));
-    const desk = $("#desktop").getBoundingClientRect();
-    const width = Math.min(1040, desk.width - 110);
-    openWindow("gallery", {
-      title: "Showcase — My Highlights",
-      icon: "gallery",
-      width,
-      height: desk.height - 36,
-      x: Math.max(96, (desk.width - width) / 2 + 30),
-      y: 12,
-      menubar: true,
-      status: `${G.length} item${G.length === 1 ? "" : "s"}`,
-      render: (body) => {
-        body.innerHTML = `
-          <div class="gal">
-            <aside class="gal-side">
-              <div class="gs-box"><div class="gs-h">Picture Tasks</div>
-                <button data-x="slide">▶ View as a slide show</button>
-                <button data-x="grid">▦ Show all pictures</button></div>
-              <div class="gs-box"><div class="gs-h">Other Places</div>
-                <button data-x="portfolio">${ICONS.showcase} Portfolio</button>
-                <button data-x="resume">${ICONS.resume} Resume</button>
-                <button data-x="help">${ICONS.help} How this works</button></div>
-              <div class="gs-box"><div class="gs-h">Details</div><p><b>My Highlights</b><br>${G.length} pictures</p></div>
-            </aside>
-            <section class="gal-main" tabindex="0"></section>
-          </div>`;
-        const main = $(".gal-main", body);
-        let cur = 0, timer = null;
-        const stop = () => { clearInterval(timer); timer = null; };
-        const grid = () => {
-          stop();
-          main.innerHTML = G.length
-            ? `<div class="gal-grid">${G.map((g, i) => `
-                <button class="gal-card" data-i="${i}">
-                  <img src="${esc(g.src)}" alt="" loading="lazy" />
-                  <span class="gal-cap"><b>${txt(g.title)}</b>${g.date ? `<small>${esc(g.date)}</small>` : ""}</span>
-                </button>`).join("")}</div>`
-            : `<div class="empty-state">More photographs coming soon.</div>`;
-          main.querySelectorAll("[data-i]").forEach((b) => b.addEventListener("click", () => view(+b.dataset.i)));
-        };
-        const view = (i) => {
-          if (!G.length) return;
-          cur = (i + G.length) % G.length;
-          const g = G[cur];
-          main.innerHTML = `
-            <div class="gal-view">
-              <img src="${esc(g.src)}" alt="${esc(g.title)}" />
-              <div class="gal-over"><div class="gv-date">${esc(g.date || "")}</div><h2>${txt(g.title)}</h2><p>${txt(g.text || "")}</p></div>
-              <button class="gv-nav prev" aria-label="Previous">‹</button><button class="gv-nav next" aria-label="Next">›</button>
-              <div class="gv-bar"><button class="xbtn" data-b="grid">All pictures</button><span>${cur + 1} / ${G.length}</span><button class="xbtn" data-b="slide">${timer ? "Pause" : "Slide show"}</button></div>
-            </div>`;
-          $(".prev", main).addEventListener("click", () => { stop(); view(cur - 1); });
-          $(".next", main).addEventListener("click", () => { stop(); view(cur + 1); });
-          $('[data-b="grid"]', main).addEventListener("click", grid);
-          $('[data-b="slide"]', main).addEventListener("click", () => (timer ? (stop(), view(cur)) : slide()));
-        };
-        const slide = () => { if (!G.length) return; stop(); view(cur); timer = setInterval(() => (main.isConnected ? view(cur + 1) : stop()), 4500); view(cur); };
-        main.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") view(cur + 1); if (e.key === "ArrowLeft") view(cur - 1); });
-        body.querySelectorAll("[data-x]").forEach((b) => b.addEventListener("click", () => {
-          const x = b.dataset.x;
-          if (x === "slide") slide(); else if (x === "grid") grid(); else APPS[x]();
-        }));
-        grid();
       },
     });
   }
@@ -473,7 +404,6 @@
           `Welcome to LeruOS XP!`,
           ``,
           `You're using ${P.name}'s computer. Have a look around:`,
-          `  • Showcase   — my highlights, in photos`,
           `  • Portfolio  — projects, experience and contact`,
           `  • Resume — my CV`,
           `  • Overland Run — a 4x4 game: jump rocks, collect water`,
@@ -507,7 +437,7 @@
         body.classList.remove("sunken");
         body.innerHTML = `
           <div class="mines">
-            <div class="mines-top sunken"><span class="lcd" id="m-left">010</span><button class="btn95 smiley" id="m-face">🙂</button><span class="lcd" id="m-time">000</span></div>
+            <div class="mines-top sunken"><span class="lcd" id="m-left">010</span><button class="btn95 smiley" id="m-face">${UI.face}</button><span class="lcd" id="m-time">000</span></div>
             <div class="mines-grid sunken"></div>
           </div>`;
         const N = 9, MINES = 10;
@@ -531,7 +461,7 @@
           cells = Array.from({ length: N * N }, () => ({ mine: false, open: false, flag: false, n: 0 }));
           started = over = false;
           flags = opened = 0;
-          face.textContent = "🙂";
+          face.innerHTML = UI.face;
           left.textContent = pad(MINES);
           timeEl.textContent = "000";
           grid.innerHTML = "";
@@ -563,7 +493,7 @@
         function draw(i) {
           const c = cells[i], b = grid.children[i];
           b.className = "cell " + (c.open ? "open" : "btn95");
-          b.textContent = c.open ? (c.mine ? "💣" : c.n || "") : c.flag ? "🚩" : "";
+          if (c.open && c.mine) b.innerHTML = UI.mine; else if (!c.open && c.flag) b.innerHTML = UI.flag; else b.textContent = c.open ? c.n || "" : "";
           if (c.open && c.n && !c.mine) b.classList.add("n" + c.n);
         }
         function reveal(i) {
@@ -576,7 +506,7 @@
           if (c.mine) {
             over = true;
             clearInterval(timer);
-            face.textContent = "😵";
+            face.innerHTML = UI.faceLost;
             embedded && window.parent.postMessage({ type: "os", action: "sfx", name: "boom" }, "*");
             cells.forEach((x, j) => {
               if (x.mine) {
@@ -600,7 +530,7 @@
           if (opened === N * N - MINES) {
             over = true;
             clearInterval(timer);
-            face.textContent = "😎";
+            face.innerHTML = UI.faceWon;
           }
         }
         function flag(i) {
@@ -624,7 +554,7 @@
       icon: "game",
       width: 700,
       height: 430,
-      status: "Space / ↑ / click to jump · collect water drops 💧",
+      status: "Space / ↑ / click to jump · collect water drops",
       render: (body, win) => {
         body.style.background = "#000";
         body.innerHTML = `<canvas width="680" height="340" style="width:100%;height:100%;display:block;cursor:pointer" tabindex="0"></canvas>`;
@@ -657,6 +587,14 @@
         const acacia = (x, y, s) => {
           g.fillStyle = "#3a2a1e"; g.fillRect(x - 2 * s, y - 34 * s, 4 * s, 34 * s);
           g.beginPath(); g.ellipse(x, y - 36 * s, 26 * s, 7 * s, 0, 0, Math.PI * 2); g.fill();
+        };
+        // a water drop drawn as a path (was an emoji)
+        const drop = (x, y, k) => {
+          g.save(); g.translate(x, y); g.scale(k, k);
+          g.beginPath(); g.moveTo(0, -13); g.bezierCurveTo(5, -5, 9, 0, 9, 4); g.arc(0, 4, 9, 0, Math.PI); g.bezierCurveTo(-9, 0, -5, -5, 0, -13); g.closePath();
+          g.fillStyle = "#3aa7f0"; g.fill(); g.lineWidth = 1.5; g.strokeStyle = "#0d5c9a"; g.stroke();
+          g.beginPath(); g.ellipse(-3, 3, 2, 3.5, -0.4, 0, Math.PI * 2); g.fillStyle = "rgba(255,255,255,.7)"; g.fill();
+          g.restore();
         };
         const truck = (x, y) => {
           const bob = st.y > 0 ? 0 : Math.sin(st.t * 30) * 1.2;
@@ -732,16 +670,16 @@
             else if (o.kind === "log") { g.fillStyle = "#6b4526"; g.fillRect(o.x, GROUND - o.h, o.w, o.h); g.fillStyle = "#c19a6b"; g.beginPath(); g.ellipse(o.x + o.w, GROUND - o.h / 2, 5, o.h / 2, 0, 0, Math.PI * 2); g.fill(); }
             else { g.fillStyle = "#5b4128"; g.beginPath(); g.ellipse(o.x + o.w / 2, GROUND + 2, o.w / 2, 6, 0, 0, Math.PI * 2); g.fill(); }
           }
-          for (const it of st.items) { g.font = "26px serif"; g.fillText("💧", it.x - 13, it.y + 9); }
+          for (const it of st.items) drop(it.x, it.y, 1);
           truck(110, GROUND - st.y);
           // HUD
           g.fillStyle = "rgba(0,0,0,.35)"; g.fillRect(10, 10, 220, 30);
           g.fillStyle = "#fff"; g.font = "bold 15px Tahoma, sans-serif";
-          g.fillText(`${Math.floor(d / 10)} m   💧 ${st.drops}   best ${best}`, 18, 30);
+          g.fillText(`${Math.floor(d / 10)} m        ${st.drops}   best ${best}`, 18, 30); drop(86, 25, 0.55);
           if (!st.started || st.over) {
             g.fillStyle = "rgba(10,25,18,.72)"; g.fillRect(W / 2 - 190, 90, 380, 110);
             g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "bold 24px Georgia, serif";
-            g.fillText(st.over ? "Stuck! 🪨" : "Overland Run", W / 2, 128);
+            g.fillText(st.over ? "Stuck!" : "Overland Run", W / 2, 128);
             g.font = "15px Tahoma, sans-serif";
             g.fillText(st.over ? `Score ${Math.floor(st.dist / 10) + st.drops * 50} · click or press Space to go again` : "Click or press Space to start · jump the rocks and logs", W / 2, 160);
             g.fillText("Mud is fine, it's a 4x4.", W / 2, 184);
@@ -763,7 +701,6 @@
   }
 
   const APPS = {
-    showcase: openGallery,
     help: openHelp,
     portfolio: () => openShowcase("home"),
     about: () => openShowcase("about"),
@@ -783,7 +720,6 @@
     ["mycomputer", "mycomputer", "My Computer"],
     ["mydocs", "mydocs", "My Documents"],
     ["recycle", "recycle", "Recycle Bin"],
-    ["showcase", "gallery", "Showcase"],
     ["portfolio", "showcase", "Portfolio"],
     ["resume", "resume", "Resume"],
     ["contact", "contact", "Contact"],
@@ -818,7 +754,6 @@
   $("#sm-name").textContent = P.name;
   $("#sm-avatar").src = P.photos ? P.photos.headshot : "";
   const LEFT = [
-    ["showcase", "gallery", "Showcase", "My highlights"],
     ["portfolio", "showcase", "Portfolio", "Projects & experience"],
     ["resume", "resume", "Resume", "My CV (PDF)"],
     null,
@@ -897,7 +832,6 @@
 
   function openPage(page, arg) {
     if (page === "game") return openOverland();
-    if (page === "showcase" || page === "gallery") return openGallery();
     if (page === "help") return openHelp();
     if (page === "resume") return openResume();
     openShowcase(page || "home");
@@ -930,7 +864,6 @@
       setTimeout(() => (welcome.hidden = true), 500);
       SFX.startup();
       if (page) openPage(page, arg);
-      else if (!open.size) openGallery();
       showBalloon();
     };
     if (instant) { welcome.hidden = true; finish(); return; }
@@ -950,15 +883,11 @@
     }
   });
 
-  /* ---------------- boot ---------------- */
-  setTimeout(
-    () => {
-      splash.classList.add("done");
-      if (booted) return;
-      booted = true;
-      if (params.get("page")) return logIn(params.get("page"), params.get("arg"), true);
-      showWelcome();
-    },
-    matchMedia("(prefers-reduced-motion: reduce)").matches ? 100 : embedded ? 1500 : 2200
-  );
+  /* ---------------- boot ----------------
+     Straight to the desktop: no boot screen and no log-on screen first. (Log Off from the
+     start menu still shows the log-on screen.) */
+  splash.hidden = true;
+  splash.classList.add("done");
+  booted = true;
+  logIn(params.get("page") || undefined, params.get("arg") || undefined, true);
 })();

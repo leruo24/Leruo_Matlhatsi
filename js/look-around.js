@@ -13,8 +13,9 @@ const canvas = $('#view'), status = $('#status'), screen = $('#screen'), device 
 const params = new URLSearchParams(location.search);
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const coarse = matchMedia('(pointer: coarse)').matches;
-const maxRatio = Math.min(devicePixelRatio, coarse ? 1.25 : 1.5);
-const budget = new FrameBudget(maxRatio);
+// phones have dense screens: render at up to 2x and never below 1:1, or the room looks soft
+const maxRatio = Math.min(devicePixelRatio, coarse ? 2 : 1.5);
+const budget = new FrameBudget(maxRatio, maxRatio, coarse ? Math.min(devicePixelRatio, 1) : .6);
 let ratio = maxRatio, readout = '', paused = false;
 
 // look state: yaw/pitch are offsets from the home view, which frames the scene like the main experience's photo

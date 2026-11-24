@@ -209,6 +209,12 @@ Checked on 22 November 2026 in headless Chrome with **software** WebGL (SwiftSha
 
 The old room modules (`js/room.js`, `js/room-seam.js`, `js/room-detail.js` and their tests) are still in the repository, but the page no longer loads them. The notes further down about the seam, room revisions and measured frame rates describe that earlier version.
 
+### Phones, LeruOS and icons (24 November 2026)
+- **Sharper on phones.** Phones now get the 8K panorama (4K only if the GPU can't take 4096 px textures), the full-size dog sprites, and a pixel ratio of up to 2 that never drops below 1:1. Before, phones got the 4K set, half-size dogs and at most 1.25, falling to 0.6 when the frame rate dipped. In a 393 × 852 touch viewport at 3× the 3D canvas went from 491 × 1065 to 786 × 1704 pixels. This costs more download and GPU memory on phones; it has not been tried on a real phone yet.
+- **Headset intro on portrait phones.** The office photo is no longer cover-cropped to its middle quarter: the headset fills about 80% of the width, the photo's edges fade into a soft copy of itself, and the hands-and-headset photo is shown wide enough for both lenses and hands.
+- **LeruOS** opens straight to the desktop (no boot or log-on screen; Log Off still shows it). Showcase is removed. The title is "Business Analyst · Software Developer".
+- **Icons.** Emoji in LeruOS (contact links, interests, awards, Paint tools, Minesweeper, the tray and Overland Run) are replaced with SVG icons drawn for the site in `os/icons.js`. LinkedIn and GitHub use generic profile-card and code icons, not their logos.
+
 ### Asset sources and licences
 
 - `assets/workshop-3d/`: rendered from the Blender scene in `blender/`. The models and textures in that scene, with their sources and licences, are listed in `blender/README.md`.

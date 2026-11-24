@@ -9,7 +9,7 @@ window.PORTFOLIO = {
   name: "Leruo Matlhatsi",
   shortName: "Leruo",
   initials: "LM",
-  title: "Software development · IoT · Business analysis",
+  title: "Business Analyst · Software Developer",
   tagline:
     "I build software, connect it to hardware and improve the way businesses work: practical tech for real problems.",
   location: "Cape Town · Johannesburg · Remote",
@@ -34,20 +34,11 @@ window.PORTFOLIO = {
       ["Look around.", "Move your mouse (or drag on a phone) and the room shifts in 3D. Everything here is part of my world: the Land Cruiser, the cars in the garage, my three dogs, the pond, the farm, the drone and the bench."],
       ["Take a seat.", "Click the computer on the desk (or the Take a seat button) and you'll sit down at the desk."],
       ["Jump into the PC.", "Click the screen to log in to LeruOS."],
-      ["Explore the computer.", "Double-click icons on the desktop. Showcase is my gallery of highlights, Portfolio has my projects, experience and contact details, and Resume is my CV, and Overland Run is a little 4x4 game. The start button has everything too."],
+      ["Explore the computer.", "Double-click icons on the desktop. Portfolio has my projects, experience and contact details, Resume is my CV, and Overland Run is a little 4x4 game. The start button has everything too."],
       ["Head back.", "Press Esc or use Back to the workshop to stand up, and Esc again to step away from the desk."],
     ],
     tips: ["Turn the sound on for the pond, birds and cows.", "Open CV (top right) takes you straight to my CV."],
   },
-
-  /* Showcase: a gallery of moments. Drop photos into assets/gallery/ and add an entry here.
-     src paths are relative to the os/ folder. Replace the examples with your own. */
-  gallery: [
-    { src: "../assets/leruo-outdoors.jpg", title: "TODO: Your first highlight", date: "2026", text: "TODO: A line or two about what happened and why it mattered." },
-    { src: "../assets/leruo-standing.jpg", title: "TODO: 2nd place, UCT BPM project", date: "2026", text: "TODO: Add a photo from the presentation or prize-giving (sponsored by K5 Business)." },
-    { src: "../assets/leruo-headshot.jpg", title: "TODO: UCT Plus Bronze award", date: "2024", text: "TODO: Add a photo and a short caption." },
-    { src: "../assets/workshop.jpg", title: "TODO: Out on the road", date: "", text: "TODO: Swap in an overlanding or off-road trip photo." },
-  ],
 
   contact: {
     email: "leruom7@gmail.com",
@@ -63,12 +54,12 @@ window.PORTFOLIO = {
   ],
 
   interests: [
-    { icon: "🚙", title: "Off-roading & overlanding", text: "4x4s, gravel roads, rooftop tents and getting properly out into nature." },
-    { icon: "🏎️", title: "Cars", text: "From 4x4s to supercars — the engineering, the design and the sound." },
-    { icon: "🌱", title: "Agritech", text: "Where technology meets the land, and the people who work it." },
-    { icon: "🐕", title: "Dogs, animals & nature", text: "Happiest outdoors, ideally with a dog nearby." },
-    { icon: "📈", title: "Business solutions", text: "Processes, systems and the corporate side of making tech useful." },
-    { icon: "🔌", title: "Tinkering", text: "ESP32s, sensors, relays and a soldering iron on the bench." },
+    { icon: "offroad", title: "Off-roading & overlanding", text: "4x4s, gravel roads, rooftop tents and getting properly out into nature." },
+    { icon: "car", title: "Cars", text: "From 4x4s to supercars — the engineering, the design and the sound." },
+    { icon: "sprout", title: "Agritech", text: "Where technology meets the land, and the people who work it." },
+    { icon: "paw", title: "Dogs, animals & nature", text: "Happiest outdoors, ideally with a dog nearby." },
+    { icon: "chart", title: "Business solutions", text: "Processes, systems and the corporate side of making tech useful." },
+    { icon: "chip", title: "Tinkering", text: "ESP32s, sensors, relays and a soldering iron on the bench." },
   ],
 
   skills: [

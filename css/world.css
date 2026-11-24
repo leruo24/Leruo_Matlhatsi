@@ -150,3 +150,11 @@ header#top .top-actions { order: 1; }
   header#top .top-actions { gap: 5px; flex-wrap: wrap; justify-content: center; }
   header#top .top-actions .pill { padding: 6px 9px; font-size: 11.5px; white-space: nowrap; }
 }
+
+/* Portrait phones: the hands-and-headset photo is shown wide enough that both lenses and the
+   hands fit across the screen, with its top and bottom faded into the office behind it
+   (a plain cover crop showed only the strap between the lenses). */
+@media (max-aspect-ratio: 4/5) {
+  .vr-hands { inset: auto; left: 50%; top: 50%; width: 175vw; height: auto; max-width: none; object-fit: fill; translate: -50% -24%;
+    -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); }
+}

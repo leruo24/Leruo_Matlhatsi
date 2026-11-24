@@ -137,7 +137,6 @@ function ballMaterial() {
 export function createDogs({ scene, camera, renderer, onChange = () => {}, sound = null, time = 'day' }) {
   const group = new THREE.Group(); scene.add(group);
   const state = { ready: false, dogs: [], nav: null, ball: null, light: null, control: -1, axes: [0, 0] };
-  const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
   // floor brightness from the low-res panorama of the current time of day, so a dog walking out of
   // the sun (or out of the lamplight at night) dims
@@ -172,12 +171,12 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
     let pending = 0;
     for (const [name, m] of Object.entries(meta)) {
       pending++;
-      const tex = loader.load(DIR + (coarse ? m.half : m.file), () => { if (--pending === 0) { state.ready = true; onChange(); } });
+      const tex = loader.load(DIR + m.file, () => { if (--pending === 0) { state.ready = true; onChange(); } });
       tex.colorSpace = THREE.NoColorSpace; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.anisotropy = 4;
       // walking with the ball in its mouth (mouth open round it): a separate atlas
       let carryTex = null;
       if (m.carryFile) {
-        carryTex = loader.load(DIR + (coarse ? m.carryHalf : m.carryFile));
+        carryTex = loader.load(DIR + m.carryFile);
         carryTex.colorSpace = THREE.NoColorSpace; carryTex.generateMipmaps = true; carryTex.minFilter = THREE.LinearMipmapLinearFilter; carryTex.anisotropy = 4;
       }
       const mat = new THREE.ShaderMaterial({ uniforms: { tAtlas: { value: tex }, uCell: { value: new THREE.Vector4(0, 0, 1, 1) }, uDepth: { value: 0.5 }, uTint: { value: 1 } },

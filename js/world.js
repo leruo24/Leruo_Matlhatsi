@@ -45,7 +45,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: "high-performance", preserveDrawingBuffer: location.search.includes("debug") });
 const coarse = matchMedia("(pointer: coarse)").matches;
 // render scale adapts to the device: starts sensible, drops if frames get slow, climbs back if there's headroom
-const MAX_PR = Math.min(window.devicePixelRatio, coarse ? 1.25 : 1.5);
+const MAX_PR = Math.min(window.devicePixelRatio, coarse ? 2 : 1.5);
 let prScale = MAX_PR;
 renderer.setPixelRatio(prScale);
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace; // the photo is display-ready; everything is composed in display space
@@ -861,7 +861,7 @@ let sceneTime = 0;
 const cameraMotion = {cx:{x:view.cx,v:0},cy:{x:view.cy,v:0},hh:{x:view.hh,v:0}};
 const lookX={x:0,v:0},lookY={x:0,v:0};
 const drift=new THREE.Vector2(), want=new THREE.Vector2();
-const budget=new FrameBudget(MAX_PR,prScale);
+const budget=new FrameBudget(MAX_PR,prScale,coarse?Math.min(window.devicePixelRatio,1):.6);
 let lastScreenMin = -1;
 const dogs = new DogAnimator(uniforms);
 function frame() {

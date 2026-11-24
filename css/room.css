@@ -104,3 +104,11 @@ body.vr header,body.vr footer,body.vr .help-btn,body.vr .toast{opacity:0!importa
   #screen[data-kind=tablet]{width:100vw;height:100dvh;max-width:100vw;max-height:100dvh;aspect-ratio:auto;padding:34px 10px 26px;border-radius:24px}
   #screen[data-kind=tablet] #exit{top:2px;right:16px}
 }
+
+/* Portrait phones: the hands-and-headset photo is shown wide enough that both lenses and the
+   hands fit across the screen, with its top and bottom faded into the office behind it
+   (a plain cover crop showed only the strap between the lenses). */
+@media (max-aspect-ratio: 4/5) {
+  .vr-hands { inset: auto; left: 50%; top: 50%; width: 175vw; height: auto; max-width: none; object-fit: fill; translate: -50% -24%;
+    -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); }
+}
