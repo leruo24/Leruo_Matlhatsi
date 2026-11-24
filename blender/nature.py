@@ -198,16 +198,7 @@ def buildings(m, extra):
             box('Stand leg', (0.12, 0.12, 3.0), (sx * 1.0, sy * 1.0, 1.5), m['steel'], bevel=0.005, parent=tank)
     cyl('Tank', 1.35, 2.2, (0, 0, 4.1), extra['tank_green'], parent=tank)
     cyl('Tank lid', 1.4, 0.3, (0, 0, 5.35), extra['tank_green'], r2=0.4, parent=tank)
-    # farmhouse beyond the pond: timber, stone chimney, verandah, warmly lit windows
-    hx, hy = 39.0, 56.0
-    win = [(x, 1.4, 1.2, 1.4, extra['window_lit']) for x in (-5.5, -3.2, 2.5, 4.8)]
-    house = gable_building('Farmhouse', (hx, hy, _height(hx, hy)), face(hx, hy) * 0.8, 16.0, 9.0, 3.2, 2.2, extra['house_wood'], extra['roof_dark'],
-                           door=(1.2, 2.2, extra['window_lit']), windows=win)
-    box('Chimney', (1.3, 1.1, 7.2), (6.3, 1.5, 3.6), extra['stone'], bevel=0.03, parent=house)
-    box('Verandah roof', (16.5, 2.8, 0.12), (0, -5.8, 3.0), extra['roof_dark'], rot=(math.radians(8), 0, 0), bevel=0.01, parent=house)
-    for x in range(-8, 9, 2):
-        box('Verandah post', (0.15, 0.15, 2.9), (x, -7.0, 1.45), extra['house_wood'], bevel=0.01, parent=house)
-    box('Verandah deck', (16.5, 2.8, 0.25), (0, -5.8, 0.12), extra['house_wood'], bevel=0.01, parent=house)
+    # (the farmhouse beyond the pond is farm_office.farmhouse())
     # fence line across the fields (the cow pen is now outside the left window: farm_office.cow_pen)
     fence(m, [(-45, 40), (-20, 42), (6, 41), (12, 47)])
 

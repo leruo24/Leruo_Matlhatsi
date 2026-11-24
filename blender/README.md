@@ -56,6 +56,12 @@ Sixth pass (23 November 2026): a modern farm office, the farm around it, and fou
 - **Renders.** Each time of day is 16 strips at 8192 px and 6 samples, denoised: 100-110 s a strip and about 28 minutes a time of day on 2 cores. `make_pano_assets.py` writes them to `../assets/workshop-3d/<TIME>/`.
 - **Nav grid.** It now spans x −11..9 and y −3.6..17, so it covers the coop. Outside, it accepts open ground up to 1.5 m high (the yard rises), and it blocks the glass front wall explicitly.
 - **After the first look (24 November).** The cow pen moved outside the left window (`farm_office.cow_pen()`: fence, trough, bales, hay ring, lean-to) and the coop moved behind the office, off the front yard. The city moved to about 70° right at 5.5–7.5 km. The left wall's Poly Haven shelf is replaced by `farmhouse_corner()`. The frames were turned to face the room. The nav grid now spans x −16..9 and y −15.5..17, and `pen.json` covers the new pen.
+- **Second round (24 November).**
+  - `longboards()`: two shaped decks with UV-mapped bottom graphics from `gen_textures.py`.
+  - `farmhouse()`: a modern farmhouse at (25, 62), replacing the old one in `nature.buildings()`.
+  - `city()`: rewritten (setbacks, round and tapered towers, crowns, spires, mid-rise blocks, a telecom tower).
+  - A rebalanced `day` preset.
+  - Cows: a smoother spine, slimmer lower legs, darker coats and daylight sprite lighting. `COWTEST=1` renders a single test frame.
 - **Limits.**
   - The crops are shading, not plants, so they read as fields from the office but go flat close up.
   - The hens are small skin-modifier sprites, readable at the coop's distance but not up close.

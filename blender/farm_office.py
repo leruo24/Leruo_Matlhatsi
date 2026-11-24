@@ -155,6 +155,7 @@ def interior(m):
     for k, c in enumerate(((0.12, 0.18, 0.14), (0.55, 0.50, 0.42), (0.42, 0.20, 0.12))):
         box('Book stack', (0.2, 0.26, 0.035), (lx + 0.3, 0.6, 0.517 + k * 0.036), M.plain('Book', c, rough=0.7), rot=(0, 0, 0.1 * k), bevel=0.003)
     farmhouse_corner(m)
+    longboards(m)
     # a big fiddle-leaf plant in the front left corner
     import assets as AS
     AS.place('potted_plant_01', (lx + 0.5, 3.75, 0), rot_z=1.2, scale=1.25, floor=0.0, label='Corner plant (Poly Haven)')
@@ -230,6 +231,71 @@ def farmhouse_corner(m):
         for j in range(4):
             a = j / 4 * math.tau + k
             sphere('Herb', 0.035, (lx + 0.1 + math.cos(a) * 0.025, y + math.sin(a) * 0.025, 1.06), leaf, scale=(1, 1, 0.8), seg=10)
+
+
+def _deck(name, L, W, shape, graphic, grip, ply, parent):
+    """A longboard deck: the outline extruded 11 mm, grip tape on top (+y, toward the wall), the
+    printed graphic on the bottom (-y, facing the room), plywood edges. Local z runs along it."""
+    n = 40
+    def hw(t):
+        if shape == 'pintail':     # a point at the tail, widest ahead of centre, a round nose
+            return W / 2 * (math.sin(math.pi / 2 * t / 0.6) ** 0.7 if t < 0.6 else max(0.0, 1 - ((t - 0.6) / 0.4) ** 2) ** 0.5)
+        e = abs(2 * t - 1)       # symmetric drop-through: straight sides, round ends
+        return W / 2 * (1 - e ** 10) ** 0.35
+    ts = [k / n for k in range(n + 1)]
+    right = [(max(hw(t), 0.004), t * L) for t in ts]
+    outline = right + [(-x, z) for x, z in reversed(right)]
+    bm = bmesh.new()
+    back = [bm.verts.new((x, -0.0055, z)) for x, z in outline]
+    front = [bm.verts.new((x, 0.0055, z)) for x, z in outline]
+    bottom = bm.faces.new(list(reversed(back))); top = bm.faces.new(front)
+    N = len(outline)
+    sides = [bm.faces.new((back[i], back[(i + 1) % N], front[(i + 1) % N], front[i])) for i in range(N)]
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    uv = bm.loops.layers.uv.new()
+    for f in bm.faces:
+        for lp in f.loops:
+            lp[uv].uv = (lp.vert.co.x / W + 0.5, lp.vert.co.z / L)
+    bottom.material_index = 0; top.material_index = 1
+    for f in sides: f.material_index = 2
+    o = _mesh_obj(name, bm, graphic, parent)
+    o.data.materials.append(grip); o.data.materials.append(ply)
+    bv = o.modifiers.new('bevel', 'BEVEL'); bv.width = 0.0025; bv.segments = 2; bv.limit_method = 'ANGLE'
+    return o
+
+
+def _truck(parent, z, wheel_mat, m):
+    """Reverse-kingpin truck on the bottom (-y) side at height z along the deck, 70 mm wheels."""
+    t = empty('Truck', (0, 0, z), 0, parent)
+    metal = M.plain('Truck alloy', (0.55, 0.56, 0.58), rough=0.3, metal=1.0)
+    box('Baseplate', (0.065, 0.012, 0.085), (0, -0.012, 0), metal, bevel=0.003, parent=t)
+    cyl('Bushing', 0.014, 0.018, (0, -0.028, 0), M.plain('Bushing', (0.85, 0.75, 0.2), rough=0.6), rot=(math.pi / 2, 0, 0), parent=t, seg=16)
+    cyl('Kingpin', 0.004, 0.05, (0, -0.03, 0), m['steel'], rot=(math.pi / 2, 0, 0), parent=t, seg=8)
+    box('Hanger', (0.17, 0.022, 0.026), (0, -0.05, 0), metal, bevel=0.006, parent=t)
+    cyl('Axle', 0.004, 0.25, (0, -0.052, 0), m['steel'], rot=(0, math.pi / 2, 0), parent=t, seg=8)
+    for sx in (-1, 1):
+        cyl('Wheel', 0.035, 0.048, (sx * 0.1, -0.052, 0), wheel_mat, rot=(0, math.pi / 2, 0), parent=t, seg=32)
+        cyl('Wheel core', 0.016, 0.05, (sx * 0.1, -0.052, 0), m['plastic_white'], rot=(0, math.pi / 2, 0), parent=t, seg=16)
+
+
+def longboards(m):
+    """Two longboards leaning on the front wall by the glass: a stained pintail and a maple
+    drop-through, bottoms (graphics and trucks) facing the room, tails on the floor."""
+    fy = ROOM['front'] - 0.075
+    grip = M.plain('Grip tape', (0.03, 0.03, 0.03), rough=0.95)
+    ply = M.plain('Deck ply', (0.62, 0.48, 0.30), rough=0.6)
+    boards = (('Pintail longboard', -3.02, 1.02, 0.235, 'pintail', 'board_pintail.png', math.radians(13), math.radians(-4),
+               M.plain('Wheel mint', (0.55, 0.85, 0.72), rough=0.35, coat=0.3)),
+              ('Drop-through longboard', -3.42, 0.97, 0.25, 'drop', 'board_drop.png', math.radians(11), math.radians(6),
+               M.plain('Wheel cream', (0.88, 0.84, 0.72), rough=0.35, coat=0.3)))
+    for name, x, L, W, shape, tex, lean, yaw, wheel in boards:
+        g = empty(name, (x, fy - L * math.sin(lean) - 0.012, 0.0), yaw)
+        tilt = empty(name + ' tilt', (0, 0, 0), 0, g); tilt.rotation_euler = (-lean, 0, 0)
+        gm = _img_mat(name + ' graphic', os.path.join(GEN, tex), rough=0.45)
+        _deck(name + ' deck', L, W, shape, gm, grip, ply, tilt)
+        inset = 0.2 if shape == 'pintail' else 0.17
+        for z in (inset, L - inset):
+            _truck(tilt, z, wheel, m)
 
 
 # ---------------------------------------------------------------- the ESP32 bench
@@ -535,6 +601,7 @@ def farm(m, extra):
     import nature as N
     for a, b in fence_pts:
         N.fence(m, [a, b], post_gap=4.0)
+    farmhouse(m, extra)
     windpump(m, (-10.0, 46.0))
     chicken_coop(m, extra)
     cow_pen(m, extra)
@@ -548,6 +615,141 @@ def farm(m, extra):
     sx, sy = 8.0, -42.0
     shed = N.gable_building('Implement shed', (sx, sy, _height(sx, sy)), math.radians(180 + 15), 16.0, 9.0, 4.2, 1.4,
                             extra['cladding'], m['corrugated'], open_front=(13.0, 3.8), inner=extra['dark_interior'])
+
+
+def _battens(name, base):
+    """White board-and-batten: vertical battens as bump and a faint shadow line every 40 cm."""
+    m, nt, b = M._new(name)
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    w = nt.nodes.new('ShaderNodeTexWave'); w.wave_type = 'BANDS'; w.bands_direction = 'X'; w.inputs['Scale'].default_value = 2.5
+    w.wave_profile = 'SAW'
+    nt.links.new(tc.outputs['Object'], w.inputs['Vector'])
+    ramp = M._ramp(nt, [(0.0, tuple(c * 0.82 for c in base)), (0.08, base), (1.0, base)])
+    nt.links.new(w.outputs['Fac'], ramp.inputs['Fac']); nt.links.new(ramp.outputs['Color'], b.inputs['Base Color'])
+    M._set(b, rough=0.6)
+    M._bump(nt, b, w.outputs['Fac'], 0.5, 0.01)
+    return M.add_haze(m, distance=1800.0)
+
+
+def _seam_roof(name):
+    m, nt, b = M._new(name)
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    w = nt.nodes.new('ShaderNodeTexWave'); w.wave_type = 'BANDS'; w.bands_direction = 'X'; w.inputs['Scale'].default_value = 1.8
+    nt.links.new(tc.outputs['Object'], w.inputs['Vector'])
+    b.inputs['Base Color'].default_value = (0.06, 0.065, 0.07, 1)
+    M._set(b, rough=0.38, metal=0.75)
+    M._bump(nt, b, w.outputs['Fac'], 0.6, 0.015)
+    return M.add_haze(m, distance=1800.0)
+
+
+def _window_glass():
+    """Dark reflective glass that glows warm at night ('Lit window' glow, scaled per time of day)."""
+    m, nt, b = M._new('Lit window glass')
+    b.inputs['Base Color'].default_value = (0.02, 0.025, 0.03, 1)
+    M._set(b, rough=0.06, metal=0.4)
+    em = nt.nodes.new('ShaderNodeEmission'); em.name = 'Glow'; em['base_strength'] = 5.0
+    em.inputs['Color'].default_value = (1.0, 0.74, 0.45, 1); em.inputs['Strength'].default_value = 5.0
+    add = nt.nodes.new('ShaderNodeAddShader'); out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+    nt.links.new(b.outputs['BSDF'], add.inputs[0]); nt.links.new(em.outputs['Emission'], add.inputs[1])
+    nt.links.new(add.outputs[0], out.inputs['Surface'])
+    return m
+
+
+def _prism(name, w, d, h, rh, mat, parent, along='x', over=0.45):
+    """A gable roof as a solid prism: ridge along x (or y), eaves overhanging by `over`."""
+    bm = bmesh.new()
+    if along == 'x':
+        pts = [(-w / 2 - over, -d / 2 - over, h), (w / 2 + over, -d / 2 - over, h), (w / 2 + over, d / 2 + over, h), (-w / 2 - over, d / 2 + over, h),
+               (-w / 2 - over, 0, h + rh), (w / 2 + over, 0, h + rh)]
+        v = [bm.verts.new(p) for p in pts]
+        for f in ((v[0], v[1], v[5], v[4]), (v[3], v[4], v[5], v[2]), (v[0], v[4], v[3]), (v[1], v[2], v[5]), (v[0], v[3], v[2], v[1])):
+            bm.faces.new(f)
+    else:
+        pts = [(-w / 2 - over, -d / 2 - over, h), (w / 2 + over, -d / 2 - over, h), (w / 2 + over, d / 2 + over, h), (-w / 2 - over, d / 2 + over, h),
+               (0, -d / 2 - over, h + rh), (0, d / 2 + over, h + rh)]
+        v = [bm.verts.new(p) for p in pts]
+        for f in ((v[0], v[4], v[5], v[3]), (v[1], v[2], v[5], v[4]), (v[0], v[1], v[4]), (v[3], v[5], v[2]), (v[0], v[3], v[2], v[1])):
+            bm.faces.new(f)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    o = _mesh_obj(name, bm, mat, parent)
+    sol = o.modifiers.new('thick', 'SOLIDIFY'); sol.thickness = 0.12
+    return o
+
+
+def farmhouse(m, extra):
+    """A modern farmhouse beyond the pond: white board-and-batten, steep standing-seam metal roofs, a
+    gable wing with a glazed A-frame end, tall black-framed windows, a deep porch on black posts,
+    a stone chimney and plinth, solar panels, a water tank and planting. Its windows glow at night."""
+    import nature as N
+    hx, hy = 25.0, 62.0       # clear of the shade tree, seen through the right of the glass wall
+    face = math.atan2(-hx, hy)
+    g = empty('Farmhouse', (hx, hy, _height(hx, hy)), face * 0.8)
+    white = _battens('Farmhouse battens', (0.86, 0.85, 0.82))
+    roof = _seam_roof('Farmhouse roof')
+    glass = _window_glass()
+    black = M.plain('Window frame black', (0.02, 0.02, 0.02), rough=0.4, metal=0.4)
+    stone = extra['stone']; oak = m['beam']
+    # stone plinth, main block and the wing
+    box('Plinth', (15.4, 8.4, 0.55), (0, 0, 0.275), stone, bevel=0.02, parent=g)
+    box('Main walls', (15.0, 8.0, 3.3), (0, 0, 0.55 + 1.65), white, bevel=0.01, parent=g)
+    _prism('Main roof', 15.0, 8.0, 3.85, 3.2, roof, g, 'x')
+    wx, wy = 10.0, -1.6
+    box('Wing plinth', (6.4, 11.4, 0.55), (wx, wy, 0.275), stone, bevel=0.02, parent=g)
+    wing = empty('Wing', (wx, wy, 0), 0, g)
+    box('Wing walls', (6.0, 11.0, 3.1), (0, 0, 0.55 + 1.55), white, bevel=0.01, parent=wing)
+    _prism('Wing roof', 6.0, 11.0, 3.65, 2.9, roof, wing, 'y')
+    # glazed A-frame gable end on the wing, facing the office
+    fy = -5.5 - 0.02
+    bm = bmesh.new()
+    tri = [bm.verts.new(p) for p in ((-2.7, fy, 3.7), (2.7, fy, 3.7), (0, fy, 6.3))]
+    bm.faces.new(tri); _mesh_obj('Gable glass', bm, glass, wing)
+    for x in (-2.0, -0.67, 0.67, 2.0):
+        box('Gable window', (1.15, 0.05, 2.7), (x, fy, 0.55 + 1.55), glass, bevel=0, parent=wing)
+        box('Gable mullion', (0.07, 0.08, 2.8), (x - 0.61, fy - 0.01, 0.55 + 1.55), black, bevel=0, parent=wing)
+    box('Gable mullion', (0.07, 0.08, 2.8), (2.61, fy - 0.01, 0.55 + 1.55), black, bevel=0, parent=wing)
+    box('Gable transom', (5.4, 0.08, 0.08), (0, fy - 0.01, 3.65), black, bevel=0, parent=wing)
+    for k in range(1, 4):
+        x = -2.7 + k * 1.35; zt = 3.7 + (2.6 * (1 - abs(x) / 2.7))
+        box('A-frame mullion', (0.06, 0.08, zt - 3.7), (x, fy - 0.01, (3.7 + zt) / 2), black, bevel=0, parent=wing)
+    # front of the main block: tall windows, an oak door with a sidelight, porch lights
+    ffy = -4.0 - 0.02
+    for x in (-6.0, -4.2, 1.6, 3.4):
+        box('Window', (1.1, 0.05, 2.1), (x, ffy, 0.55 + 1.55), glass, bevel=0, parent=g)
+        box('Window frame', (1.24, 0.06, 2.24), (x, ffy + 0.012, 0.55 + 1.55), black, bevel=0.005, parent=g)
+        box('Window bar', (1.1, 0.07, 0.05), (x, ffy - 0.01, 0.55 + 1.85), black, bevel=0, parent=g)
+    box('Front door', (1.1, 0.06, 2.3), (-1.4, ffy, 0.55 + 1.15), oak, bevel=0.01, parent=g)
+    box('Sidelight', (0.4, 0.05, 2.3), (-0.55, ffy, 0.55 + 1.15), glass, bevel=0, parent=g)
+    for x in (-2.15, 0.15):
+        box('Porch light', (0.14, 0.14, 0.22), (x, ffy - 0.1, 0.55 + 2.35), glass, bevel=0.01, parent=g)
+    # porch: deck, black steel posts, a shed roof, steps, a bench
+    box('Porch deck', (14.6, 2.6, 0.12), (-0.2, -5.3, 0.5), oak, bevel=0.01, parent=g)
+    for x in (-7.3, -4.7, -2.1, 0.5, 3.1, 5.7):
+        box('Porch post', (0.12, 0.12, 2.65), (x, -6.45, 0.56 + 1.32), black, bevel=0.005, parent=g)
+    box('Porch beam', (14.8, 0.16, 0.2), (-0.2, -6.45, 3.25), black, bevel=0.005, parent=g)
+    box('Porch roof', (15.0, 2.9, 0.08), (-0.2, -5.35, 3.42), roof, rot=(math.radians(-7), 0, 0), bevel=0.005, parent=g)
+    for k in range(3):
+        box('Step', (1.8, 0.35, 0.16), (-1.4, -6.75 - k * 0.32, 0.42 - k * 0.15), stone, bevel=0.01, parent=g)
+    box('Porch bench', (1.6, 0.45, 0.45), (2.5, -4.6, 0.8), oak, bevel=0.02, parent=g)
+    # stone chimney through the back slope
+    box('Chimney', (1.3, 1.1, 8.4), (-5.8, 1.9, 4.2), stone, bevel=0.03, parent=g)
+    box('Chimney cap', (1.5, 1.3, 0.12), (-5.8, 1.9, 8.45), black, bevel=0.01, parent=g)
+    # solar panels on the front slope
+    panel = M.plain('Solar panel', (0.02, 0.04, 0.09), rough=0.15, metal=0.3, coat=0.8)
+    tilt = math.atan2(3.2, 4.45)
+    for r in range(2):
+        for c in range(6):
+            yy = -3.2 + r * 1.75; zz = 3.85 + (4.45 + yy) * math.tan(tilt) * 0.94 + 0.1
+            box('Solar panel', (1.0, 1.65, 0.04), (-3.2 + c * 1.08, yy + 0.4, zz), panel, rot=(-tilt, 0, 0), bevel=0.003, parent=g)
+    # a water tank by the wing and some planting
+    galv = M.plain('Galvanised tank', (0.6, 0.61, 0.62), rough=0.4, metal=0.9)
+    cyl('House tank', 1.3, 2.4, (13.9, 2.5, 1.2), galv, parent=g, seg=40)
+    cyl('Tank roof', 1.35, 0.4, (13.9, 2.5, 2.6), galv, r2=0.2, parent=g, seg=40)
+    leaf = M.plain('Shrub', (0.025, 0.065, 0.02), rough=0.85, sheen=0.2)
+    for x, sz in ((-7.6, 0.9), (-3.0, 0.7), (0.8, 0.7), (6.6, 1.0), (7.6, 0.8)):
+        sphere('Shrub', sz, (x, -7.0, sz * 0.6), leaf, scale=(1.2, 1.0, 0.8), parent=g, seg=16)
+    sphere('Shrub', 1.1, (13.0, -6.6, 0.8), leaf, scale=(1.2, 1.0, 0.9), parent=g, seg=16)
+    # gravel path from the steps
+    box('Path', (1.6, 9.0, 0.02), (-1.4, -11.7, 0.01), M.plain('Path gravel', (0.5, 0.46, 0.4), rough=0.9), bevel=0, parent=g)
 
 
 # ---------------------------------------------------------------- mountains and the city
@@ -564,7 +766,7 @@ def mountain_material():
     slope = nt.nodes.new('ShaderNodeMapRange'); slope.inputs['From Min'].default_value = 0.55; slope.inputs['From Max'].default_value = 0.85
     nt.links.new(sep.outputs['Z'], slope.inputs['Value'])
     rock = M._ramp(nt, [(0.3, (0.20, 0.18, 0.16)), (0.7, (0.42, 0.37, 0.31))]); nt.links.new(n.outputs['Fac'], rock.inputs['Fac'])
-    veld = M._ramp(nt, [(0.35, (0.10, 0.13, 0.05)), (0.5, (0.22, 0.24, 0.09)), (0.65, (0.40, 0.36, 0.17))]); nt.links.new(bush.outputs['Fac'], veld.inputs['Fac'])
+    veld = M._ramp(nt, [(0.35, (0.07, 0.10, 0.04)), (0.5, (0.16, 0.19, 0.07)), (0.65, (0.30, 0.29, 0.14))]); nt.links.new(bush.outputs['Fac'], veld.inputs['Fac'])
     mix = nt.nodes.new('ShaderNodeMix'); mix.data_type = 'RGBA'
     nt.links.new(slope.outputs['Result'], mix.inputs['Factor']); nt.links.new(rock.outputs['Color'], mix.inputs['A']); nt.links.new(veld.outputs['Color'], mix.inputs['B'])
     nt.links.new(mix.outputs['Result'], b.inputs['Base Color'])
@@ -610,56 +812,87 @@ def mountains(m):
         for p in o.data.polygons: p.use_smooth = True
 
 
-def city_material():
-    """Concrete and glass towers; lit windows (a brick pattern of random cells) that glow at night."""
-    m, nt, b = M._new('City v2')
+def _city_mat(name, a, b, lit_level=True, glass=False):
+    """Tower facade: two tones by random cell (a, b), and lit windows on a brick grid that glow at
+    night (strength set by timeofday.py through the 'City lights level' node)."""
+    m, nt, bs = M._new(name)
     tc = nt.nodes.new('ShaderNodeTexCoord')
     br = nt.nodes.new('ShaderNodeTexBrick'); br.inputs['Scale'].default_value = 1.0
-    br.inputs['Mortar Size'].default_value = 0.25; br.offset = 0.0
-    br.inputs['Brick Width'].default_value = 3.2; br.inputs['Row Height'].default_value = 3.6
+    br.inputs['Mortar Size'].default_value = 0.3; br.offset = 0.0
+    br.inputs['Brick Width'].default_value = 3.0; br.inputs['Row Height'].default_value = 3.6
     nt.links.new(tc.outputs['Object'], br.inputs['Vector'])
     rnd = nt.nodes.new('ShaderNodeTexWhiteNoise'); nt.links.new(br.outputs['Color'], rnd.inputs['Vector'])
-    lit = nt.nodes.new('ShaderNodeMath'); lit.operation = 'GREATER_THAN'; lit.inputs[1].default_value = 0.72
     sep = nt.nodes.new('ShaderNodeSeparateColor'); nt.links.new(rnd.outputs['Color'], sep.inputs['Color'])
+    lit = nt.nodes.new('ShaderNodeMath'); lit.operation = 'GREATER_THAN'; lit.inputs[1].default_value = 0.74
     nt.links.new(sep.outputs[0], lit.inputs[0])
     notm = nt.nodes.new('ShaderNodeMath'); notm.operation = 'SUBTRACT'; notm.inputs[0].default_value = 1.0
     nt.links.new(br.outputs['Fac'], notm.inputs[1])
     win = nt.nodes.new('ShaderNodeMath'); win.operation = 'MULTIPLY'
     nt.links.new(lit.outputs[0], win.inputs[0]); nt.links.new(notm.outputs[0], win.inputs[1])
+    # floor bands: mullion lines darker than the panels
     tone = nt.nodes.new('ShaderNodeMix'); tone.data_type = 'RGBA'
-    tone.inputs['A'].default_value = (0.42, 0.42, 0.44, 1); tone.inputs['B'].default_value = (0.22, 0.27, 0.32, 1)
-    nt.links.new(sep.outputs[1], tone.inputs['Factor'])
-    nt.links.new(tone.outputs['Result'], b.inputs['Base Color'])
-    M._set(b, rough=0.35, metal=0.3)
-    em = nt.nodes.new('ShaderNodeEmission'); em.name = 'City lights'; em.inputs['Color'].default_value = (1.0, 0.78, 0.5, 1)
-    em.inputs['Strength'].default_value = 0.0
-    add = nt.nodes.new('ShaderNodeAddShader')
-    out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
-    nt.links.new(b.outputs['BSDF'], add.inputs[0])
-    # strength = window mask x 'City lights' strength (set per time of day)
+    tone.inputs['A'].default_value = (*a, 1); tone.inputs['B'].default_value = (*b, 1)
+    nt.links.new(br.outputs['Fac'], tone.inputs['Factor'])
+    nt.links.new(tone.outputs['Result'], bs.inputs['Base Color'])
+    M._set(bs, rough=0.25 if glass else 0.55, metal=0.25 if glass else 0.0)
+    em = nt.nodes.new('ShaderNodeEmission'); em.inputs['Color'].default_value = (1.0, 0.80, 0.55, 1)
     sm = nt.nodes.new('ShaderNodeMath'); sm.operation = 'MULTIPLY'; sm.name = 'City lights level'; sm.inputs[1].default_value = 0.0
     nt.links.new(win.outputs[0], sm.inputs[0]); nt.links.new(sm.outputs[0], em.inputs['Strength'])
-    nt.links.new(em.outputs['Emission'], add.inputs[1])
+    add = nt.nodes.new('ShaderNodeAddShader')
+    out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+    nt.links.new(bs.outputs['BSDF'], add.inputs[0]); nt.links.new(em.outputs['Emission'], add.inputs[1])
     nt.links.new(add.outputs[0], out.inputs['Surface'])
-    return M.add_haze(m, color=(0.62, 0.66, 0.78), distance=16000.0, strength=0.25)
+    return M.add_haze(m, color=(0.62, 0.66, 0.78), distance=18000.0, strength=0.25)
 
 
 def city(m, extra):
-    """A skyline 5.5-7.5 km off to the right (through the open door), in front of a low gap in the range.
-    Generic towers (no real landmarks), a few tall ones and a telecom mast."""
-    rnd = random.Random(21)
-    mat = city_material()
-    for i in range(95):
-        az = math.radians(rnd.gauss(70, 4.5)); r = rnd.uniform(5600, 7400)
-        w = rnd.uniform(25, 60); d = w * rnd.uniform(0.7, 1.3)
-        tall = rnd.random() < 0.18
-        h = (rnd.uniform(170, 320) if tall else rnd.uniform(40, 140)) * (1.0 - 0.4 * min(1.0, abs(math.degrees(az) - 70) / 16))
-        x, y = math.sin(az) * r, math.cos(az) * r
-        o = box('Tower', (w, d, h), (x, y, h / 2 - 5), mat, rot=(0, 0, rnd.uniform(0, math.pi)), bevel=0)
-        if tall and rnd.random() < 0.6:
-            box('Tower crown', (w * 0.7, d * 0.7, h * 0.12), (x, y, h + h * 0.06 - 5), mat, rot=o.rotation_euler, bevel=0)
-    a = math.radians(72); r = 6500
-    cyl('Telecom mast', 9, 300, (math.sin(a) * r, math.cos(a) * r, 145), mat, seg=12)
-    cyl('Mast head', 16, 26, (math.sin(a) * r, math.cos(a) * r, 290), mat, seg=12)
+    """A generic skyline 4.8-6.8 km off to the right (through the open door), in front of a low gap in
+    the range: a dense core of glass and concrete towers with setbacks, round and tapered towers,
+    crowns and spires, mid-rise blocks around it, and a telecom tower. No real landmarks."""
+    rnd = random.Random(23)
+    mats = [_city_mat('City glass blue', (0.10, 0.16, 0.22), (0.05, 0.07, 0.09), glass=True),
+            _city_mat('City glass grey', (0.30, 0.32, 0.34), (0.12, 0.13, 0.14), glass=True),
+            _city_mat('City concrete', (0.58, 0.55, 0.50), (0.30, 0.28, 0.26)),
+            _city_mat('City stone', (0.70, 0.66, 0.58), (0.38, 0.35, 0.30)),
+            _city_mat('City dark glass', (0.03, 0.04, 0.05), (0.01, 0.01, 0.015), glass=True)]
+    spire = M.plain('City spire', (0.6, 0.6, 0.62), rough=0.3, metal=1.0)
+    def place(az, r):
+        a = math.radians(az); return math.sin(a) * r, math.cos(a) * r
+    # mid-rise and low-rise blocks spreading out from the core
+    for i in range(170):
+        az = rnd.gauss(70, 7); r = rnd.uniform(4600, 7200)
+        x, y = place(az, r); w = rnd.uniform(25, 70); h = rnd.uniform(15, 70)
+        box('Block', (w, w * rnd.uniform(0.6, 1.4), h), (x, y, h / 2 - 8), rnd.choice(mats[2:4] + mats[1:2]), rot=(0, 0, rnd.uniform(0, math.pi)), bevel=0)
+    # the core: towers with setbacks, round and tapered ones
+    for i in range(70):
+        az = rnd.gauss(70, 3.2); r = rnd.uniform(5000, 6600)
+        x, y = place(az, r)
+        core = math.exp(-((az - 70) / 3.5) ** 2)
+        h = rnd.uniform(80, 150) + core * rnd.uniform(60, 200)
+        w = rnd.uniform(28, 55); mat = rnd.choice(mats); rot = rnd.uniform(0, math.pi)
+        kind = rnd.random()
+        if kind < 0.18:                                         # round tower
+            cyl('Round tower', w / 2, h, (x, y, h / 2 - 8), mat, seg=20)
+            cyl('Round crown', w / 2 * 0.8, h * 0.06, (x, y, h - 8 + h * 0.03), mats[4], seg=20)
+        elif kind < 0.3:                                        # tapered tower
+            cyl('Tapered tower', w * 0.62, h, (x, y, h / 2 - 8), mat, r2=w * 0.28, seg=4)
+        else:                                                   # box with one or two setbacks
+            levels = rnd.choice((1, 2, 2, 3)); z = -8.0; ww, dd = w, w * rnd.uniform(0.7, 1.2)
+            for k in range(levels):
+                hh = h * (0.62 if k == 0 and levels > 1 else 0.6 if k else 1.0) if levels > 1 else h
+                if k == levels - 1: hh = max(20.0, h - (z + 8))
+                box('Tower', (ww, dd, hh), (x, y, z + hh / 2), mat, rot=(0, 0, rot), bevel=0)
+                z += hh; ww *= 0.72; dd *= 0.72
+            if rnd.random() < 0.4:
+                box('Crown', (ww * 0.9, dd * 0.9, 10), (x, y, z + 5), mats[4], rot=(0, 0, rot), bevel=0)
+                z += 10
+            if rnd.random() < 0.35:
+                cyl('Spire', 1.2, rnd.uniform(25, 60), (x, y, z + 20), spire, r2=0.3, seg=8)
+    # a telecom tower: a tapering shaft with a pod near the top
+    x, y = place(73.5, 5600)
+    cyl('Telecom shaft', 11, 260, (x, y, 122), mats[2], r2=6, seg=16)
+    cyl('Telecom pod', 19, 22, (x, y, 225), mats[2], seg=20)
+    cyl('Telecom pod 2', 15, 10, (x, y, 242), mats[4], seg=20)
+    cyl('Telecom mast', 2, 50, (x, y, 272), spire, r2=0.6, seg=8)
     red = M.emission('City beacon', (1.0, 0.1, 0.05), 0.0)
-    sphere('Mast beacon', 4.0, (math.sin(a) * r, math.cos(a) * r, 322), red, seg=8)
+    sphere('Mast beacon', 4.0, (x, y, 298), red, seg=8)

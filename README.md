@@ -23,9 +23,13 @@ No build step. It runs on GitHub Pages as static files. Generated imagery is inc
 ## Put it online (GitHub Pages)
 Repo: `leruo24/Leruo_Matlhatsi` → **https://leruo24.github.io/Leruo_Matlhatsi/**
 
-1. Commit and push changes to the repository without replacing its history.
-2. In **Settings → Pages**, select **Deploy from a branch → `main` / `(root)`** if Pages is not already configured.
-3. Merge a reviewed feature branch into `main` to publish through the existing configuration.
+The repository is public and ready to serve as it is: plain static files, relative paths only (so it works under `/Leruo_Matlhatsi/`), three.js vendored in `vendor/` (no CDN), a `.nojekyll` file so GitHub serves every folder untouched, and a `404.html`. Asset paths are checked for exact upper/lower case, because GitHub Pages is case-sensitive and Windows is not.
+
+1. Push to `main` (already done for the current version).
+2. On GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main`, folder `/ (root)` → Save.** Pages is not switched on yet; this is the one step that has to be done on the website.
+3. After a minute or two the site is live at the address above. The 3D page is at `…/Leruo_Matlhatsi/look-around.html`. Each later push to `main` republishes it automatically.
+
+The first visit downloads about 6–9 MB for the 3D page (one time-of-day panorama set, the depth map and the animal sprites). Browsers cache it afterwards.
 
 ## Run it locally (VS Code terminal)
 The site uses JavaScript modules, so it has to be served over http, not opened as a file. From the repo folder, run either:
@@ -105,6 +109,33 @@ Since 22 November 2026 the page shows a 360° render of the Blender scene in `bl
   - On the phone the tablet opens portrait (374 × 565).
   - There were no page errors or failed requests, and the 40 unit tests pass.
   - Not yet checked on a real GPU or a real phone. Each time set is about 2.4–2.9 MB at 8K, and only one set loads per visit.
+
+**24 November 2026, second round:**
+- **Longboards.** The flat teal plank is replaced by two proper longboards leaning by the glass (`farm_office.longboards()`): a stained pintail and a maple drop-through, each with a shaped deck, grip tape, a printed bottom graphic (plain shapes, no brands), reverse-kingpin trucks and 70 mm wheels.
+- **Afternoon.** It was washed out. Now it has a lower sun and sky strength, much less haze, a bluer haze colour, softer cloud highlights, darker veld on the mountains and a little less exposure.
+- **City.** A denser, generic skyline 4.8–7 km off to the right:
+  - glass, concrete and stone towers with setbacks;
+  - round and tapered towers, crowns and spires;
+  - mid-rise blocks around the core;
+  - a telecom tower with a pod and a beacon.
+- **Farmhouse.** A modern farmhouse, moved out from behind the shade tree so it shows through the right of the glass wall (`farm_office.farmhouse()`):
+  - white board-and-batten walls, steep standing-seam roofs, and a gable wing with a glazed A-frame end;
+  - tall black-framed windows that glow at night, and a deep porch on black posts;
+  - a stone plinth and chimney, solar panels, a water tank and shrubs.
+- **Cows.** A smoother spine, so the body reads as one barrel instead of lumps, plus slimmer lower legs, darker and less shiny coats, and outdoor daylight in the sprite renders.
+- **Phones.**
+  - The header is the label with the time chip under it, and the back link is a small "← Home".
+  - The look pad is hidden (drag to look).
+  - Narrow screens also get **Open tablet**, and the tablet fills the whole phone screen.
+  - On desktop it is a little taller (97% of the window).
+  - Fixed a slip from the previous round: the tablet's home screen showed through its lock screen.
+- **Content.** The tablet and the computer were updated from the CV:
+  - experience: Business Analyst Consultant with dates and clients, Faculty Orientation Leader, Brand Promoter, Bartender, Residence Mentor;
+  - education: dates, plus matric at Jeppe High School for Boys;
+  - awards: Top 13 finalist, Discovery GradHack 2026;
+  - skills: Node.js, REST APIs, bpmn.io, Draw.io, EER modelling, Git/GitHub, plus spoken languages.
+  - Phone numbers, the home address, ID and referee contacts are left out on purpose, because the site is public.
+- **Hosting.** `.nojekyll` and `404.html` were added, and asset paths were checked for exact case (see "Put it online").
 
 How it's built (`js/pano-view.js`, `js/look-around.js`):
 - **One eye, turning only.** The 360° image is rendered in Blender from the same eye as the photo-matched camera. The page shows it on a sphere around the camera. The camera only turns, so anything placed at its real position in the scene lines up with the render exactly.

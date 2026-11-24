@@ -286,8 +286,10 @@ function openDevice(kind) {
   rotateTo(aim, f.fov, show);
 }
 // on a phone the tablet is the way in; on a computer, the PC
-const primary = coarse ? 'tablet' : 'pc';
-$('#pc').textContent = coarse ? 'Open tablet' : 'Enter computer';
+// phones (touch or a narrow screen) get the tablet; desktops get the computer
+const phone = coarse || matchMedia('(max-width: 650px)').matches;
+const primary = phone ? 'tablet' : 'pc';
+$('#pc').textContent = phone ? 'Open tablet' : 'Enter computer';
 $('#pc').onclick = () => openDevice(primary);
 addEventListener('message', (e) => { if (e.data?.type === 'tablet' && e.data.action === 'exit' && screen.open) screen.close(); });
 

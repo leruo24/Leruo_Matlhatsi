@@ -329,13 +329,7 @@ def wall_items(m):
             dec = bpy.context.object; dec.name = f'Emblem {i}'; dec.parent = cap
             dec.location = (0, -0.087, 0.012); dec.rotation_euler = (math.radians(80), 0, 0)
             dec.data.materials.append(__import__('materials').image(f'Emblem {i}', path, rough=0.7))
-    # longboard leaning against the wall
-    lb = empty('Longboard', (-2.95, fy - 0.2, 0), 0)
-    deck = box('Deck', (0.24, 0.012, 0.98), (0, 0.1, 0.52), m['teal'], rot=(math.radians(-12), 0, 0), bevel=0.01, parent=lb)
-    for z in (0.18, 0.86):
-        box('Truck', (0.18, 0.04, 0.03), (0, 0.06 + (z - 0.5) * 0.2, z), m['steel'], rot=(math.radians(-12), 0, 0), parent=lb)
-        for sx in (-1, 1):
-            cyl('Wheel', 0.035, 0.045, (sx * 0.1, 0.03 + (z - 0.5) * 0.2, z), m['plastic_white'], rot=(0, math.pi / 2, 0), parent=lb)
+    # (the two longboards leaning here are farm_office.longboards())
     # (the left wall's shelf is farm_office.farmhouse_corner())
 
 

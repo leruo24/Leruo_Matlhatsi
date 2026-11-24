@@ -25,7 +25,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--holo);outline-offse
 .lock-hint{font-size:12px;color:#7a8087;margin:0}
 
 /* home screen */
-#home{padding:clamp(12px,2.6vh,22px) clamp(14px,4vw,28px);overflow:hidden;display:flex;flex-direction:column;min-height:0}
+#home{padding:clamp(12px,2.6vh,22px) clamp(14px,4vw,28px);overflow:hidden;min-height:0}
 *{scrollbar-width:none}*::-webkit-scrollbar{display:none}
 .search-bar{display:flex;align-items:center;gap:10px;width:min(360px,60%);padding:8px 12px;border-bottom:2px solid #ffffff40;color:#cfd3d8;font-size:15px}
 .search-glyph{width:14px;height:14px;border:2px solid #cfd3d8;border-radius:50%;position:relative}

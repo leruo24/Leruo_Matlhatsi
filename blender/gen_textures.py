@@ -51,3 +51,27 @@ for i, (a, b) in enumerate(zip(left, right)):
 d.text((W / 2, 985), 'soil probe -> 34   DHT22 -> 4   relay -> 26', font=font(SANS, 24), fill=(60, 110, 60), anchor='mm')
 im.save(os.path.join(OUT, 'pinout.png'))
 print('wrote', os.listdir(OUT))
+
+# longboard bottoms (u across the deck, v along it): plain shapes, no text or brand marks
+import random as _r
+def _grain(w, h, base, dark, seed):
+    rnd = _r.Random(seed); im = Image.new('RGB', (w, h), base); d = ImageDraw.Draw(im)
+    for k in range(140):
+        x = rnd.uniform(0, w); c = tuple(int(b + (dk - b) * rnd.uniform(0.2, 0.7)) for b, dk in zip(base, dark))
+        pts = [(x + 6 * __import__('math').sin(y / rnd.uniform(60, 140) + k), y) for y in range(0, h + 8, 8)]
+        d.line(pts, fill=c, width=rnd.choice((1, 1, 2)))
+    return im, d
+W, H = 256, 1024
+im, d = _grain(W, H, (92, 58, 34), (52, 30, 16), 3)                       # stained pintail
+for k, (c, off) in enumerate((((24, 120, 112), 0), ((235, 232, 220), 46), ((24, 120, 112), 92))):
+    d.polygon([(0, 380 + off), (W, 300 + off), (W, 330 + off), (0, 410 + off)], fill=c)
+im.save(os.path.join(OUT, 'board_pintail.png'))
+im, d = _grain(W, H, (206, 170, 120), (160, 122, 78), 7)                  # maple drop-through
+for r in range(110, 0, -2):                                               # sunset disc
+    t = r / 110; d.ellipse((W / 2 - r, 560 - r, W / 2 + r, 560 + r), fill=(int(240 - 40 * t), int(150 - 70 * t), int(70 - 20 * t)))
+d.polygon([(0, 640), (50, 560), (95, 610), (140, 530), (190, 600), (W, 570), (W, 700), (0, 700)], fill=(38, 48, 40))
+d.rectangle((0, 700, W, 712), fill=(38, 48, 40))
+for y in (240, 252, 780, 792):
+    d.rectangle((24, y, W - 24, y + 4), fill=(40, 40, 40))
+im.save(os.path.join(OUT, 'board_drop.png'))
+print('boards done')

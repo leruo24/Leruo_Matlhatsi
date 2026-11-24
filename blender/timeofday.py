@@ -17,10 +17,10 @@ PRESETS = {
                     haze=(0.80, 0.74, 0.84), haze_k=1.2, exposure=-0.35, interior=0.6, windows=0.6, city=0.12,
                     bounce=(420.0, (1.0, 0.75, 0.6)), fill=1.2),
     # early afternoon: high sun a little left of the front, blue sky, white clouds, lamps off
-    'day': dict(sky_el=50.0, az=-35.0, lamp_el=50.0, energy=4.2, color=(1.0, 0.96, 0.90), sky=1.0, sun_int=1.0,
-                clouds=((0.62, 0.66, 0.74), (1.5, 1.5, 1.5)), cover=(0.55, 0.78), night=0.0,
-                haze=(0.70, 0.78, 0.92), haze_k=1.6, exposure=-1.45, interior=0.0, windows=0.0, city=0.0,
-                bounce=(520.0, (1.0, 0.95, 0.88)), fill=1.4),
+    'day': dict(sky_el=48.0, az=-35.0, lamp_el=48.0, energy=3.0, color=(1.0, 0.95, 0.88), sky=0.7, sun_int=0.8,
+                clouds=((0.50, 0.55, 0.64), (1.15, 1.15, 1.15)), cover=(0.55, 0.78), night=0.0,
+                haze=(0.52, 0.64, 0.84), haze_k=0.6, exposure=-1.4, interior=0.0, windows=0.0, city=0.0,
+                bounce=(420.0, (1.0, 0.95, 0.88)), fill=1.3),
     # golden hour (the original look, matched to the approved photo)
     'sunset': dict(sky_el=2.0, az=-28.0, lamp_el=14.0, energy=9.0, color=(1.0, 0.62, 0.34), sky=0.3, sun_int=0.7,
                    clouds=((0.60, 0.26, 0.20), (1.8, 0.80, 0.38)), cover=(0.46, 0.70), night=0.0,
