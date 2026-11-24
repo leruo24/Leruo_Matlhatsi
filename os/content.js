@@ -85,7 +85,7 @@ window.PORTFOLIO = {
     // Discovery — add later
     {
       role: "Business Analyst Consultant",
-      org: "Recce Finance · Remote",
+      org: "Remote",
       dates: "Nov 2025 – present",
       points: [
         "Gathering client requirements, analysing processes and translating stakeholder needs into system requirements and digital solution recommendations.",
