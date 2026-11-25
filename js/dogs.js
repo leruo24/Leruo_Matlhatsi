@@ -15,6 +15,11 @@ import * as THREE from 'three';
 export const EYE_H = 1.6;
 const DIR = 'assets/workshop-3d/';
 export const toThree = (x, y, z = 0, out = new THREE.Vector3()) => out.set(x, z - EYE_H, -y);
+/** Where the animals are being watched from. The 360 view watches from the camera at the origin; the walk and
+ *  fly views move it (x, y on the floor; target is the camera in world space; lift is how far the animals'
+ *  group is raised, since sprite positions here are relative to the 360 camera's eye). */
+export const VIEW = { x: 0, y: 0, target: new THREE.Vector3(), lift: 0 };
+const _depth = (v, camera) => { v.y += VIEW.lift; return v.project(camera); };
 
 // where the dogs start: their places in the approved photo (Blender floor coordinates, heading deg)
 const START = { golden: [-2.25, 3.95, -110], retriever: [-2.05, 3.45, -55], terrier: [-1.75, 3.1, -100] };
@@ -381,7 +386,7 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
     if (walking) d.phase = (d.phase + d.moved / (m.stride / 0.62)) % 1;
     else d.idle = (d.idle + dt * (reduced ? 0 : 0.9)) % 1;
     const holding = !!(d.carryTex && state.ball && state.ball.mode === 'held' && state.ball.holder === d);
-    const row = spriteHeading(d.x, d.y, d.heading, m.headings);
+    const row = spriteHeading(d.x - VIEW.x, d.y - VIEW.y, d.heading, m.headings);
     const dv = 1 / m.rows;
     if (holding) {
       // the carry walk; standing still with the ball, it holds the first frame
@@ -395,12 +400,12 @@ export function createDogs({ scene, camera, renderer, onChange = () => {}, sound
     }
     const gz = state.nav.groundAt(d.x, d.y);
     toThree(d.x, d.y, gz, mesh.position);
-    mesh.lookAt(0, 0, 0);
+    mesh.lookAt(VIEW.target);
     mesh.translateY((m.groundY - 0.5) * m.size);
     // one depth for the whole dog: a point just in front of it, so furniture nearer than the dog
     // hides it and the floor behind its feet does not
-    const len = Math.hypot(d.x, d.y) || 1;
-    toThree(d.x - d.x / len * 0.3, d.y - d.y / len * 0.3, gz + 0.3 * m.size, _v).project(camera);
+    const ox = d.x - VIEW.x, oy = d.y - VIEW.y, len = Math.hypot(ox, oy) || 1;
+    _depth(toThree(d.x - ox / len * 0.3, d.y - oy / len * 0.3, gz + 0.3 * m.size, _v), camera);
     mesh.material.uniforms.uDepth.value = Math.min(1, Math.max(0, _v.z * 0.5 + 0.5));
     const lum = state.refLum ? lumAt(d.x, d.y) / state.refLum : 1;
     mesh.material.uniforms.uTint.value = Math.max(0.3, Math.min(1.05, Math.pow(lum, 0.5)));

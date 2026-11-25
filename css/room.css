@@ -141,3 +141,8 @@ body.touch.world #w-hint{bottom:auto;top:118px;font-size:12px}
 body.world #view{cursor:crosshair}
 @media(max-width:650px){.modes{margin:8px 0 0;display:flex;width:max-content}.modes button{padding:7px 11px;font-size:12px}}
 @media(max-width:650px){header{flex-wrap:wrap;row-gap:4px}}
+/* a small aim dot while looking with the mouse in Walk; it turns into a ring over a screen you can use */
+body.world #view:focus::after{content:none}
+#w-ui::before{content:"";position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 0 0 1px rgba(0,0,0,.35);display:none}
+body.world.locked #w-ui::before{display:block}
+body.world.locked.aiming #w-ui::before{width:18px;height:18px;margin:-9px 0 0 -9px;background:transparent;border:2px solid #e8f0dc}

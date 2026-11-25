@@ -38,11 +38,13 @@ export function createWorld3D({ renderer, onChange = () => {} }) {
   scene.add(sun, sun.target);
   const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8); scene.add(hemi);
   // distance haze, and land beyond the modelled ground so the horizon never shows a gap
-  scene.fog = new THREE.FogExp2(0xbfd0e2, 0.00028);
+  scene.fog = new THREE.FogExp2(0xbfd0e2, 0.00011);   // light enough that the city still shows 5-7 km out
   const farLand = new THREE.Mesh(new THREE.CircleGeometry(30000, 48).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x3d4a2a }));
   farLand.position.y = -1.2; farLand.receiveShadow = false; scene.add(farLand);
   const lamps = LAMPS.map(([x, y, z]) => { const l = new THREE.PointLight(0xffcc94, 0, 9, 1.6); l.position.copy(toThree(x, y, z)); scene.add(l); return l; });
-  const glows = [];   // emissive materials (lamp shades, lit windows, city lights) scaled with the time of day
+  const glows = [];
+  const roofs = [];     // the office and garage roofs, lifted off in the superhero view so you can see inside
+  const devices = [];   // the live screens (monitor, laptop, tablet), shared with the 360 view   // emissive materials (lamp shades, lit windows, city lights) scaled with the time of day
   const pmrem = new THREE.PMREMGenerator(renderer);
   let envRT = null, nav = null;
 
@@ -82,6 +84,8 @@ export function createWorld3D({ renderer, onChange = () => {} }) {
           const kind = /^int /.test(n) ? 'lamp' : /city/.test(n) ? 'city' : 'window';
           glows.push({ m, base: m.emissiveIntensity || 1, kind });
         }
+        if (m.map && /leaf|leaves|twig/.test(n)) { m.alphaTest = 0.45; m.transparent = false; m.side = THREE.DoubleSide; o.castShadow = true; }
+        if (/\[roof\]/.test(n)) roofs.push(o);
         if (/water/.test(n)) { m.roughness = 0.12; m.metalness = 0; m.envMapIntensity = 0.35; }
         if (/mountain|city/.test(n)) o.castShadow = false;
         if (m.map) m.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -125,7 +129,35 @@ export function createWorld3D({ renderer, onChange = () => {} }) {
       shadowArea(140);
     }
     state.vel.set(0, 0, 0);
+    roofs.forEach((r) => { r.visible = mode !== 'fly'; });
     onChange();
+  }
+
+  /** The 360 view's live screens: same canvases (clock, lock screens), drawn on the model's monitor, laptop and
+   *  tablet. Their quads are relative to the 360 camera's eye, so they're raised by its height. */
+  const SCREEN_VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+  const SCREEN_FRAG = 'precision highp float; uniform sampler2D t; uniform float uGlow; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(t, vUv).rgb * uGlow, 1.0); }';
+  function addScreens(list) {
+    if (devices.length) return;
+    const room = new THREE.Vector3(0, EYE, 0);
+    for (const src of list) {
+      const geo = src.geometry.clone(); geo.translate(0, EYE, 0);
+      const p = geo.attributes.position, a = new THREE.Vector3().fromBufferAttribute(p, 0), b = new THREE.Vector3().fromBufferAttribute(p, 1), c = new THREE.Vector3().fromBufferAttribute(p, 2);
+      const nrm = new THREE.Triangle(a, b, c).getNormal(new THREE.Vector3());
+      const mid = a.clone().add(c).multiplyScalar(0.5);
+      if (nrm.dot(room.clone().sub(mid)) < 0) nrm.negate();
+      geo.translate(nrm.x * 0.006, nrm.y * 0.006, nrm.z * 0.006);   // just in front of the model's screen
+      const mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({ uniforms: { t: { value: src.material.uniforms.tScreen.value }, uGlow: { value: 1 } },
+        vertexShader: SCREEN_VERT, fragmentShader: SCREEN_FRAG, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 }));
+      mesh.userData.device = src.userData.device; scene.add(mesh); devices.push(mesh);
+    }
+  }
+  const ray = new THREE.Raycaster(); ray.far = 3.2;
+  /** the device under a screen point (normalised -1..1), if it's within reach */
+  function pick(x = 0, y = 0) {
+    if (!devices.length || state.mode !== 'walk') return null;
+    ray.setFromCamera(new THREE.Vector2(x, y), camera);
+    return ray.intersectObjects(devices)[0]?.object.userData.device || null;
   }
   function shadowArea(r) {
     const c = sun.shadow.camera; c.left = -r; c.right = r; c.top = r; c.bottom = -r; c.near = 1; c.far = 900; c.updateProjectionMatrix();
@@ -208,6 +240,6 @@ export function createWorld3D({ renderer, onChange = () => {} }) {
   }
   function resize(w, h) { camera.aspect = w / h; camera.updateProjectionMatrix(); }
 
-  return { state, input, load, enter, exit, setTime, update, render, resize, key, look, camera, scene,
+  return { state, input, load, enter, exit, setTime, update, render, resize, key, look, camera, scene, addScreens, pick,
     get active() { return !!state.mode && state.loaded; } };
 }

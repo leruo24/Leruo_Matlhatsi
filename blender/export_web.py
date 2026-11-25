@@ -30,8 +30,27 @@ for n in DOG_ROOTS:
 for o in bpy.data.objects:
     if o.name.endswith('(cow)') or o.type in ('CURVES', 'LIGHT', 'CAMERA') or o.hide_render:
         tree(o)
+# cut the window openings for real first: the cutters are hidden helpers, and removing them would leave the
+# walls solid (and the car bodies without their window holes)
+dg0 = bpy.context.evaluated_depsgraph_get()
+for o in list(bpy.data.objects):
+    if o.type == 'MESH' and any(m.type == 'BOOLEAN' for m in o.modifiers) and o not in drop:
+        mesh = bpy.data.meshes.new_from_object(o.evaluated_get(dg0), preserve_all_data_layers=True, depsgraph=dg0)
+        o.modifiers.clear(); o.data = mesh
 for o in drop:
     bpy.data.objects.remove(o, do_unlink=True)
+
+# roofs of the office and garage get their own material copies (suffix [roof]) so the page can lift them
+# off in the superhero view and you can look inside
+ROOFS = ('Roof sheet', 'Roof', 'Ceiling boards')
+for o in bpy.data.objects:
+    if o.type == 'MESH' and o.name in ROOFS:
+        for slot in o.material_slots:
+            if slot.material and not slot.material.name.endswith('[roof]'):
+                slot.material = slot.material.copy(); slot.material.name = slot.material.name.rstrip('.0123456789') + ' [roof]'
+                for n in slot.material.node_tree.nodes:   # a hair different, so glTF-Transform does not merge it back
+                    if n.type == 'BSDF_PRINCIPLED' and not n.inputs['Roughness'].is_linked:
+                        n.inputs['Roughness'].default_value = min(1.0, n.inputs['Roughness'].default_value + 0.0137)
 
 # instanced pieces (the windpump tower's braces and legs) become real objects
 bpy.ops.object.select_all(action='DESELECT')

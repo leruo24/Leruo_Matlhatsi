@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createPanoView, homeView, PANO, PANO_DIR, TIMES, LIGHT, timeOfDay } from './pano-view.js';
-import { createDogs } from './dogs.js';
+import { createDogs, VIEW, EYE_H } from './dogs.js';
 import { createCows } from './cows.js';
 import { createChickens } from './chickens.js';
 import { createIntro } from './vr-intro.js';
@@ -23,7 +23,7 @@ let ratio = maxRatio, readout = '', paused = false;
 // look state: yaw/pitch are offsets from the home view, which frames the scene like the main experience's photo
 const yaw = { x: 0, v: 0 }, pitch = { x: 0, v: 0 };
 let yawTarget = 0, pitchTarget = 0, drag = null, transition = null, zoom = null;
-let renderer, scene, camera, pano, dogs, cows, chickens, world = null, home = { pitch: 0, yaw: 0, fov: 50 };
+let renderer, scene, camera, pano, dogs, cows, chickens, world = null, wAnimals = null, home = { pitch: 0, yaw: 0, fov: 50 };
 // barks only (the main experience's full soundscape is tuned to the photo): the same CC0 recordings,
 // loaded on the first click, panned to where the dog is; silent while sound is muted
 const sound = {
@@ -91,7 +91,16 @@ function draw(dt, elapsed) {
   if (renderer) {
     const next = budget.sample(elapsed);
     if (Math.abs(next - ratio) > .001) { ratio = next; renderer.setPixelRatio(ratio); renderer.setSize(innerWidth, innerHeight); }
-    if (world?.active) { renderer.info.reset(); world.update(dt); worldNearby(); world.render(); reportPerf(elapsed); return true; }
+    if (world?.active) {
+      renderer.info.reset(); world.update(dt);
+      // the animals and screens follow you: watched from the walk/fly camera, not the 360 camera
+      VIEW.x = world.state.pos.x; VIEW.y = world.state.pos.y; VIEW.target.copy(world.camera.position); VIEW.lift = EYE_H;
+      const live = animating() ? dt : 0;
+      pano?.update(live, reduced.matches);
+      wAnimals?.dogs.update(live, reduced.matches, true); wAnimals?.cows.update(live, reduced.matches, true); wAnimals?.chickens.update(live, reduced.matches, true);
+      worldNearby(); world.render(); reportPerf(elapsed); return true;
+    }
+    if (VIEW.lift) { VIEW.x = VIEW.y = VIEW.lift = 0; VIEW.target.set(0, 0, 0); }
     if (transition) {
       transition.time += Math.min(elapsed, 0.25);   // real time, so a slow device still finishes in about a second
       const t = reduced.matches ? 1 : Math.min(1, transition.time / .9), e = t * t * (3 - 2 * t);
@@ -191,6 +200,7 @@ function applyTime() {
   if (pano) { pano.setTime(t); dogs?.setTime(t); cows?.setLight(LIGHT[t].sprite); chickens?.setLight(LIGHT[t].sprite); }
   if (farmSound) farmSound.timeOfDay = t;
   if (world?.state.loaded) world.setTime(t); else if (world) world.state.time = t;
+  if (wAnimals) { wAnimals.dogs.setTime(t); wAnimals.cows.setLight(LIGHT[t].sprite); wAnimals.chickens.setLight(LIGHT[t].sprite); }
   chipText();
   document.body.dataset.time = t; wake();
 }
@@ -498,7 +508,13 @@ async function setView(mode) {
   if (!world.state.loaded) {
     wLoad.hidden = false; wHint.hidden = true;
     try {
-      await world.load((f) => { $('#w-load b').textContent = Math.round(f * 100) + '%'; $('#w-load i').style.width = (f * 100) + '%'; });
+      await world.load((f) => { f = Math.min(0.99, Math.max(0, f)); $('#w-load b').textContent = Math.round(f * 100) + '%'; $('#w-load i').style.width = (f * 100) + '%'; });
+      if (pano?.devices.length) world.addScreens(pano.devices);
+      // the dogs, cows and hens get their own copies in the 3D farm (same sprite sheets, already cached)
+      const g = new THREE.Group(); g.position.y = EYE_H; world.scene.add(g);
+      const t = currentTime();
+      wAnimals = { dogs: createDogs({ scene: g, camera: world.camera, renderer, onChange: wake, sound, time: t }), cows: createCows({ scene: g, camera: world.camera, onChange: wake }), chickens: createChickens({ scene: g, camera: world.camera, onChange: wake }) };
+      wAnimals.cows.setLight(LIGHT[t].sprite); wAnimals.chickens.setLight(LIGHT[t].sprite);
     } catch (err) {
       console.warn('3D farm failed to load', err); wLoad.hidden = true; say('The 3D farm could not load. Staying in the 360 view.'); setView('hd'); return;
     }
@@ -517,8 +533,11 @@ document.querySelectorAll('.modes button').forEach((b) => { b.onclick = () => se
 // looking: pointer lock with a mouse (click the view), dragging with touch
 canvas.addEventListener('pointerdown', (e) => {
   if (!world?.state.mode) return;
-  if (e.pointerType === 'mouse') { if (!document.pointerLockElement) canvas.requestPointerLock?.(); return; }
-  wDrag = { id: e.pointerId, x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId);
+  if (e.pointerType === 'mouse') {
+    if (document.pointerLockElement === canvas && aimed) { document.exitPointerLock(); openDevice(aimed); return; }
+    if (!document.pointerLockElement) canvas.requestPointerLock?.(); return;
+  }
+  wDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }; canvas.setPointerCapture(e.pointerId);
 });
 let wDrag = null;
 canvas.addEventListener('pointermove', (e) => {
@@ -526,7 +545,14 @@ canvas.addEventListener('pointermove', (e) => {
   if (document.pointerLockElement === canvas) { world.look(e.movementX * 0.0022, e.movementY * 0.0022); return; }
   if (wDrag?.id === e.pointerId) { world.look((e.clientX - wDrag.x) * 0.005, (e.clientY - wDrag.y) * 0.005); wDrag.x = e.clientX; wDrag.y = e.clientY; }
 });
-for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, (e) => { if (wDrag?.id === e.pointerId) wDrag = null; });
+for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, (e) => {
+  if (wDrag?.id !== e.pointerId) return;
+  // a tap (not a drag) on a screen within reach opens it
+  if (ev === 'pointerup' && Math.hypot(e.clientX - wDrag.x0, e.clientY - wDrag.y0) < 8) {
+    const hit = world.pick(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2); if (hit) openDevice(hit);
+  }
+  wDrag = null;
+});
 addEventListener('keydown', (e) => { if (world?.state.mode && !screen.open && world.key(e, true)) e.preventDefault(); });
 addEventListener('keyup', (e) => { if (world?.state.mode) world.key(e, false); });
 addEventListener('blur', () => { if (world) { world.input.keys.clear(); world.key({ code: 'KeyW' }, false); } });
@@ -551,11 +577,17 @@ for (const [id, v] of [['#w-up', 1], ['#w-down', -1]]) {
 
 // walking up to the desk offers the computer (the tablet on a phone)
 const DESK = [-0.2, 3.2];   // Blender floor position in front of the monitor
+let aimed = null;
+document.addEventListener('pointerlockchange', () => { document.body.classList.toggle('locked', document.pointerLockElement === canvas); });
+const AIM_LABEL = { pc: 'Click to use the computer', laptop: 'Click to open the laptop', tablet: 'Click to open the tablet' };
 function worldNearby() {
+  aimed = document.pointerLockElement === canvas ? world.pick(0, 0) : null;
+  document.body.classList.toggle('aiming', !!aimed);
   const near = world.state.mode === 'walk' && Math.hypot(world.state.pos.x - DESK[0], world.state.pos.y - DESK[1]) < 1.7;
-  if (near !== !wUse.hidden) { wUse.hidden = !near; wUse.textContent = phone ? 'Use the tablet' : 'Use the computer'; }
+  const label = aimed ? AIM_LABEL[aimed] : near ? (phone ? 'Use the tablet' : 'Use the computer') : '';
+  if (wUse.textContent !== label || wUse.hidden === !!label) { wUse.hidden = !label; wUse.textContent = label; }
 }
-wUse.onclick = () => { if (document.pointerLockElement) document.exitPointerLock(); openDevice(primary); };
+wUse.onclick = () => { if (document.pointerLockElement) document.exitPointerLock(); openDevice(aimed || primary); };
 addEventListener('keydown', (e) => { if (e.key === 'Enter' && !wUse.hidden && !screen.open && world?.state.mode === 'walk') { e.preventDefault(); wUse.click(); } });
 if (params.get('view') === 'walk' || params.get('view') === 'fly') setView(params.get('view'));
-if (params.has('debug')) window.__world = () => world;
+if (params.has('debug')) { window.__world = () => world; window.__wAnimals = () => wAnimals; }

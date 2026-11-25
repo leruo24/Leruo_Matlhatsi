@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { VERT, FRAG, spriteHeading, toThree, NavGrid } from './dogs.js';
+import { VERT, FRAG, spriteHeading, toThree, VIEW, NavGrid } from './dogs.js';
 
 /**
  * Free-range hens around the coop behind the office (about 11 m out, in view of the back window). Like the cows they are
@@ -64,12 +64,12 @@ export function createChickens({ scene, camera, onChange = () => {} }) {
     if (h.moved > 0.001) h.phase = (h.phase + h.moved / (m.stride / 0.65)) % 1;
     else h.idle = (h.idle + dt * (reduced ? 0 : 0.5)) % 1;
     const col = h.moved > 0.001 ? Math.floor(h.phase * m.walk) % m.walk : m.walk + (Math.floor(h.idle * m.idle) % m.idle);
-    const row = spriteHeading(h.x, h.y, h.heading, m.headings);
+    const row = spriteHeading(h.x - VIEW.x, h.y - VIEW.y, h.heading, m.headings);
     mesh.material.uniforms.uCell.value.set(col / m.cols, 1 - (row + 1) / m.rows, 1 / m.cols, 1 / m.rows);
     const gz = state.nav.groundAt(h.x, h.y);
-    toThree(h.x, h.y, gz, mesh.position); mesh.lookAt(0, 0, 0); mesh.translateY((m.groundY - 0.5) * m.size);
-    const len = Math.hypot(h.x, h.y);
-    toThree(h.x - h.x / len * 0.3, h.y - h.y / len * 0.3, gz + 0.2, _v).project(camera);
+    toThree(h.x, h.y, gz, mesh.position); mesh.lookAt(VIEW.target); mesh.translateY((m.groundY - 0.5) * m.size);
+    const ox = h.x - VIEW.x, oy = h.y - VIEW.y, len = Math.hypot(ox, oy) || 1;
+    toThree(h.x - ox / len * 0.3, h.y - oy / len * 0.3, gz + 0.2, _v); _v.y += VIEW.lift; _v.project(camera);
     mesh.material.uniforms.uDepth.value = Math.min(1, Math.max(0, _v.z * 0.5 + 0.5));
     mesh.material.uniforms.uTint.value = state.k;
     mesh.visible = true;

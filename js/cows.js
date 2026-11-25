@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { VERT, FRAG, spriteHeading, toThree } from './dogs.js';
+import { VERT, FRAG, spriteHeading, toThree, VIEW } from './dogs.js';
 
 /**
  * Cows grazing in their pen across the farm (about 65 m out). Like the dogs they are Blender sprite
@@ -76,12 +76,12 @@ export function createCows({ scene, camera, onChange = () => {} }) {
     if (c.moved > 0.001) c.phase = (c.phase + c.moved / (m.stride / 0.65)) % 1;
     else c.idle = (c.idle + dt * (reduced ? 0 : 0.18)) % 1;
     const col = c.moved > 0.001 ? Math.floor(c.phase * m.walk) % m.walk : m.walk + (Math.floor(c.idle * m.idle) % m.idle);
-    const row = spriteHeading(c.x, c.y, c.heading, m.headings);
+    const row = spriteHeading(c.x - VIEW.x, c.y - VIEW.y, c.heading, m.headings);
     mesh.material.uniforms.uCell.value.set(col / m.cols, 1 - (row + 1) / m.rows, 1 / m.cols, 1 / m.rows);
     const gz = penHeight(state.pen, c.x, c.y);
-    toThree(c.x, c.y, gz, mesh.position); mesh.lookAt(0, 0, 0); mesh.translateY((m.groundY - 0.5) * m.size);
-    const len = Math.hypot(c.x, c.y);
-    toThree(c.x - c.x / len * 1.2, c.y - c.y / len * 1.2, gz + 0.8, _v).project(camera);
+    toThree(c.x, c.y, gz, mesh.position); mesh.lookAt(VIEW.target); mesh.translateY((m.groundY - 0.5) * m.size);
+    const ox = c.x - VIEW.x, oy = c.y - VIEW.y, len = Math.hypot(ox, oy) || 1;
+    toThree(c.x - ox / len * 1.2, c.y - oy / len * 1.2, gz + 0.8, _v); _v.y += VIEW.lift; _v.project(camera);
     mesh.material.uniforms.uDepth.value = Math.min(1, Math.max(0, _v.z * 0.5 + 0.5));
     mesh.material.uniforms.uTint.value = state.k;
     mesh.visible = true;
