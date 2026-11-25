@@ -158,3 +158,10 @@ header#top .top-actions { order: 1; }
   .vr-hands { inset: auto; left: 50%; top: 50%; width: 175vw; height: auto; max-width: none; object-fit: fill; translate: -50% -24%;
     -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); }
 }
+
+/* the tablet on the desk, opened full height over the workshop */
+#tablet-layer { position: fixed; inset: 0; z-index: 21; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: rgba(7, 19, 15, .85); opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+#tablet-layer.on { opacity: 1; pointer-events: auto; }
+#tablet-layer iframe { width: min(100vw, calc((100dvh - 70px) * .625)); height: calc(100dvh - 70px); border: 0; border-radius: 18px; background: #111; box-shadow: 0 25px 100px #0008; }
+#tablet-back { font: 500 15px system-ui, sans-serif; color: #f0f1e9; background: #17271de8; border: 1px solid #88927c80; border-radius: 10px; padding: 10px 16px; cursor: pointer; }
+@media (max-width: 650px) { #tablet-layer { gap: 0; justify-content: flex-start; } #tablet-layer iframe { width: 100vw; height: calc(100dvh - 52px); border-radius: 0; } #tablet-back { margin: 6px 0; } }

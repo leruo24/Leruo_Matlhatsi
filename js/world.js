@@ -28,6 +28,7 @@ const F = 1000, CX = 835, YH = 367, HC = 1.3;
 
 const HOTSPOTS = {
   monitor: { label: "Use the computer", x: 995, y: 470, rx: 160, ry: 100 },
+  tablet: { label: "Open the tablet", x: 1115, y: 594, rx: 50, ry: 46, direct: true },
   dogA: { label: "Say hi", x: 250, y: 600, rx: 55, ry: 95, dog: 0 },
   dogB: { label: "Say hi", x: 262, y: 765, rx: 95, ry: 45, dog: 1 },
   dogC: { label: "Say hi", x: 410, y: 715, rx: 42, ry: 70, dog: 2 },
@@ -584,6 +585,7 @@ function activate(id) {
   sound.start();
   if (mode === "monitor" || mode === "os") return;
   if (HOTSPOTS[id].dog !== undefined) return patDog(HOTSPOTS[id].dog);
+  if (id === "tablet") return openTablet();
   if (mode !== "seated") return takeSeat();   // first you sit down at the desk...
   sitDown();                                    // ...then you jump into the computer
 }
@@ -655,6 +657,23 @@ function standUp() {
 }
 backBtn.onclick = standUp;
 
+// the tablet on the desk: opens the tablet tour (tablet/index.html) over the workshop
+const tabletLayer = $("#tablet-layer"), tabletFrame = $("#tablet-frame");
+function openTablet() {
+  sound.start(); sound.whoosh(); hideHelp(); tooltip.hidden = true; setHover(null);
+  if (!tabletFrame.src) tabletFrame.src = "tablet/index.html";
+  tabletLayer.classList.add("on"); tabletLayer.setAttribute("aria-hidden", "false");
+  setTimeout(() => tabletFrame.focus(), 300);
+}
+function closeTablet() {
+  if (!tabletLayer.classList.contains("on")) return false;
+  tabletLayer.classList.remove("on"); tabletLayer.setAttribute("aria-hidden", "true"); canvas.focus?.();
+  return true;
+}
+$("#tablet-back").onclick = closeTablet;
+tabletLayer.addEventListener("click", (e) => { if (e.target === tabletLayer) closeTablet(); });
+window.addEventListener("message", (e) => { if (e.data?.type === "tablet" && e.data.action === "exit") closeTablet(); });
+
 let lastMove = -1e9;
 canvas.addEventListener("pointermove", (e) => {
   lastMove = performance.now();
@@ -663,7 +682,7 @@ canvas.addEventListener("pointermove", (e) => {
     const id = hitTest(e.clientX, e.clientY);
     if (id !== hoverId) setHover(id);
     if (id) {
-      tooltip.textContent = HOTSPOTS[id].dog !== undefined || mode === "seated" ? HOTSPOTS[id].label : "Take a seat";
+      tooltip.textContent = HOTSPOTS[id].dog !== undefined || HOTSPOTS[id].direct || mode === "seated" ? HOTSPOTS[id].label : "Take a seat";
       tooltip.style.transform = `translate(${e.clientX + 16}px, ${e.clientY + 14}px)`;
       tooltip.hidden = false;
     } else tooltip.hidden = true;
@@ -695,6 +714,7 @@ canvas.addEventListener("click", (e) => {
   hideHelp();
 });
 window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && closeTablet()) return;
   if (e.key === "Escape" && !dronePanel.hidden){closeFlight();droneButton.focus();return;}
   if (e.key === "Escape") { if (!vrDone) return; if (!helpCard.hidden) return hideHelp(); if (mode === "os") standUp(); else if (mode === "seated" || mode === "monitor") backToRoom(); }
 });

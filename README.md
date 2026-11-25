@@ -234,6 +234,9 @@ The old room modules (`js/room.js`, `js/room-seam.js`, `js/room-detail.js` and t
 - **Not in Walk and Fly (yet):** the drone, the birds and fetch. Procedural Blender materials (wood grain, soil noise) become flat colours, so these views look like a clean game, not like the rendered 360 view.
 - Not yet tried on a real phone.
 
+### Photo version: the tablet opens (25 November 2026)
+- On `photo.html` the tablet on the desk is now a hotspot ("Open the tablet"): it opens the same tablet tour as the 3D farm, full height over the workshop. Back to the workshop, a click outside it, or Esc puts it down.
+
 ### Asset sources and licences
 
 - `assets/workshop-3d/`: rendered from the Blender scene in `blender/`. The models and textures in that scene, with their sources and licences, are listed in `blender/README.md`.

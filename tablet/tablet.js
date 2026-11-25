@@ -100,6 +100,8 @@
   };
   $('#recent-list').addEventListener('click', (e) => { const b = e.target.closest('[data-recent]'); if (b) openApp(b.dataset.recent); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Backspace' && !/INPUT|TEXTAREA/.test(e.target.tagName)) { e.preventDefault(); back(); } });
+  // Esc puts the tablet down (the page around it closes it)
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toHost('exit'); });
 
   // ---- unlock: tap the ring, or drag it outward
   const ring = $('#unlock'); let start = null;
