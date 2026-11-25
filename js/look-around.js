@@ -7,6 +7,7 @@ import { createIntro } from './vr-intro.js';
 import { createRenderLoop } from './render-loop.js';
 import { spring, FrameBudget } from './motion.js';
 import { limitYaw, dragYaw, limitPitch, dragPitch, MAX_PITCH } from './yaw.js';
+import { createWorld3D } from './world3d.js';
 
 const $ = (s) => document.querySelector(s);
 const canvas = $('#view'), status = $('#status'), screen = $('#screen'), device = $('#device');
@@ -22,7 +23,7 @@ let ratio = maxRatio, readout = '', paused = false;
 // look state: yaw/pitch are offsets from the home view, which frames the scene like the main experience's photo
 const yaw = { x: 0, v: 0 }, pitch = { x: 0, v: 0 };
 let yawTarget = 0, pitchTarget = 0, drag = null, transition = null, zoom = null;
-let renderer, scene, camera, pano, dogs, cows, chickens, home = { pitch: 0, yaw: 0, fov: 50 };
+let renderer, scene, camera, pano, dogs, cows, chickens, world = null, home = { pitch: 0, yaw: 0, fov: 50 };
 // barks only (the main experience's full soundscape is tuned to the photo): the same CC0 recordings,
 // loaded on the first click, panned to where the dog is; silent while sound is muted
 const sound = {
@@ -67,6 +68,7 @@ function reportPerf(elapsed) {
 function resize() {
   if (!renderer) return;
   renderer.setSize(innerWidth, innerHeight);
+  world?.resize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
   home = homeView(camera.aspect);
   if (!zoom) camera.fov = home.fov;
@@ -89,6 +91,7 @@ function draw(dt, elapsed) {
   if (renderer) {
     const next = budget.sample(elapsed);
     if (Math.abs(next - ratio) > .001) { ratio = next; renderer.setPixelRatio(ratio); renderer.setSize(innerWidth, innerHeight); }
+    if (world?.active) { renderer.info.reset(); world.update(dt); worldNearby(); world.render(); reportPerf(elapsed); return true; }
     if (transition) {
       transition.time += Math.min(elapsed, 0.25);   // real time, so a slow device still finishes in about a second
       const t = reduced.matches ? 1 : Math.min(1, transition.time / .9), e = t * t * (3 - 2 * t);
@@ -187,6 +190,7 @@ function applyTime() {
   const t = currentTime();
   if (pano) { pano.setTime(t); dogs?.setTime(t); cows?.setLight(LIGHT[t].sprite); chickens?.setLight(LIGHT[t].sprite); }
   if (farmSound) farmSound.timeOfDay = t;
+  if (world?.state.loaded) world.setTime(t); else if (world) world.state.time = t;
   chipText();
   document.body.dataset.time = t; wake();
 }
@@ -234,8 +238,9 @@ try {
 }
 
 /* ---- looking around ---- */
-canvas.addEventListener('pointerdown', (e) => { if (transition || zoom) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw: yawTarget, pitch: pitchTarget }; canvas.setPointerCapture(e.pointerId); canvas.focus(); });
+canvas.addEventListener('pointerdown', (e) => { if (transition || zoom || world?.state.mode) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw: yawTarget, pitch: pitchTarget }; canvas.setPointerCapture(e.pointerId); canvas.focus(); });
 canvas.addEventListener('pointermove', (e) => {
+  if (world?.state.mode) return;
   if (drag?.id === e.pointerId) { turn(dragYaw(drag.yaw, e.clientX - drag.x, innerWidth)); tilt(dragPitch(drag.pitch, e.clientY - drag.y, innerHeight)); return; }
   if (!pano || transition || zoom || e.pointerType !== 'mouse') return;
   const hit = hitDevice(e);
@@ -261,6 +266,7 @@ function floorAt(e) {
 const DOG_NAMES = { golden: 'golden dog', retriever: 'retriever', terrier: 'terrier' };
 const dogName = (i) => DOG_NAMES[dogs.names()[i]] || 'dog';
 canvas.addEventListener('pointerup', (e) => {
+  if (world?.state.mode) return;
   if (!drag || transition || zoom || !pano || Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) return;
   const kind = hitDevice(e);
   if (kind?.startsWith('dog:')) { openDogCard(Number(kind.slice(4))); return; }
@@ -278,11 +284,11 @@ function openBenchCard() {
   const c = $('#bench-card'); c.hidden = false; $('#bench-close').focus({ preventScroll: true });
 }
 $('#bench-close').onclick = () => { $('#bench-card').hidden = true; };
-canvas.addEventListener('dblclick', (e) => { const p = floorAt(e); if (p && throwBall(p)) e.preventDefault(); });
+canvas.addEventListener('dblclick', (e) => { if (world?.state.mode) return; const p = floorAt(e); if (p && throwBall(p)) e.preventDefault(); });
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(ev, () => { drag = null; });
 addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { if (!$('#bench-card').hidden) $('#bench-card').hidden = true; else if (!dogCard.hidden) closeDogCard(); else if (!dogPanel.hidden) closeDogPanel(); else if (!helpCard.hidden) toggleHelp(false); }
-  if (!$('#drone-panel').hidden || !dogPanel.hidden || transition || screen.open || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  if (world?.state.mode || !$('#drone-panel').hidden || !dogPanel.hidden || transition || screen.open || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
   const k = { ArrowLeft: () => turn(yawTarget + .15), ArrowRight: () => turn(yawTarget - .15), ArrowUp: () => tilt(pitchTarget + .15), ArrowDown: () => tilt(pitchTarget - .15), Home: centre, b: () => throwBall(), B: () => throwBall() }[e.key];
   if (k) { e.preventDefault(); k(); }
 });
@@ -305,7 +311,7 @@ function openDevice(kind) {
   const dev = DEVICES[kind] || DEVICES.pc;
   closeDogCard(); closeDogPanel();
   const show = () => { device.title = dev.title; screen.dataset.kind = kind; device.src = dev.src; screen.showModal(); loop.stop(); };
-  if (!pano || !pano.focus[kind]) { show(); return; }
+  if (!pano || !pano.focus[kind] || world?.state.mode) { show(); return; }
   // a camera looks down -Z: Matrix4.lookAt builds that orientation (Object3D.lookAt would face away)
   const f = pano.focus[kind], aim = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(f.position, f.point, camera.up));
   zoom = kind;
@@ -322,7 +328,7 @@ addEventListener('message', (e) => { if (e.data?.type === 'tablet' && e.data.act
 $('#exit').onclick = () => screen.close();
 screen.addEventListener('close', () => {
   device.src = 'about:blank';
-  if (!pano) { wake(); return; }
+  if (!pano || world?.state.mode) { wake(); return; }
   rotateTo(lookRotation(yaw.x, pitch.x), home.fov, () => { zoom = null; });
 });
 
@@ -467,3 +473,89 @@ addEventListener('resize', resize);
 reduced.addEventListener?.('change', wake);
 document.addEventListener('visibilitychange', () => { if (document.hidden) loop.stop(); else wake(); });
 wake();
+
+
+/* ---- Walk and Fly: the farm as a real-time 3D model (js/world3d.js), loaded the first time either is chosen ---- */
+const wUI = $('#w-ui'), wHint = $('#w-hint'), wLoad = $('#w-load'), wUse = $('#w-use');
+const HINTS = {
+  walk: coarse ? 'Left stick to walk · drag to look · walk up to the desk to use the computer' : 'Click to look with the mouse · WASD or arrows to walk · Shift to run · Esc frees the mouse',
+  fly: coarse ? 'Left stick to fly · drag to look · arrows on the right to climb and dive' : 'Click to look with the mouse · WASD to fly · Space up, Q down · Shift for speed',
+};
+let viewMode = 'hd';
+async function setView(mode) {
+  if (mode === viewMode && (mode === 'hd' || world?.active)) return;
+  if (!renderer) { say('Walking and flying need WebGL, which this browser has switched off.'); return; }
+  document.querySelectorAll('.modes button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+  viewMode = mode;
+  if (mode === 'hd') {
+    world?.exit(); if (document.pointerLockElement) document.exitPointerLock();
+    document.body.classList.remove('world', 'flying'); wUI.hidden = true; wUse.hidden = true;
+    resize(); wake(); say('Back to the 360 view.'); return;
+  }
+  closeDogCard(); closeDogPanel(); $('#bench-card').hidden = true;
+  if (!world) { world = createWorld3D({ renderer, onChange: wake }); world.state.time = currentTime(); }
+  wUI.hidden = false;
+  if (!world.state.loaded) {
+    wLoad.hidden = false; wHint.hidden = true;
+    try {
+      await world.load((f) => { $('#w-load b').textContent = Math.round(f * 100) + '%'; $('#w-load i').style.width = (f * 100) + '%'; });
+    } catch (err) {
+      console.warn('3D farm failed to load', err); wLoad.hidden = true; say('The 3D farm could not load. Staying in the 360 view.'); setView('hd'); return;
+    }
+    wLoad.hidden = true;
+    if (viewMode !== mode) return;   // switched again while it loaded
+  }
+  world.resize(innerWidth, innerHeight);
+  world.enter(mode, { yaw: home.yaw + yaw.x });
+  document.body.classList.add('world'); document.body.classList.toggle('flying', mode === 'fly');
+  wHint.hidden = false; wHint.textContent = HINTS[mode];
+  say(mode === 'walk' ? 'Walking: the office and the yard are yours.' : 'Flying: up, up and away.');
+  canvas.focus({ preventScroll: true }); wake();
+}
+document.querySelectorAll('.modes button').forEach((b) => { b.onclick = () => setView(b.dataset.mode); });
+
+// looking: pointer lock with a mouse (click the view), dragging with touch
+canvas.addEventListener('pointerdown', (e) => {
+  if (!world?.state.mode) return;
+  if (e.pointerType === 'mouse') { if (!document.pointerLockElement) canvas.requestPointerLock?.(); return; }
+  wDrag = { id: e.pointerId, x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId);
+});
+let wDrag = null;
+canvas.addEventListener('pointermove', (e) => {
+  if (!world?.state.mode) return;
+  if (document.pointerLockElement === canvas) { world.look(e.movementX * 0.0022, e.movementY * 0.0022); return; }
+  if (wDrag?.id === e.pointerId) { world.look((e.clientX - wDrag.x) * 0.005, (e.clientY - wDrag.y) * 0.005); wDrag.x = e.clientX; wDrag.y = e.clientY; }
+});
+for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, (e) => { if (wDrag?.id === e.pointerId) wDrag = null; });
+addEventListener('keydown', (e) => { if (world?.state.mode && !screen.open && world.key(e, true)) e.preventDefault(); });
+addEventListener('keyup', (e) => { if (world?.state.mode) world.key(e, false); });
+addEventListener('blur', () => { if (world) { world.input.keys.clear(); world.key({ code: 'KeyW' }, false); } });
+
+// touch: a stick for moving, and climb / dive buttons when flying
+const wStick = $('#w-stick'), wThumb = wStick.querySelector('span');
+let wStickId = null;
+function moveWStick(e) {
+  const r = wStick.getBoundingClientRect(), R = r.width / 2;
+  let x = (e.clientX - r.left - R) / R, y = (e.clientY - r.top - R) / R; const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
+  wThumb.style.transform = `translate(${x * R * 0.6}px, ${y * R * 0.6}px)`;
+  world.input.move.set(x, -y); world.input.run = l > 0.92; wake();
+}
+wStick.addEventListener('pointerdown', (e) => { wStickId = e.pointerId; wStick.setPointerCapture(e.pointerId); moveWStick(e); });
+wStick.addEventListener('pointermove', (e) => { if (wStickId === e.pointerId) moveWStick(e); });
+for (const ev of ['pointerup', 'pointercancel']) wStick.addEventListener(ev, () => { wStickId = null; wThumb.style.transform = ''; world?.input.move.set(0, 0); if (world) world.input.run = false; });
+for (const [id, v] of [['#w-up', 1], ['#w-down', -1]]) {
+  const b = $(id);
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); world.input.lift = v; wake(); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => { if (world) world.input.lift = 0; });
+}
+
+// walking up to the desk offers the computer (the tablet on a phone)
+const DESK = [-0.2, 3.2];   // Blender floor position in front of the monitor
+function worldNearby() {
+  const near = world.state.mode === 'walk' && Math.hypot(world.state.pos.x - DESK[0], world.state.pos.y - DESK[1]) < 1.7;
+  if (near !== !wUse.hidden) { wUse.hidden = !near; wUse.textContent = phone ? 'Use the tablet' : 'Use the computer'; }
+}
+wUse.onclick = () => { if (document.pointerLockElement) document.exitPointerLock(); openDevice(primary); };
+addEventListener('keydown', (e) => { if (e.key === 'Enter' && !wUse.hidden && !screen.open && world?.state.mode === 'walk') { e.preventDefault(); wUse.click(); } });
+if (params.get('view') === 'walk' || params.get('view') === 'fly') setView(params.get('view'));
+if (params.has('debug')) window.__world = () => world;

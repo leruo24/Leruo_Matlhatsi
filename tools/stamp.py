@@ -4,7 +4,7 @@ for up to 10 minutes). Run before committing:  python3 tools/stamp.py"""
 import re, subprocess, time, pathlib
 root = pathlib.Path(__file__).resolve().parent.parent
 ver = time.strftime("%Y%m%d%H%M")
-pages = ["index.html", "look-around.html", "os/index.html", "tablet/index.html", "404.html"]
+pages = ["index.html", "photo.html", "os/index.html", "tablet/index.html", "404.html"]
 pat = re.compile(r'((?:src|href)=")((?!https?:|//|data:|#)[^"?]+\.(?:js|css))(?:\?v=\w+)?(")')
 for p in pages:
     f = root / p

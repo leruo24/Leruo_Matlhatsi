@@ -119,3 +119,25 @@ body.vr header,body.vr footer,body.vr .help-btn,body.vr .toast{opacity:0!importa
 .sound-btn[aria-pressed="false"] .snd-on{display:none}
 .sound-btn[aria-pressed="false"] .snd-off{display:block}
 @media(max-width:650px){.sound-btn{right:66px}}
+
+/* ---- view modes: 360 view, Walk, Fly (js/world3d.js) ---- */
+.modes{display:inline-flex;margin-left:10px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:rgba(18,26,22,.72);backdrop-filter:blur(8px);padding:3px;gap:2px;vertical-align:middle}
+.modes button{border:0;min-height:0;background:transparent;color:#f3f1ea;font:600 13px/1 system-ui,sans-serif;padding:8px 13px;border-radius:999px;cursor:pointer}
+.modes button[aria-pressed="true"]{background:#e8f0dc;color:#13201a}
+.modes button:focus-visible{outline:2px solid #e8f0dc;outline-offset:2px}
+.photo-link{font-size:13px;opacity:.8}
+body.world .dock,body.world .direction-pad,body.world #pc,body.world #bench-card,body.world #dog-card,body.world #dog-panel,body.world #drone-panel,body.world #readout{display:none!important}
+#w-ui{position:fixed;inset:0;pointer-events:none;z-index:3}
+#w-hint{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);margin:0;padding:10px 16px;border-radius:999px;background:rgba(14,20,17,.78);color:#f3f1ea;font:500 14px system-ui,sans-serif;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#w-load{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(320px,80vw);padding:18px 20px;border-radius:16px;background:rgba(14,20,17,.86);color:#f3f1ea;font:500 15px system-ui,sans-serif;text-align:center}
+#w-load p{margin:0 0 12px}#w-load span{display:block;height:6px;border-radius:3px;background:rgba(255,255,255,.18);overflow:hidden}#w-load i{display:block;height:100%;width:0;background:#e8f0dc;transition:width .2s}
+#w-use{position:fixed;right:24px;bottom:24px;pointer-events:auto}
+#w-stick,.w-lift{display:none}
+body.touch.world #w-stick{display:block;position:fixed;left:22px;bottom:34px;width:120px;height:120px;border-radius:50%;background:rgba(14,20,17,.45);border:1px solid rgba(255,255,255,.3);pointer-events:auto;touch-action:none}
+#w-stick span{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(232,240,220,.85)}
+body.touch.world.flying .w-lift{display:flex;flex-direction:column;gap:12px;position:fixed;right:22px;bottom:110px;pointer-events:auto}
+.w-lift button{width:58px;height:58px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(14,20,17,.6);color:#f3f1ea;display:grid;place-items:center;touch-action:none}
+body.touch.world #w-hint{bottom:auto;top:118px;font-size:12px}
+body.world #view{cursor:crosshair}
+@media(max-width:650px){.modes{margin:8px 0 0;display:flex;width:max-content}.modes button{padding:7px 11px;font-size:12px}}
+@media(max-width:650px){header{flex-wrap:wrap;row-gap:4px}}

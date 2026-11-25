@@ -223,6 +223,16 @@ The old room modules (`js/room.js`, `js/room-seam.js`, `js/room-detail.js` and t
 - On Leruo's laptop (AMD Radeon integrated graphics, 2x screen, Chrome) the room ran at about 114 fps, but loading hitches had pushed the resolution down to 1.1x; the fallback now judges the mean frame time over 3-second windows, skips single frames over 100 ms, steps down only under about 35 fps and back up over 50 fps.
 - The panorama is still 8192 px around; on a large high-DPI screen it is magnified about 2x, so it cannot be pin-sharp without a bigger render.
 
+### Walk and Fly views; the 3D farm is the home page (25 November 2026)
+- **Home page.** `index.html` is now the 3D farm. The earlier photo workshop moved to `photo.html` (linked as "Photo version" at the bottom left), and `look-around.html` forwards to the home page so old links keep working.
+- **Three views**, switched with the 360 view / Walk / Fly buttons at the top:
+  - *360 view* is the rendered panorama, as before (dogs, cows, hens, drone, fetch, the computer and tablet).
+  - *Walk* is first person at eye height through the office and out into the yard. The dogs' walk map (`assets/workshop-3d/nav.json`) keeps you out of walls and furniture. Mouse look with pointer lock (click the view; Esc frees the mouse), WASD or arrows, Shift to run; on touch, a stick on the left and drag to look. Walking up to the desk offers "Use the computer" (or the tablet on a phone).
+  - *Fly* is superhero flight over the whole farm: move where you look, Space up, Q down, Shift for speed, the view widens as you speed up. Switching from Walk takes off from where you stand; switching back lands you at the nearest walkable spot.
+- **The model** is `assets/world/farm.glb` (11.4 MB), exported from `blender/workshop.blend` by `blender/export_web.py` and compressed with glTF-Transform (meshopt geometry, WebP textures at up to 1024 px). About 700,000 triangles and 200 draw calls. It loads only when Walk or Fly is first chosen, with a progress bar. It is lit live (sun, sky light, sky from three.js's Sky, the office lamps from sunset to sunrise) for the same time of day as the 360 view.
+- **Not in Walk and Fly (yet):** the dogs, cows, hens and the drone (they live in the 360 view), and the live screens on the monitor and tablet. Procedural Blender materials (wood grain, soil noise) become flat colours, so these views look like a clean game, not like the rendered 360 view.
+- Not yet tried on a real phone.
+
 ### Asset sources and licences
 
 - `assets/workshop-3d/`: rendered from the Blender scene in `blender/`. The models and textures in that scene, with their sources and licences, are listed in `blender/README.md`.

@@ -121,3 +121,16 @@ Done:
 - the vehicles, dogs and cows
 
 At the time, the dogs read as plush, the ground and grass were flat, the Land Cruiser was a box model, the back half of the room was empty and the exterior was dull.
+
+## Web model for Walk and Fly
+
+```
+python export_web.py /tmp/farm_raw.glb
+npx @gltf-transform/cli optimize /tmp/farm_raw.glb ../assets/world/farm.glb \
+  --compress meshopt --texture-compress webp --texture-size 1024 --simplify-error 0.0008 --palette false
+```
+`export_web.py` leaves out the dogs, cows, hair curves, lights and cameras; decimates meshes by distance from the
+office (the terrain and mountains are left whole); lowers the terrain under the office floor; replaces procedural
+colours with one colour each (with hand-set colours for the crops, mountains and pond); and shrinks images to 1024 px.
+The bpy build here has no Draco library, so compression is done by glTF-Transform (meshopt, decoded in the page by
+`vendor/three/addons/libs/meshopt_decoder.module.js`).

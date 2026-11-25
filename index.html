@@ -1,92 +1,70 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Leruo Matlhatsi · Personal Portfolio</title>
-  <meta name="description" content="Step into Leruo Matlhatsi's workshop: software, IoT and business projects. Look around, then sit down at the computer." />
-  <meta property="og:title" content="Leruo Matlhatsi · Personal Portfolio" />
-  <meta property="og:description" content="A living, photoreal workshop portfolio. Look around, then sit down at the computer." />
-  <meta property="og:image" content="assets/workshop.jpg" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f5c43'/%3E%3Cpath d='M16 6c-5 4-7 9-5 14 1 3 3 5 5 6 2-1 4-3 5-6 2-5 0-10-5-14z' fill='%239be37d'/%3E%3C/svg%3E" />
-  <link rel="preload" as="image" href="assets/intro-office-clean.webp" />
-  <link rel="preload" as="image" href="assets/workshop.jpg" crossorigin="anonymous" />
-  <link rel="stylesheet" href="css/world.css?v=202611242137" />
-  <script type="importmap">
-    { "imports": { "three": "./vendor/three/three.module.min.js" } }
-  </script>
-<link rel="stylesheet" href="css/drone-remote.css?v=202611242137"></head>
-<body>
-  <canvas id="world" aria-label="Leruo's workshop at golden hour: a desk with a computer and a games console, an ESP32 workbench, a whiteboard and caps on the wall, a longboard, three dogs, a 4x4, two sports cars in the garage, a pond, a farmhouse and the Johannesburg skyline in the distance."></canvas>
-  <div id="tooltip" hidden></div>
-
-  <!-- loader -->
-  <div id="loader">
-    <div class="ld-mark">lm<span>.</span></div>
-    <div class="ld-bar"><i id="ld-fill"></i></div>
-    <div class="ld-text" id="ld-text">Opening the workshop…</div>
-  </div>
-
-  <!-- header + intro -->
-  <header id="top">
-    <div class="brand">LERUO MATLHATSI<small>SOFTWARE · IoT · BUSINESS ANALYSIS</small></div>
-    <div class="top-actions">
-      <a href="look-around.html" class="pill" title="An early 3D version of the workshop, still in production">3D preview</a>
-      <button id="drone-btn" class="pill" aria-expanded="false" aria-controls="drone-panel" hidden>Fly drone</button>
-      <button id="pause-btn" class="pill" aria-pressed="false">Pause scenery</button>
-      <button id="sound-btn" class="pill" aria-pressed="true">Sound on</button>
-      <button id="cv-btn" class="pill">Open CV ↗</button>
-    </div>
-  </header>
-  <!-- the intro: an ordinary office, a VR headset, and then my world -->
-  <section id="vr" aria-label="Intro">
-    <div class="vr-gate" id="vr-gate">
-      <div class="vg-mark">lm<span>.</span></div>
-      <button id="vr-enter" class="vr-btn">Click to enter</button>
-      <p>Best with sound on <svg class="snd-ico" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style="vertical-align:-2px"><path d="M3 9.5h4l5-4v13l-5-4H3z" fill="currentColor"/><path d="M15 9a4 4 0 010 6M17.5 6.5a7.5 7.5 0 010 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></p>
-    </div>
-    <canvas class="vr-shot vr-office" role="img" aria-label="A busy black-and-white office with a VR headset on the desk."></canvas>
-    <img class="vr-shot vr-hands" src="assets/intro-headset.jpg" alt="" aria-hidden="true" />
-    <div class="vr-black"></div>
-    <div class="vr-lens" aria-hidden="true"></div>
-    <div class="vr-ui">
-      <h1 id="vr-title">Step into my ideal world</h1>
-      <button id="vr-go" class="vr-btn">Put on headset</button>
-    </div>
-    <p class="vr-welcome" aria-live="polite">Welcome to my world</p>
-    <div class="vr-ctrl">
-      <button id="vr-mute" class="vr-link" aria-pressed="true">Sound on</button>
-      <button id="vr-skip" class="vr-link">Skip intro →</button>
-    </div>
-  </section>
-  <div id="hint">Move your mouse to look around · click the computer to take a seat · ? for help</div>
-  <button id="help-btn" aria-label="How this website works" title="How this website works">?</button>
-
-  <section id="drone-panel" aria-label="Drone controls" hidden>
-    <div class="drone-heading"><strong>SKY / REMOTE</strong><button id="drone-close" aria-label="Close drone controls">×</button></div>
-    <p>Fly over the farm. The drone stays in the distant sky. Resume scenery if flight is paused.</p>
-    <div class="remote-sticks">
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f5c43'/%3E%3Cpath d='M16 6c-5 4-7 9-5 14 1 3 3 5 5 6 2-1 4-3 5-6 2-5 0-10-5-14z' fill='%239be37d'/%3E%3C/svg%3E" /><meta name="viewport" content="width=device-width,initial-scale=1"><title>Leruo Matlhatsi · Personal Portfolio</title>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}</script>
+<link rel="stylesheet" href="css/room.css?v=202611251107"><link rel="stylesheet" href="css/drone-remote.css?v=202611251107"></head><body>
+<section id="vr" aria-label="Intro">
+<div class="vr-gate"><div class="vg-mark">lm<span>.</span></div><button id="vr-enter" class="vr-btn">Click to enter</button><p>Best with sound on</p></div>
+<canvas class="vr-shot vr-office" role="img" aria-label="A busy black-and-white office with a VR headset on the desk."></canvas>
+<img class="vr-shot vr-hands" src="assets/intro-headset.jpg" alt="" aria-hidden="true" />
+<div class="vr-black"></div><div class="vr-lens" aria-hidden="true"></div>
+<div class="vr-ui"><h1>Step into my ideal world</h1><button id="vr-go" class="vr-btn">Put on headset</button></div>
+<p class="vr-welcome" aria-live="polite">Welcome to my world</p>
+<div class="vr-ctrl"><button id="vr-mute" class="vr-link" aria-pressed="true">Sound on</button><button id="vr-skip" class="vr-link">Skip intro →</button></div>
+</section>
+<canvas id="view" tabindex="0" aria-label="Three-dimensional workshop. Drag in any direction or use all four arrow keys. Home centres the view."></canvas>
+<header><p class="eyebrow">3D look around</p><button id="time-chip" class="time-chip" title="Matches the time where you are">Your time</button><div class="modes" role="group" aria-label="View"><button data-mode="hd" aria-pressed="true" title="The sharp rendered 360 view">360 view</button><button data-mode="walk" aria-pressed="false" title="Walk around the office and yard">Walk</button><button data-mode="fly" aria-pressed="false" title="Fly over the farm like a superhero">Fly</button></div></header>
+<div id="w-ui" hidden><p id="w-hint" aria-live="polite"></p><div id="w-load" hidden><p>Loading the 3D farm <b>0%</b></p><span><i></i></span></div><button id="w-use" class="primary" hidden>Use the computer</button><div id="w-stick" aria-hidden="true"><span></span></div><div class="w-lift"><button id="w-up" aria-label="Fly up"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button id="w-down" aria-label="Fly down"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div></div>
+<button id="sound-btn" class="help-btn sound-btn" aria-pressed="true" aria-label="Mute sound (M)" title="Mute sound (M)"><svg class="snd-on" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 9.5h4l5-4v13l-5-4H3z" fill="currentColor"/><path d="M15 9a4 4 0 010 6M17.5 6.5a7.5 7.5 0 010 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><svg class="snd-off" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 9.5h4l5-4v13l-5-4H3z" fill="currentColor"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+<button id="help-btn" class="help-btn" aria-expanded="false" aria-controls="help" aria-label="How it works">?</button>
+<p id="status" role="status" class="toast">Opening the workshop…</p>
+<footer><a class="back-home photo-link" href="photo.html" title="The earlier photo version of the workshop">Photo version</a><div class="direction-pad" aria-label="Look controls"><button id="up" aria-label="Look up">↑</button><button id="left" aria-label="Look left">←</button><button id="centre" aria-label="Centre view">◎</button><button id="right" aria-label="Look right">→</button><button id="down" aria-label="Look down">↓</button></div>
+<nav class="dock" aria-label="Things to do">
+<button id="dog-btn" aria-expanded="false" aria-controls="dog-panel" hidden><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="9" r="1.8"/><circle cx="12" cy="6.5" r="1.8"/><circle cx="17" cy="9" r="1.8"/><path d="M12 12c-3 0-5.5 3-5.5 5.2 0 1.6 1.4 2.3 2.8 2l2.7-.7 2.7.7c1.4.3 2.8-.4 2.8-2C17.5 15 15 12 12 12z"/></svg><span class="label">Walk a dog</span></button>
+<button id="ball" hidden title="Throw a ball for the dogs (B). Double-click the floor to throw it there."><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M5.5 7.5c3 1.5 3.6 6.5 1 10M18.5 7.5c-3 1.5-3.6 6.5-1 10"/></svg><span class="label">Throw ball</span></button>
+<button id="drone-btn" aria-expanded="false" aria-controls="drone-panel" hidden><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="6" r="2.5"/><circle cx="18.5" cy="6" r="2.5"/><circle cx="5.5" cy="18" r="2.5"/><circle cx="18.5" cy="18" r="2.5"/><path d="M8 8l2.5 2.5M16 8l-2.5 2.5M8 16l2.5-2.5M16 16l-2.5-2.5"/><rect x="10" y="10" width="4" height="4" rx="1"/></svg><span class="label">Fly drone</span></button>
+<button id="pause" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6v12M15 6v12"/></svg><span class="label">Pause</span></button>
+</nav>
+<button id="pc" class="primary">Enter computer</button><span id="readout"></span></footer>
+<div id="dog-card" class="dog-card" role="dialog" aria-label="Dog" hidden><div class="dog-card-head"><strong id="dog-card-name">Dog</strong><button id="dog-card-close" aria-label="Close">×</button></div><div class="dog-card-actions"><button id="dog-call">Call over</button><button id="dog-walk" class="primary">Walk this dog</button></div></div>
+<div id="bench-card" class="dog-card bench-card" role="dialog" aria-label="The ESP32 bench" hidden><div class="dog-card-head"><strong>The ESP32 bench</strong><button id="bench-close" aria-label="Close">×</button></div>
+<p>An ESP32 DevKit on a breadboard with a DHT22 and an OLED, a second board in a printed case wired to soil probes in a seedling tray, and a relay driving a little pump. The same kind of kit as the per-zone soil, climate and pump nodes in my AgroFlow project, reporting over MQTT.</p></div>
+<section id="dog-panel" class="side-panel" aria-label="Walk a dog" hidden>
+<div class="drone-heading"><strong>DOGS / WALK</strong><button id="dog-close" aria-label="Close dog controls">×</button></div>
+<div class="dog-choice" role="group" aria-label="Which dog"><button data-dog="0" aria-pressed="true">Golden</button><button data-dog="1" aria-pressed="false">Retriever</button><button data-dog="2" aria-pressed="false">Terrier</button></div>
+<div class="remote-sticks single"><div><button class="remote-stick" id="dog-stick" aria-label="Walk stick. Up walks away from you, down toward you, left and right across. Arrow keys or W A S D also work."><span class="stick-cross">+</span><span class="stick-thumb"></span></button><span class="stick-label">WALK / RUN</span></div></div>
+<p id="dog-status" role="status">Drag the stick, or use the arrow keys / WASD.</p>
+<div class="drone-actions"><button id="dog-bark">Bark</button><button id="dog-throw">Throw ball</button><button id="dog-drop">Drop ball</button></div>
+<p class="hint">Push further to run. Walk it to the ball to pick it up. Space barks · Esc lets it go.</p>
+</section>
+<section id="help" class="side-panel help" aria-label="How it works" hidden>
+<div class="drone-heading"><strong>HOW IT WORKS</strong><button id="help-close" aria-label="Close help">×</button></div>
+<dl>
+<dt>Three views</dt><dd>360 view is the sharp rendered room. Walk lets you walk the office and the yard (WASD or the stick); Fly lets you soar over the whole farm (Space up, Q down).</dd>
+<dt>Look around</dt><dd>Drag, or use the arrow keys and the pad. Home re-centres.</dd>
+<dt>The computer</dt><dd>Select the monitor or the laptop on the desk to sit down at LeruOS.</dd>
+<dt>The tablet</dt><dd>On a phone, Open tablet (or tap the old tablet on the desk) for a tablet-sized tour.</dd>
+<dt>The dogs</dt><dd>Select a dog to call it over or walk it. Walk a dog gives you a stick (or WASD) to steer it anywhere it can go.</dd>
+<dt>Fetch</dt><dd>Throw ball, B, or double-click the floor. The first dog there brings it back.</dd>
+<dt>The drone</dt><dd>Fly drone: fly it all round the workshop; the view follows.</dd>
+<dt>Out on the farm</dt><dd>The cows graze in their pen right outside the left window, hens peck around the coop behind the office, and birds wheel overhead.</dd>
+<dt>The bench</dt><dd>Select the ESP32 bench (right of the desk) for what's on it.</dd>
+<dt>Sound</dt><dd>The speaker button at the top right, or M, mutes and unmutes at any time.</dd>
+<dt>Time of day</dt><dd>The farm shows sunrise, afternoon, sunset or night to match your clock. The chip at the top tries the others.</dd>
+</dl>
+</section>
+<section id="drone-panel" class="side-panel" aria-label="Drone controls" hidden>
+<div class="drone-heading"><strong>SKY / REMOTE</strong><button id="drone-close" aria-label="Close drone controls">×</button></div>
+<p>Fly it anywhere around the workshop. The view turns to follow it.</p>
+<div class="remote-sticks">
 <div><button class="remote-stick" id="flight-stick" aria-label="Flight stick. Use arrow keys or W A S D to move across the sky." aria-describedby="remote-help"><span class="stick-cross">+</span><span class="stick-thumb"></span></button><span class="stick-label">POSITION / ALTITUDE</span></div>
 <div class="remote-link" aria-hidden="true"><span>●</span><small>LINK</small></div>
 <div><button class="remote-stick" id="bank-stick" aria-label="Bank stick. Use Q and E to bank the drone." aria-describedby="remote-help"><span class="stick-cross">↔</span><span class="stick-thumb"></span></button><span class="stick-label">BANK</span></div>
 </div><p id="remote-help">Drag the sticks. Arrow keys / WASD fly · Q / E bank. Release to hover. Esc closes.</p>
 <div hidden aria-hidden="true"><label>Left / right<input id="drone-x" type="range" min="760" max="1420" value="1035" step="1"></label>
-    <label>Altitude<input id="drone-y" type="range" min="120" max="215" value="162" step="1"></label>
-    <label>Rotate / bank<input id="drone-angle" type="range" min="-45" max="45" value="0" step="1"></label>
-    </div><div class="drone-actions"><button id="drone-reset">Centre drone</button><button id="drone-auto" aria-pressed="false">Resume autopilot</button></div>
-    <p id="drone-status" role="status">Manual flight · release the sticks to hover.</p>
-  </section>
-  <!-- info card -->
-  <aside id="card" hidden aria-live="polite"></aside>
-
-  <!-- the computer (full screen once you sit down) -->
-  <div id="os-layer" aria-hidden="true">
-    <iframe id="os-frame" title="Leruo's computer" src="os/index.html?embedded=1&crt=0"></iframe>
-  </div>
-  <button id="back-btn" hidden>← Back to the workshop</button>
-
-  <noscript><p style="padding:2rem;font-family:sans-serif">This portfolio needs JavaScript. <a href="os/index.html">Open the simple version</a>.</p></noscript>
-  <script src="os/content.js?v=202611242137"></script>
-  <script type="module" src="js/boot.js?v=202611242137"></script>
-<script type="module" src="js/drone-remote.js?v=202611242137"></script></body>
-</html>
+<label>Altitude<input id="drone-y" type="range" min="120" max="215" value="162" step="1"></label>
+<label>Rotate / bank<input id="drone-angle" type="range" min="-45" max="45" value="0" step="1"></label>
+</div><div class="drone-actions"><button id="drone-reset">Centre drone</button><button id="drone-auto" aria-pressed="false">Resume autopilot</button></div>
+<p id="drone-status" role="status">Manual flight · release the sticks to hover.</p>
+</section>
+<dialog id="screen"><button id="exit">Back to look-around</button><iframe title="Portfolio device" id="device"></iframe></dialog>
+<script type="module" src="js/look-around.js?v=202611251107"></script><script type="module" src="js/drone-remote.js?v=202611251107"></script></body></html>
